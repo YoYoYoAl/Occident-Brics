@@ -1,0 +1,41 @@
+:root {
+  --fond: #0f1419; --panneau: #172029; --bord: #2a3742; --texte: #e6edf3; --doux: #8b9aa7;
+  --accent: #d9a441; --pays-hors: #56616b; --mer: #2b5878;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html { height: 100%; }
+body { margin: 0; background: var(--fond); color: var(--texte); height: 100%; display: flex; flex-direction: column; }
+.barre { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 16px; background: var(--panneau); border-bottom: 1px solid var(--bord); }
+.titre { font-weight: 700; letter-spacing: .02em; }
+.version { color: var(--doux); font-weight: 400; font-size: .85em; }
+.date strong { color: var(--accent); font-size: 1.1em; }
+.date span { color: var(--doux); margin-left: 6px; }
+.controles { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+button, select, .bouton { background: #22303b; color: var(--texte); border: 1px solid var(--bord); border-radius: 6px; padding: 5px 10px; font: inherit; font-size: .9em; cursor: pointer; }
+button:hover, .bouton:hover { border-color: var(--accent); }
+button:disabled { opacity: .4; cursor: default; }
+main { flex: 1; display: flex; min-height: 0; }
+.carte { flex: 1; min-width: 0; background: var(--mer); }
+.carte svg { width: 100%; height: 100%; display: block; }
+.carte path { stroke: #1c3a52; stroke-width: .5; }
+.carte path.jeu { cursor: pointer; }
+.carte path.jeu:hover { stroke: var(--texte); stroke-width: 1; }
+.carte path.choisi { stroke: var(--accent); stroke-width: 1.6; }
+.fiche { width: 360px; max-width: 45vw; overflow-y: auto; padding: 16px; background: var(--panneau); border-left: 1px solid var(--bord); }
+.fiche h2 { margin: 0 0 4px; }
+.fiche h3 { margin: 18px 0 6px; font-size: .95em; color: var(--accent); }
+.fiche table { width: 100%; border-collapse: collapse; font-size: .88em; }
+.fiche td { padding: 3px 0; border-bottom: 1px solid var(--bord); vertical-align: top; }
+.fiche td.v { text-align: right; white-space: nowrap; padding-left: 8px; }
+.aide, .note { color: var(--doux); font-size: .85em; }
+.attente { display: flex; flex-wrap: wrap; gap: 4px; }
+.attente span { font-size: .78em; padding: 2px 6px; border: 1px dashed var(--bord); border-radius: 10px; color: var(--doux); }
+.message { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #22303b; border: 1px solid var(--accent); padding: 8px 14px; border-radius: 6px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.message.visible { opacity: 1; }
+@media (max-width: 760px) {
+  main { flex-direction: column; }
+  .fiche { width: auto; max-width: none; border-left: 0; border-top: 1px solid var(--bord); max-height: 45vh; }
+  .controles { margin-left: 0; }
+}
