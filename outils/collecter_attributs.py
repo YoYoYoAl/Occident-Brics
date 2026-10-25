@@ -1,0 +1,352 @@
+"""Collecte les données réelles de l'an 2000 pour les 30 attributs des 50 pays (v0.2).
+
+Usage : python3 -I outils/collecter_attributs.py <dossier_cache> > src/data/attributs2000.json
+Dépendance : openpyxl (lecture du fichier SIPRI). Les téléchargements sont gardés dans <dossier_cache>.
+
+Règles :
+- aucune valeur n'est inventée : sans donnée dans la source, la valeur est null ;
+- chaque indicateur cite sa source (SOURCES) et son code dans cette source ;
+- année visée 2000 ; à défaut, l'année la plus proche dans [2000 - FENETRE, 2000 + FENETRE]
+  (à égalité, la plus ancienne), et l'année réelle est enregistrée avec la valeur ;
+- les pages Wikipedia sont lues à une révision fixe (oldid), pour que la collecte soit reproductible.
+"""
+import csv, json, os, re, sys, time, urllib.error, urllib.request
+
+ANNEE, FENETRE = 2000, 3
+UA = "OccidentBricsDataBot/0.2 (https://github.com/YoYoYoAl/Occident-Brics)"
+
+PAYS = {  # ISO3 -> (nom français, nom anglais utilisé par Wikipedia)
+    "USA": ("États-Unis", "United States"), "CHN": ("Chine", "China"), "RUS": ("Russie", "Russia"),
+    "IND": ("Inde", "India"), "BRA": ("Brésil", "Brazil"), "ZAF": ("Afrique du Sud", "South Africa"),
+    "JPN": ("Japon", "Japan"), "DEU": ("Allemagne", "Germany"), "GBR": ("Royaume-Uni", "United Kingdom"),
+    "FRA": ("France", "France"), "ITA": ("Italie", "Italy"), "CAN": ("Canada", "Canada"),
+    "AUS": ("Australie", "Australia"), "KOR": ("Corée du Sud", "South Korea"), "MEX": ("Mexique", "Mexico"),
+    "IDN": ("Indonésie", "Indonesia"), "TUR": ("Turquie", "Turkey"), "SAU": ("Arabie saoudite", "Saudi Arabia"),
+    "ARG": ("Argentine", "Argentina"), "POL": ("Pologne", "Poland"), "UKR": ("Ukraine", "Ukraine"),
+    "ESP": ("Espagne", "Spain"), "NLD": ("Pays-Bas", "Kingdom of the Netherlands"), "NOR": ("Norvège", "Norway"),
+    "IRN": ("Iran", "Iran"), "IRQ": ("Irak", "Iraq"), "ISR": ("Israël", "Israel"), "EGY": ("Égypte", "Egypt"),
+    "ARE": ("Émirats arabes unis", "United Arab Emirates"), "QAT": ("Qatar", "Qatar"),
+    "PAK": ("Pakistan", "Pakistan"), "VNM": ("Viêt Nam", "Vietnam"), "THA": ("Thaïlande", "Thailand"),
+    "MYS": ("Malaisie", "Malaysia"), "SGP": ("Singapour", "Singapore"), "PHL": ("Philippines", "Philippines"),
+    "PRK": ("Corée du Nord", "North Korea"), "TWN": ("Taïwan", "Republic of China"),
+    "KAZ": ("Kazakhstan", "Kazakhstan"), "BGD": ("Bangladesh", "Bangladesh"), "NGA": ("Nigeria", "Nigeria"),
+    "ETH": ("Éthiopie", "Ethiopia"), "KEN": ("Kenya", "Kenya"), "DZA": ("Algérie", "Algeria"),
+    "COD": ("RD Congo", "Congo, Democratic Republic of the"), "VEN": ("Venezuela", "Venezuela"),
+    "COL": ("Colombie", "Colombia"), "CHL": ("Chili", "Chile"), "CUB": ("Cuba", "Cuba"), "PAN": ("Panama", "Panama"),
+}
+
+SOURCES = {
+    "bm_wdi": {"nom": "Banque mondiale, World Development Indicators", "url": "https://api.worldbank.org/v2/ (source 2)"},
+    "bm_wgi": {"nom": "Banque mondiale, Worldwide Governance Indicators (estimations de -2,5 à +2,5)", "url": "https://api.worldbank.org/v2/ (source 3)"},
+    "sipri": {"nom": "SIPRI Military Expenditure Database 1949-2025 (v1.2)", "url": "https://www.sipri.org/sites/default/files/SIPRI-Milex-data-1949-2025_v1.2.xlsx"},
+    "owid_co2": {"nom": "Our World in Data, co2-data (Global Carbon Budget ; PIB : Maddison Project Database)", "url": "https://github.com/owid/co2-data"},
+    "owid_energie": {"nom": "Our World in Data, energy-data (Energy Institute Statistical Review, EIA)", "url": "https://github.com/owid/energy-data"},
+    "owid_grapher": {"nom": "Our World in Data, graphiques (source d'origine indiquée par indicateur)", "url": "https://ourworldindata.org/grapher/"},
+    "wikipedia": {"nom": "Wikipedia (en), révision fixe indiquée par indicateur", "url": "https://en.wikipedia.org/"},
+}
+
+# Indicateurs : clé -> (nom, unité, famille, attribut, source, code, note)
+# famille et attribut reprennent src/data/attributs.ts ; "Ensemble" = indicateur de toute la famille.
+I = {}
+def ind(cle, nom, unite, famille, attribut, source, code, note=None):
+    I[cle] = {"nom": nom, "unite": unite, "famille": famille, "attribut": attribut, "source": source, "code": code, **({"note": note} if note else {})}
+
+# Matières premières
+ind("prodPetrole", "Production de pétrole", "TWh", "ressources", "Énergie", "owid_energie", "oil_production")
+ind("prodGaz", "Production de gaz", "TWh", "ressources", "Énergie", "owid_energie", "gas_production")
+ind("prodCharbon", "Production de charbon", "TWh", "ressources", "Énergie", "owid_energie", "coal_production")
+ind("importsEnergie", "Importations nettes d'énergie", "% de la consommation (négatif = exportateur)", "ressources", "Énergie", "bm_wdi", "EG.IMP.CONS.ZS")
+ind("prodCereales", "Production de céréales", "t", "ressources", "Agriculture", "bm_wdi", "AG.PRD.CREL.MT")
+ind("terresArables", "Terres arables", "ha", "ressources", "Agriculture", "bm_wdi", "AG.LND.ARBL.HA")
+ind("agriPib", "Agriculture, sylviculture et pêche", "% du PIB", "ressources", "Agriculture", "bm_wdi", "NV.AGR.TOTL.ZS")
+ind("rentesMinerales", "Rentes minérales (métaux et minerais)", "% du PIB", "ressources", "Métaux", "bm_wdi", "NY.GDP.MINR.RT.ZS")
+ind("exportsMetaux", "Exportations de minerais et métaux", "% des exportations de marchandises", "ressources", "Métaux", "bm_wdi", "TX.VAL.MMTL.ZS.UN")
+ind("rentesNaturelles", "Rentes totales des ressources naturelles", "% du PIB", "ressources", "Autres", "bm_wdi", "NY.GDP.TOTL.RT.ZS")
+ind("rentesForestieres", "Rentes forestières", "% du PIB", "ressources", "Autres", "bm_wdi", "NY.GDP.FRST.RT.ZS")
+# Population
+ind("population", "Population", "habitants", "population", "Effectif", "bm_wdi", "SP.POP.TOTL")
+ind("popActive", "Population de 15 à 64 ans", "% de la population", "population", "Effectif", "bm_wdi", "SP.POP.1564.TO.ZS")
+ind("anneesEtudes", "Durée moyenne d'études (15-64 ans)", "années", "population", "Éducation", "owid_grapher", "mean-years-of-schooling-long-run", "Lee et Lee (2016), Barro et Lee (2015), via Our World in Data")
+ind("scolSecondaire", "Taux brut de scolarisation dans le secondaire", "%", "population", "Éducation", "bm_wdi", "SE.SEC.ENRR")
+ind("scolSuperieur", "Taux brut de scolarisation dans le supérieur", "%", "population", "Éducation", "bm_wdi", "SE.TER.ENRR")
+ind("esperanceVie", "Espérance de vie à la naissance", "années", "population", "Santé", "bm_wdi", "SP.DYN.LE00.IN")
+ind("mortaliteInfantile", "Mortalité infantile", "pour 1 000 naissances", "population", "Santé", "bm_wdi", "SP.DYN.IMRT.IN")
+ind("depensesSante", "Dépenses de santé", "% du PIB", "population", "Santé", "bm_wdi", "SH.XPD.CHEX.GD.ZS")
+ind("fecondite", "Indice de fécondité", "enfants par femme", "population", "Fertilité", "bm_wdi", "SP.DYN.TFRT.IN")
+ind("touristes", "Arrivées de touristes internationaux", "arrivées", "population", "Culture", "bm_wdi", "ST.INT.ARVL", "Indicateur indirect du rayonnement culturel")
+ind("urbanisation", "Population urbaine", "% de la population", "population", "Urbanisation", "bm_wdi", "SP.URB.TOTL.IN.ZS")
+ind("gini", "Indice de Gini", "0 à 100", "population", "Inégalités", "bm_wdi", "SI.POV.GINI")
+ind("part10Haut", "Part du revenu des 10 % les plus aisés", "%", "population", "Inégalités", "bm_wdi", "SI.DST.10TH.10")
+# Économie
+ind("commercePib", "Commerce extérieur (exportations + importations)", "% du PIB", "economie", "Commerce", "bm_wdi", "NE.TRD.GNFS.ZS")
+ind("exportations", "Exportations de biens et services", "$ courants", "economie", "Commerce", "bm_wdi", "NE.EXP.GNFS.CD")
+ind("efficaciteGouv", "Efficacité des pouvoirs publics", "-2,5 à +2,5", "economie", "Gestion", "bm_wgi", "GOV_WGI_GE.EST")
+ind("qualiteRegl", "Qualité de la réglementation", "-2,5 à +2,5", "economie", "Gestion", "bm_wgi", "GOV_WGI_RQ.EST")
+ind("controleCorruption", "Maîtrise de la corruption", "-2,5 à +2,5", "economie", "Gestion", "bm_wgi", "GOV_WGI_CC.EST")
+ind("etatDroit", "État de droit", "-2,5 à +2,5", "economie", "Gestion", "bm_wgi", "GOV_WGI_RL.EST")
+ind("stabilitePol", "Stabilité politique et absence de violence", "-2,5 à +2,5", "economie", "Gestion", "bm_wgi", "GOV_WGI_PV.EST")
+ind("voixResponsabilite", "Voix citoyenne et responsabilité", "-2,5 à +2,5", "economie", "Gestion", "bm_wgi", "GOV_WGI_VA.EST")
+ind("pibNominal", "PIB", "$ courants", "economie", "Puissance financière", "bm_wdi", "NY.GDP.MKTP.CD")
+ind("pibPpa", "PIB (parité de pouvoir d'achat)", "$ internationaux 2011", "economie", "Puissance financière", "owid_co2", "gdp")
+ind("reserves", "Réserves totales (or compris)", "$ courants", "economie", "Puissance financière", "bm_wdi", "FI.RES.TOTL.CD")
+ind("capitalisation", "Capitalisation boursière des sociétés cotées", "$ courants", "economie", "Puissance financière", "bm_wdi", "CM.MKT.LCAP.CD")
+ind("detteEtat", "Dette de l'administration centrale", "% du PIB", "economie", "Puissance financière", "bm_wdi", "GC.DOD.TOTL.GD.ZS")
+ind("inflation", "Inflation (prix à la consommation)", "% par an", "economie", "Puissance financière", "bm_wdi", "FP.CPI.TOTL.ZG")
+ind("accesElectricite", "Accès à l'électricité", "% de la population", "economie", "Infrastructure", "bm_wdi", "EG.ELC.ACCS.ZS")
+ind("electriciteParHab", "Consommation d'électricité par habitant", "kWh", "economie", "Infrastructure", "bm_wdi", "EG.USE.ELEC.KH.PC")
+ind("internet", "Utilisateurs d'Internet", "% de la population", "economie", "Infrastructure", "bm_wdi", "IT.NET.USER.ZS")
+ind("telFixe", "Lignes téléphoniques fixes", "pour 100 habitants", "economie", "Infrastructure", "bm_wdi", "IT.MLT.MAIN.P2")
+ind("mobile", "Abonnements au téléphone mobile", "pour 100 habitants", "economie", "Infrastructure", "bm_wdi", "IT.CEL.SETS.P2")
+ind("rail", "Réseau ferré", "km", "economie", "Infrastructure", "bm_wdi", "IS.RRS.TOTL.KM")
+# Puissance militaire
+ind("depensesMil", "Dépenses militaires", "millions de $ constants 2024", "militaire", "Ensemble", "sipri", "Constant (2024) US$")
+ind("depensesMilPib", "Dépenses militaires", "% du PIB", "militaire", "Ensemble", "sipri", "Share of GDP", "Part publiée par le SIPRI (0,031) convertie en pourcentage (3,1)")
+ind("effectifsArmes", "Effectifs des forces armées", "personnes", "militaire", "Terrestre", "bm_wdi", "MS.MIL.TOTL.P1", "IISS Military Balance via la Banque mondiale ; toutes armées confondues (indicateur indirect de la force terrestre)")
+ind("objetsSpatiaux", "Objets lancés dans l'espace (cumul)", "objets", "militaire", "Spatial", "owid_grapher", "cumulative-number-of-objects-launched-into-outer-space", "Registre de l'ONU (UNOOSA) via Our World in Data ; 0 si le pays n'apparaît pas")
+ind("lanceurOrbital", "Lancement orbital autonome réussi avant 2001", "1 = oui, 0 = non", "militaire", "Spatial", "wikipedia", "Timeline_of_first_orbital_launches_by_country@1380598983", "Russie : premier lancement de l'Union soviétique (1957), dont elle a repris le programme ; Ukraine : 1991 selon la page")
+ind("partieCiac", "Partie à la Convention sur les armes chimiques fin 2000", "1 = oui, 0 = non", "militaire", "Chimique", "wikipedia", "List_of_parties_to_the_Chemical_Weapons_Convention@1357135945", "Date d'entrée en vigueur pour l'État ; Taïwan non éligible (null)")
+ind("stockChimique", "Stock d'armes chimiques déclaré à l'OIAC (déclaration initiale)", "t", "militaire", "Chimique", "wikipedia", "Chemical_Weapons_Convention@1379189860", "Pour les parties fin 2000 ; 0 = partie sans stock déclaré (Japon : armes abandonnées en Chine, hors stock) ; Corée du Sud : borne basse de la fourchette 3 000-3 500 t ; null = non partie (stock inconnu)")
+ind("ogives", "Ogives nucléaires du stock militaire", "ogives", "militaire", "Nucléaire", "owid_grapher", "nuclear-warhead-stockpiles", "Federation of American Scientists via Our World in Data ; 0 si le pays n'est pas dans la liste des puissances nucléaires de la FAS")
+# Environnement
+ind("superficie", "Superficie terrestre", "km²", "environnement", "Terre", "bm_wdi", "AG.LND.TOTL.K2")
+ind("terresAgricoles", "Terres agricoles", "% de la superficie", "environnement", "Terre", "bm_wdi", "AG.LND.AGRI.ZS")
+ind("eauRenouvelable", "Ressources internes renouvelables en eau douce par habitant", "m³", "environnement", "Eau", "bm_wdi", "ER.H2O.INTR.PC")
+ind("prelevementsEau", "Prélèvements d'eau douce", "% des ressources internes", "environnement", "Eau", "bm_wdi", "ER.H2O.FWTL.ZS")
+ind("eauPotable", "Accès au moins à un service d'eau potable de base", "% de la population", "environnement", "Eau", "bm_wdi", "SH.H2O.BASW.ZS")
+ind("pm25", "Exposition moyenne aux particules fines PM2,5", "µg/m³", "environnement", "Air", "bm_wdi", "EN.ATM.PM25.MC.M3")
+ind("co2", "Émissions de CO2", "Mt", "environnement", "Climat", "owid_co2", "co2")
+ind("co2ParHab", "CO2 par habitant", "t", "environnement", "Climat", "owid_co2", "co2_per_capita")
+ind("gesTotal", "Émissions de gaz à effet de serre", "t équivalent CO2", "environnement", "Climat", "owid_grapher", "total-ghg-emissions", "Jones et al. (2025), via Our World in Data")
+ind("listeRouge", "Indice Liste rouge (0 = toutes espèces éteintes, 1 = aucune menacée)", "0 à 1", "environnement", "Biodiversité", "owid_grapher", "red-list-index", "UICN et BirdLife, indicateur ODD 15.5.1, via Our World in Data")
+ind("sitesProteges", "Sites clés de biodiversité terrestre couverts par des aires protégées", "%", "environnement", "Biodiversité", "owid_grapher", "protected-terrestrial-biodiversity-sites", "Indicateur ODD 15.1.2, via Our World in Data")
+ind("forets", "Surface forestière", "% de la superficie", "environnement", "Forêt", "bm_wdi", "AG.LND.FRST.ZS")
+ind("foretsKm2", "Surface forestière", "km²", "environnement", "Forêt", "bm_wdi", "AG.LND.FRST.K2")
+
+# Compléments quand la source principale n'a pas de valeur (Taïwan, absent de la Banque mondiale) :
+# même donnée d'origine (UN World Population Prospects), via Our World in Data. La valeur garde sa propre source.
+COMPLEMENTS = {
+    "population": ("owid_co2", "population"),
+    "esperanceVie": ("owid_grapher", "life-expectancy"),
+    "fecondite": ("owid_grapher", "children-per-woman-un"),
+}
+
+# Attributs sans indicateur sourcé : raison affichée dans le jeu.
+SANS_SOURCE = {
+    "Terres rares": "Production par pays en 2000 publiée par l'USGS (Mineral Commodity Summaries 2002), site non accessible depuis l'environnement de collecte.",
+    "Religion": "Pas de composition religieuse par pays pour 2000 dans les sources accessibles (Pew : 2010 ; World Religion Database : payante).",
+    "Naval": "Inventaires de flottes 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
+    "Aérien": "Inventaires aériens 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
+    "Cyber": "Aucun indice de capacité cyber avant 2015 (Global Cybersecurity Index de l'UIT).",
+}
+
+
+# Indicateurs pour lesquels 0 est impossible : un 0 publié est un manque de donnée, pas une mesure
+# (la Banque mondiale publie 0 pour les comptes nationaux du Venezuela de 1997 à 2003). Il devient null.
+ZERO_IMPOSSIBLE = {"exportations", "commercePib", "agriPib", "pibNominal", "population", "superficie", "esperanceVie", "fecondite"}
+
+
+def telecharger(url, cache, nom):
+    chemin = os.path.join(cache, nom)
+    if not os.path.exists(chemin):
+        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        for essai in range(5):  # Wikipedia limite le débit (erreur 429) : nouvel essai après une pause croissante
+            try:
+                with urllib.request.urlopen(req, timeout=180) as r:
+                    contenu = r.read()
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or essai == 4:
+                    raise
+                time.sleep(15 * 2 ** essai)
+        with open(chemin + ".part", "wb") as f:
+            f.write(contenu)
+        os.replace(chemin + ".part", chemin)
+    return chemin
+
+
+def choisir(series):
+    """series : {annee: valeur}. Renvoie {"v", "a"} pour l'année la plus proche de 2000 dans la fenêtre, sinon None."""
+    annees = sorted((abs(a - ANNEE), a) for a, v in series.items() if v is not None and abs(a - ANNEE) <= FENETRE)
+    return {"v": series[annees[0][1]], "a": annees[0][1]} if annees else None
+
+
+def banque_mondiale(code, source, cache):
+    isos = ";".join(i for i in PAYS if i != "TWN")  # Taïwan n'est pas couvert par la Banque mondiale
+    url = (f"https://api.worldbank.org/v2/country/{isos}/indicator/{code}?format=json&per_page=2000"
+           f"&date={ANNEE - FENETRE}:{ANNEE + FENETRE}&source={source}")
+    d = json.load(open(telecharger(url, cache, f"bm_{code}.json"), encoding="utf-8"))
+    series = {}
+    for r in d[1] or []:
+        series.setdefault(r["countryiso3code"], {})[int(r["date"])] = r["value"]
+    return {iso: choisir(series.get(iso, {})) for iso in PAYS}
+
+
+def owid_csv(chemin, colonne, cle_iso="iso_code", cle_annee="year"):
+    series = {}
+    with open(chemin, newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if r[cle_iso] in PAYS and r[colonne] not in ("", None):
+                series.setdefault(r[cle_iso], {})[int(r[cle_annee])] = float(r[colonne])
+    return series
+
+
+def sipri(cache, feuille):
+    import openpyxl
+    wb = openpyxl.load_workbook(telecharger(SOURCES["sipri"]["url"], cache, "sipri.xlsx"), read_only=True, data_only=True)
+    lignes = list(wb[feuille].iter_rows(values_only=True))
+    entete = next(i for i, l in enumerate(lignes) if l and l[0] == "Country")
+    cols = {c: j for j, c in enumerate(lignes[entete]) if isinstance(c, int)}
+    noms = {"United States of America": "USA", "China": "CHN", "Russia": "RUS", "India": "IND", "Brazil": "BRA",
+            "South Africa": "ZAF", "Japan": "JPN", "Germany": "DEU", "United Kingdom": "GBR", "France": "FRA",
+            "Italy": "ITA", "Canada": "CAN", "Australia": "AUS", "Korea, South": "KOR", "Mexico": "MEX",
+            "Indonesia": "IDN", "Türkiye": "TUR", "Saudi Arabia": "SAU", "Argentina": "ARG", "Poland": "POL",
+            "Ukraine": "UKR", "Spain": "ESP", "Netherlands": "NLD", "Norway": "NOR", "Iran": "IRN", "Iraq": "IRQ",
+            "Israel": "ISR", "Egypt": "EGY", "United Arab Emirates": "ARE", "Qatar": "QAT", "Pakistan": "PAK",
+            "Viet Nam": "VNM", "Thailand": "THA", "Malaysia": "MYS", "Singapore": "SGP", "Philippines": "PHL",
+            "Korea, North": "PRK", "Taiwan": "TWN", "Kazakhstan": "KAZ", "Bangladesh": "BGD", "Nigeria": "NGA",
+            "Ethiopia": "ETH", "Kenya": "KEN", "Algeria": "DZA", "Congo, DR": "COD", "Venezuela": "VEN",
+            "Colombia": "COL", "Chile": "CHL", "Cuba": "CUB", "Panama": "PAN"}
+    series = {}
+    for l in lignes[entete + 1:]:
+        if l and isinstance(l[0], str) and l[0].strip() in noms:
+            iso = noms[l[0].strip()]
+            series[iso] = {a: (float(l[j]) if isinstance(l[j], (int, float)) else None)
+                           for a, j in cols.items() if abs(a - ANNEE) <= FENETRE}
+    manquants = sorted(set(noms.values()) - set(series))
+    if manquants:
+        raise SystemExit(f"SIPRI {feuille} : pays introuvables {manquants}")
+    return {iso: choisir(series.get(iso, {})) for iso in PAYS}
+
+
+def wikitexte(code, cache):
+    titre, rev = code.split("@")
+    url = f"https://en.wikipedia.org/w/index.php?oldid={rev}&action=raw"
+    return open(telecharger(url, cache, f"wp_{rev}.txt"), encoding="utf-8").read()
+
+
+MOIS = {m: i for i, m in enumerate(["January", "February", "March", "April", "May", "June", "July", "August",
+                                     "September", "October", "November", "December"], 1)}
+
+
+def ciac(cache):
+    """partieCiac : 1 si l'entrée en vigueur pour l'État est au plus tard le 31/12/2000."""
+    texte = wikitexte(I["partieCiac"]["code"], cache)
+    parties = {}
+    for bloc in texte.split("\n|-\n"):
+        m = re.search(r"\{\{Flag(?:country)?\|([^}|]+)", bloc)
+        dates = re.findall(r"\{\{Dts\|(\d{4})\|(\w+)\|(\d+)", bloc)
+        if m and dates:
+            a, mo, j = dates[-1]
+            parties[m.group(1).strip()] = (int(a), MOIS[mo], int(j))
+    if len(parties) < 190:
+        raise SystemExit(f"CIAC : {len(parties)} parties lues, page modifiée ?")
+    sortie = {}
+    for iso, (_, en) in PAYS.items():
+        if iso == "TWN":
+            sortie[iso] = None
+        else:
+            sortie[iso] = {"v": 1 if en in parties and parties[en] <= (ANNEE, 12, 31) else 0, "a": ANNEE}
+    return sortie
+
+
+def stock_chimique(cache, partie):
+    texte = wikitexte(I["stockChimique"]["code"], cache)
+    table = texte[texte.index("Declared stockpile"):]
+    table = table[:table.index("\n|}")]
+    stocks = {}
+    for ligne in table.split("\n|-\n"):
+        m = re.search(r"\{\{flagicon\|([^}|]+)\}\}", ligne)
+        cellules = re.sub(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", ligne, flags=re.S).split("||")
+        t = re.match(r"\s*([\d,]+)", cellules[1]) if len(cellules) > 1 else None
+        if m and t:  # cellule 2 = stock déclaré ; fourchette "3,000–3,500" : borne basse
+            stocks[m.group(1).strip()] = float(t.group(1).replace(",", ""))
+    if not {"United States", "Russia", "India", "South Korea"} <= set(stocks):
+        raise SystemExit(f"Stocks chimiques : lecture incomplète {sorted(stocks)}")
+    sortie = {}
+    for iso, (_, en) in PAYS.items():
+        p = partie[iso]
+        if p is None or p["v"] == 0:
+            sortie[iso] = None
+        else:
+            sortie[iso] = {"v": stocks.get(en, 0.0), "a": ANNEE}
+    return sortie, stocks
+
+
+def premier_lancement(cache):
+    texte = wikitexte(I["lanceurOrbital"]["code"], cache)
+    table = texte[texte.index('{| class="wikitable'):]
+    table = table[:table.index("\n|}")]
+    annees = {}
+    for bloc in table.split("\n|-")[1:]:
+        m = re.search(r"\{\{[Ff]lag(?:country|icon)\|([^}|]+)\}\}", bloc)
+        d = [x for x in re.findall(r"\b(\d{1,2}) (\w+) (\d{4})\b", bloc) if x[1] in MOIS]
+        if m and d:  # la date du lancement est la dernière cellule de la ligne
+            annees.setdefault(m.group(1).strip(), int(d[-1][2]))
+    alias = {"Soviet Union": "Russia", "FRA": "France"}
+    par_pays = {}
+    for nom, a in annees.items():
+        par_pays.setdefault(alias.get(nom, nom), a)
+    if par_pays.get("United States") != 1958 or par_pays.get("Russia") != 1957:
+        raise SystemExit(f"Lancements orbitaux : lecture douteuse {par_pays}")
+    return {iso: {"v": 1 if par_pays.get(en, 9999) <= ANNEE else 0, "a": ANNEE} for iso, (_, en) in PAYS.items()}
+
+
+def cumul(series):
+    """Série cumulée publiée seulement les années où elle change : valeur de la dernière année <= 2000, sinon 0."""
+    avant = [a for a in series if a <= ANNEE]
+    return {"v": series[max(avant)] if avant else 0.0, "a": ANNEE}
+
+
+def serie_owid(src, code, co2, energie, cache):
+    if src in ("owid_co2", "owid_energie"):
+        return owid_csv(co2 if src == "owid_co2" else energie, code)
+    url = f"https://ourworldindata.org/grapher/{code}.csv?v=1&csvType=full&useColumnShortNames=true"
+    chemin = telecharger(url, cache, f"owid_{code}.csv")
+    colonne = open(chemin, encoding="utf-8").readline().strip().split(",")[3]
+    return owid_csv(chemin, colonne, cle_iso="code")
+
+
+def main(cache):
+    os.makedirs(cache, exist_ok=True)
+    valeurs = {cle: None for cle in I}
+    co2 = telecharger("https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv", cache, "owid-co2-data.csv")
+    energie = telecharger("https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv", cache, "owid-energy-data.csv")
+    for cle, d in I.items():
+        src, code = d["source"], d["code"]
+        if src in ("bm_wdi", "bm_wgi"):
+            valeurs[cle] = banque_mondiale(code, 2 if src == "bm_wdi" else 3, cache)
+        elif cle == "objetsSpatiaux":  # registre de l'ONU exhaustif : un pays absent n'a lancé aucun objet
+            s = serie_owid(src, code, co2, energie, cache)
+            valeurs[cle] = {iso: cumul(s.get(iso, {})) for iso in PAYS}
+        elif src.startswith("owid"):
+            s = serie_owid(src, code, co2, energie, cache)
+            zero = cle == "ogives"  # liste FAS exhaustive des puissances nucléaires : un pays absent n'a aucune ogive
+            valeurs[cle] = {iso: choisir(s.get(iso, {})) or ({"v": 0.0, "a": ANNEE} if zero else None) for iso in PAYS}
+        elif src == "sipri":
+            valeurs[cle] = sipri(cache, code)
+    valeurs["partieCiac"] = ciac(cache)
+    valeurs["stockChimique"], _ = stock_chimique(cache, valeurs["partieCiac"])
+    for iso, v in valeurs["depensesMilPib"].items():
+        if v:
+            v["v"] = round(v["v"] * 100, 6)
+    for cle in ZERO_IMPOSSIBLE:
+        for iso, v in valeurs[cle].items():
+            if v and v["v"] == 0:
+                print(f"{iso}.{cle} : 0 publié par la source, traité comme donnée manquante", file=sys.stderr)
+                valeurs[cle][iso] = None
+    valeurs["lanceurOrbital"] = premier_lancement(cache)
+    for cle, (src, code) in COMPLEMENTS.items():
+        s = serie_owid(src, code, co2, energie, cache)
+        for iso in PAYS:
+            if valeurs[cle][iso] is None and (v := choisir(s.get(iso, {}))):
+                valeurs[cle][iso] = {**v, "s": src, "c": code}
+    sortie = {
+        "annee": ANNEE, "fenetre": FENETRE, "collecte": "2026-10-25",
+        "sources": SOURCES, "indicateurs": I, "sansSource": SANS_SOURCE,
+        "pays": {iso: {"nom": nom, "valeurs": {cle: valeurs[cle][iso] for cle in I}} for iso, (nom, _) in PAYS.items()},
+    }
+    json.dump(sortie, sys.stdout, ensure_ascii=False, indent=1)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])
