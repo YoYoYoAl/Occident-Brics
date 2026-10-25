@@ -43,11 +43,11 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   };
 }
 
-// Échelle logarithmique bleu nuit -> or, lisible sur fond sombre.
+// Échelle logarithmique bleu clair -> or, lisible sur fond sombre.
 export function couleurLog(v: number, min: number, max: number): string {
-  if (!(v > 0)) return "#3a444d";
+  if (!(v > 0)) return "#7a858f";
   const t = Math.max(0, Math.min(1, (Math.log(v) - Math.log(min)) / (Math.log(max) - Math.log(min))));
-  const a = [50, 95, 150], b = [230, 170, 60];
+  const a = [110, 170, 225], b = [250, 195, 70];
   const c = a.map((x, i) => Math.round(x + (b[i] - x) * t));
   return `rgb(${c.join(",")})`;
 }

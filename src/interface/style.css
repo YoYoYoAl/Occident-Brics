@@ -1,6 +1,6 @@
 :root {
   --fond: #0f1419; --panneau: #172029; --bord: #2a3742; --texte: #e6edf3; --doux: #8b9aa7;
-  --accent: #d9a441; --pays-hors: #232a30; --mer: #0b1a26;
+  --accent: #d9a441; --pays-hors: #56616b; --mer: #2b5878;
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -19,7 +19,7 @@ button:disabled { opacity: .4; cursor: default; }
 main { flex: 1; display: flex; min-height: 0; }
 .carte { flex: 1; min-width: 0; background: var(--mer); }
 .carte svg { width: 100%; height: 100%; display: block; }
-.carte path { stroke: #0b1a26; stroke-width: .4; }
+.carte path { stroke: #1c3a52; stroke-width: .5; }
 .carte path.jeu { cursor: pointer; }
 .carte path.jeu:hover { stroke: var(--texte); stroke-width: 1; }
 .carte path.choisi { stroke: var(--accent); stroke-width: 1.6; }
