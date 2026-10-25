@@ -54,6 +54,9 @@ wgi = {i: sum(val(i, k) for k in ("efficaciteGouv", "qualiteRegl", "controleCorr
 energie = {i: sum(val(i, k) or 0 for k in ("prodPetrole", "prodGaz", "prodCharbon")) for i in PAYS}
 terres_rares = {i: 100 * math.sqrt(val(i, "terresRares") / 73000) for i in PAYS if val(i, "terresRares") is not None}
 
+# Les 17 pays mégadivers (PNUE-WCMC), réduits aux 50 pays du jeu.
+MEGADIVERS = {"AUS", "BRA", "CHN", "COL", "COD", "IND", "IDN", "MYS", "MEX", "PHL", "ZAF", "USA", "VEN"}
+
 FORMULES = {  # attribut -> (famille, définition affichée, scores bruts)
     "Énergie": ("ressources", "Production de pétrole, gaz et charbon (log)", melange((1, norme(energie, log=True, bornes=(1, 4.1))))),
     "Agriculture": ("ressources", "Production de céréales et terres arables (log)",
@@ -101,8 +104,9 @@ FORMULES = {  # attribut -> (famille, définition affichée, scores bruts)
                     (0.2, norme("prelevementsEau", inverse=True, bornes=(0, 100))))),
     "Air": ("environnement", "Qualité de l'air : exposition aux particules fines (log, inversé)", melange((1, norme("pm25", log=True, inverse=True)))),
     "Climat": ("environnement", "Sobriété carbone : émissions de CO2 par habitant (log, inversé)", melange((1, norme("co2ParHab", log=True, inverse=True)))),
-    "Biodiversité": ("environnement", "Indice Liste rouge et sites clés protégés",
-                     melange((0.6, norme("listeRouge")), (0.4, norme("sitesProteges", bornes=(0, 100))))),
+    "Biodiversité": ("environnement", "Richesse (pays mégadivers du PNUE-WCMC), indice Liste rouge et sites clés protégés",
+                     melange((0.4, {i: 1.0 if i in MEGADIVERS else 0.3 for i in PAYS}), (0.35, norme("listeRouge")),
+                             (0.25, norme("sitesProteges", bornes=(0, 100))))),
     "Forêt": ("environnement", "Part de forêt et surface forestière (log)",
               melange((0.6, norme("forets", bornes=(0, 70))), (0.4, norme("foretsKm2", log=True)))),
 }
@@ -111,10 +115,10 @@ FORMULES = {  # attribut -> (famille, définition affichée, scores bruts)
 # ou corrigent un classement que la formule rend irréaliste.
 M = "donnée manquante, estimation"
 AJUSTEMENTS = {
-    "Énergie": {"FRA": (45, "nucléaire non compté dans la formule"), "JPN": (35, "nucléaire non compté"), "KOR": (25, "nucléaire non compté"),
+    "Énergie": {"ISR": (3, "presque aucune production"), "FRA": (45, "nucléaire non compté dans la formule"), "JPN": (35, "nucléaire non compté"), "KOR": (25, "nucléaire non compté"),
                 "TWN": (10, "nucléaire non compté"), "PHL": (10, "géothermie non comptée"), "SGP": (0, "aucune production"),
                 "ETH": (5, "hydroélectricité seulement"), "KEN": (5, "géothermie et hydroélectricité seulement"), "PAN": (5, "hydroélectricité seulement")},
-    "Agriculture": {"TWN": (45, M)},
+    "Agriculture": {"TWN": (45, M), "NLD": (65, "grand exportateur agricole")},
     "Métaux": {"ZAF": (75, "or et platine sous-estimés par les rentes"), "KAZ": (55, "grand producteur de métaux"),
                "COD": (50, "cuivre et cobalt, production réduite par la guerre"), "UKR": (45, M + " (minerai de fer)"),
                "PRK": (25, M + " (fer, magnésite)"), "ISR": (10, M + " (potasse, phosphates)"), "NOR": (10, "quelques mines"),
@@ -125,8 +129,9 @@ AJUSTEMENTS = {
                      "VNM": (5, "production probable selon l'USGS"), "PRK": (5, "production probable selon l'USGS"),
                      "IDN": (3, "production probable selon l'USGS"), "AUS": (5, "réserves, pas de production en 2000"),
                      "BRA": (5, "réserves, pas de production en 2000"), "ZAF": (3, "réserves, pas de production en 2000")},
-    "Autres": {"PRK": (20, M), "TWN": (15, M)},
-    "Éducation": {"SGP": (75, M), "PRK": (55, M)},
+    "Autres": {"PRK": (20, M), "TWN": (15, M), "NOR": (65, "pêche non comptée"), "CHL": (70, "pêche non comptée"),
+               "ETH": (45, "bois de feu surpondéré"), "NGA": (55, "bois de feu surpondéré"), "KEN": (40, "bois de feu surpondéré")},
+    "Éducation": {"SGP": (75, M), "PRK": (55, M), "CUB": (75, "système éducatif réputé, données partielles")},
     "Culture": {"USA": (100, "première puissance culturelle"), "GBR": (88, "rayonnement de l'anglais et des médias"), "JPN": (80, "culture populaire"),
                 "DEU": (78, "rayonnement culturel"), "MEX": (55, "tourisme surpondéré"), "POL": (45, "tourisme surpondéré"),
                 "CHN": (60, "rayonnement encore limité en 2000"), "IND": (60, "cinéma et diaspora"), "KOR": (50, "avant l'essor de la vague coréenne"),
@@ -158,8 +163,11 @@ AJUSTEMENTS = {
                  "EGY": (35, "non partie, capacité présumée"), "IRQ": (30, "reliquats incertains après les inspections"),
                  "IRN": (30, "programme soupçonné en 2000"), "CHN": (15, "capacité industrielle, soupçons"), "THA": (0, M),
                  "TWN": (5, M), "COD": (0, M)},
+    "Cyber": {"RUS": (72, "FAPSI et héritage du KGB, devant la Chine en 2000"), "CHN": (65, "capacités encore en construction en 2000"),
+              "ISR": (68, "unité 8200 de premier plan"), "PRK": (25, "unité naissante en 2000")},
     "Nucléaire": {"PRK": (5, "programme plutonium, pas d'arme"), "IRN": (3, "programme naissant")},
-    "Terre": {"TWN": (25, M)},
+    "Terre": {"TWN": (25, M), "SAU": (50, "pâturages désertiques surpondérés"), "KAZ": (65, "steppe surpondérée"),
+              "AUS": (85, "pâturages arides surpondérés")},
     "Eau": {"TWN": (55, M)},
     "Air": {"TWN": (45, M)},
     "Biodiversité": {"TWN": (40, M), "CUB": (30, "indice Liste rouge sévère pour les espèces endémiques"),
