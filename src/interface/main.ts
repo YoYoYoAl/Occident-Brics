@@ -3,7 +3,7 @@ import { dessinerCarte, couleurLog, couleurAlignement, type Annotation, type Mar
 import { image, imageEvenement, portrait, imageBriefing, imageCarte } from "./images";
 import { organisations, SIGLES } from "../data/organisations";
 import { FLUX, DETROITS } from "../data/flux";
-import { jouer as son, basculerSon, sonActif } from "./sons";
+import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique } from "./sons";
 import { ficheHtml } from "./fiche";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, acheterPA, peutAcheterPA, PRIX_PA,
@@ -65,6 +65,7 @@ const fermer = () => { if (!$("fenetre").hidden) son("fermer", 0.3); $("fenetre"
 const fenetreOuverte = () => !$("fenetre").hidden;
 
 function choisirCamp() {
+  musique("menu");
   const titre = image("ecran_titre");
   ouvrir(`${titre ? `<div class="bandeau titre-jeu" style="background-image:url(${titre})"><h2>Occident vs BRICS</h2><span>2000-2008 · la naissance des blocs</span></div>` : `<h2>Nouvelle partie</h2>`}<p class="note">Première partie ? Le bouton <strong>Règles</strong> (ou la touche ?) explique tout en 2 minutes.</p>
     <p>De 2000 à 2008, 36 trimestres. Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le score compte, pour 5 familles (économie, population, ressources, armée, environnement), la part du monde que contrôle chaque camp ; un décompte a lieu chaque fin d'année.</p>
@@ -122,7 +123,13 @@ function importance(j: EntreeJournal): number {
 const MAX_MONDE = 3;
 
 function rapport(titre: string, debut = journalVu) {
-  if (debut === journalVu) son(etat!.journal.slice(debut).some(j => j.type === "historique") ? "evenement" : "ouvrir", 0.45);
+  if (debut === journalVu) {
+    // bruitage de l'événement le plus marquant (historique d'abord), sinon le son d'ouverture
+    const neufs = etat!.journal.slice(debut).filter(j => j.visiblePour.includes(joueur()));
+    const fort = neufs.find(j => j.type === "historique") ?? neufs.filter(j => j.type === "generique").sort((a, b) => importance(b) - importance(a))[0];
+    if (!jouerEvenement(fort?.famille)) son(fort?.type === "historique" ? "evenement" : "ouvrir", 0.45);
+    musique(cran(etat!) >= 3 ? "tension" : etat!.round % 8 < 4 ? "carte" : "calme");
+  }
   debutRapport = debut; titreRapport = titre;
   const tout = etat!.journal.slice(debut);
   journalVu = etat!.journal.length;
@@ -207,7 +214,8 @@ function proposerBriefing(forcer = false) {
 function finDePartie() {
   const b = bilan(etat!), fin = etat!.journal.filter(j => j.type === "bilan").pop();
   const gagne = (b > 0 && joueur() === "OCC") || (b < 0 && joueur() === "CHN");
-  son(gagne && Math.abs(b) >= SEUIL_EGALITE ? "victoire" : "defaite", 0.6);
+  const victoire = gagne && Math.abs(b) >= SEUIL_EGALITE;
+  son(victoire ? "victoire" : "defaite", 0.6); jouerJingle(victoire); musique(victoire ? "victoire" : "defaite");
   ouvrir(`<h2>${esc(etat!.resultat ?? "")}</h2>
     <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : bilan ${signe(b)} points (positif = bloc USA).</p>
     <p>${esc(fin?.texte ?? "")}</p>
@@ -513,6 +521,10 @@ $("btnPanneau").onclick = () => document.body.classList.toggle("sans-panneau");
 const majBoutonSon = () => { $("btnSon").textContent = sonActif() ? "🔊 Son" : "🔇 Son"; };
 $("btnSon").onclick = () => { basculerSon(); majBoutonSon(); son("clic"); };
 majBoutonSon();
+const majBoutonMusique = () => { $("btnMusique").textContent = musiqueActivee() ? "♪ Musique" : "♪ Muette"; };
+$("btnMusique").onclick = () => { basculerMusique(); majBoutonMusique(); };
+majBoutonMusique();
+document.addEventListener("pointerdown", relancerMusique);
 // petit clic sur les boutons d'interface (les actions de jeu ont leur propre son)
 document.addEventListener("click", ev => { const b = (ev.target as HTMLElement).closest("button"); if (b && !b.disabled && (b.dataset.option || b.dataset.onglet || b.closest(".zoom-boutons"))) son("clic", 0.3); });
 document.addEventListener("keydown", ev => { if (ev.key === "?" && !fenetreOuverte()) aide(); });
@@ -551,7 +563,7 @@ function aide() {
     <p><strong>Historiques</strong> : 53 événements réels datés de 2000 à 2008 ; certains n'ont pas lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles, avec leur ville et leur cause. Les événements mondiaux (récession, pétrole, climat) touchent tous les pays ; un bulletin climatique annuel pèse sur tous, davantage sur les pays exposés.</p>
     <h3>Fin de partie</h3>
     <p>Bilan = moyenne des décomptes annuels (onglet Score). Défaite immédiate en cas de banqueroute (PIB du leader à moins de 80 % de son sommet), d'effondrement démographique, ou pour les deux blocs si le réchauffement atteint 3 °C.</p>
-    <p class="note">Sons : packs Kenney (CC0). Illustrations générées pour le jeu.</p>
+    <p class="note">Sons d'interface : packs Kenney (CC0). Bruitages et musiques : CC0, OpenGameArt et Freesound (musiques de cynicmusic, artisticdude, yd, indieteur, eldritch-grim ; bruitages de joth, qubodup, tinyworlds et autres, liste complète dans musiques/LICENCES.md). Illustrations générées pour le jeu. Boutons 🔊 Son et ♪ Musique pour couper.</p>
     <div class="actions-fenetre"><button id="okAide" class="principal">Compris</button></div>`,
   b => { b.querySelector<HTMLButtonElement>("#okAide")!.onclick = () => { fermer(); if (etat && !etat.journal.length) rapport("Début de partie"); }; });
 }
