@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Occident vs BRICS</title>
+  <link rel="stylesheet" href="/src/interface/style.css">
+</head>
+<body>
+  <header class="barre">
+    <div class="titre">Occident vs BRICS <span class="version">v0.1</span></div>
+    <div class="date"><strong id="date">2000 T1</strong> <span id="ere"></span></div>
+    <div class="controles">
+      <button id="btnLecture" title="Lecture / pause (espace)">▶</button>
+      <button id="btnPas" title="Avancer d'un trimestre">+1 trimestre</button>
+      <select id="vitesse" title="Vitesse">
+        <option value="1500">Vitesse 1</option><option value="700">Vitesse 2</option><option value="250">Vitesse 3</option>
+      </select>
+      <select id="indicateur" title="Couleur de la carte">
+        <option value="population">Carte : population</option>
+        <option value="pib">Carte : PIB 2000</option>
+        <option value="co2ParHab">Carte : CO2 par habitant 2000</option>
+      </select>
+      <button id="btnSauver">Sauver</button>
+      <button id="btnCharger">Charger</button>
+      <button id="btnExporter" title="Télécharger la sauvegarde">Exporter</button>
+      <label class="bouton" title="Charger un fichier de sauvegarde">Importer<input id="fichier" type="file" accept=".json" hidden></label>
+      <button id="btnNouvelle">Nouvelle partie</button>
+    </div>
+  </header>
+  <main>
+    <div id="carte" class="carte" aria-label="Carte du monde"></div>
+    <aside id="fiche" class="fiche"><p class="aide">Clique sur un pays en couleur pour ouvrir sa fiche. Les 50 pays de la v0.1 sont colorés ; les autres sont en gris.</p></aside>
+  </main>
+  <div id="message" class="message" role="status"></div>
+  <script type="module" src="/src/interface/main.ts"></script>
+</body>
+</html>
