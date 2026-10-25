@@ -7,7 +7,7 @@ import { FLUX, DETROITS } from "../data/flux";
 import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique } from "./sons";
 import { ficheHtml } from "./fiche";
 import {
-  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
+  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, KOMI, SEUIL_EGALITE, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
   decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, reagir, peutReagir, REACTIONS, MAX_REACTIONS, fluxActif, lienFlux,
   peutJouerCarte, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
@@ -250,6 +250,7 @@ function panneauMain(): string {
     <p class="note">${c.carteJouee ? "Carte jouée ce trimestre." : "Une carte par trimestre : son événement, ou ses points d'action."} Les cartes ciblées s'appliquent au pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : " (aucun choisi)"}.</p>`;
   const aReagir = e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (j.type === "historique" || campTouche(j) !== null || importance(j) >= 3));
   if (aReagir.length) h += `<details class="a-reagir" ${c.reactions.length < MAX_REACTIONS ? "open" : ""}><summary>Réagir aux événements du trimestre (${c.reactions.length}/${MAX_REACTIONS})</summary><ul class="journal">${aReagir.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
+  h += blocStrategie();
   const ripostes = e.journal.filter(j => j.contestable && j.camp === adversaire(joueur()) && j.round >= e.round - 1 && j.visiblePour.includes(joueur()));
   if (ripostes.length) h += `<details class="a-reagir"><summary>Riposter aux actions de l'adversaire (${ripostes.length})</summary><p class="note">${esc(REACTIONS.riposter.texte)} Compte dans tes ${MAX_REACTIONS} réactions du trimestre.</p><ul class="journal">${ripostes.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
   h += blocDiplomatie();
@@ -297,13 +298,14 @@ function blocActions(iso: string): string {
   const e = etat!, c = e.camps[joueur()];
   const groupes: [string, TypeAction[]][] = [["Influence", ["politique", "economique", "culturelle", "contre", "developpement", "infrastructure"]], ["Militaire", ["militaire", "armes", "exercices"]], ["Opérations secrètes (invisibles pour l'adversaire, sauf si révélées)", ["clandestin", "destabiliser", "espionnage"]]];
   let h = `<h3>Agir sur ${esc(nomPays(iso))} (${nombre(c.pa, 0)} point${c.pa > 1 ? "s" : ""} d'action, budget ${nombre(c.budget, 0)})</h3>
+    ${serieDurable(e, joueur(), iso) ? `<p class="note gain">Investissement durable : ${serieDurable(e, joueur(), iso)} trimestre(s) de suite sur ce pays, effet long terme +${Math.round(100 * DURABLE * serieDurable(e, joueur(), iso))} %.</p>` : `<p class="note">Agir ici plusieurs trimestres de suite renforce l'effet long terme (+${Math.round(100 * DURABLE)} % par trimestre consécutif, jusqu'à +${Math.round(300 * DURABLE)} %).</p>`}
     <p class="note">Sous chaque action : ce qu'elle rapporte tout de suite (2/3 de l'effet), puis le reste étalé sur 4 trimestres, en alignement du pays et en points de puissance pour ton bloc (le score). Une action publique sur cinq a une conséquence cachée, révélée 2 trimestres plus tard : contrecoup ou succès inattendu (±1/3 du gain), une chance sur deux pour chacun.</p>`;
   for (const [titre, types] of groupes) {
     h += `<h4 class="groupe-actions">${titre}</h4><div class="grille-actions">`;
     for (const type of types) {
       const def = ACTIONS[type], err = peutAgir(e, joueur(), type, iso), ap = apercuAction(e, joueur(), type, iso);
       const gainTxt = ap ? `<em class="gain">alignement ${ap.alignement >= 0 ? "+" : "−"}${nombre(Math.abs(ap.alignement), 3)}${ap.alignementDiffere > 0.0005 ? `, puis +${nombre(ap.alignementDiffere, 3)} sur 4 trimestres` : ""} · puissance ${ap.puissance >= 0 ? "+" : "−"}${nombre(Math.abs(ap.puissance), 3)} pt</em>` : "";
-      h += `<button data-agir="${type}" data-iso="${iso}" title="${esc((def.aide ?? AIDES_ACTIONS[type] ?? "") + (err ? ` (${err})` : ""))}" ${err ? "disabled" : ""}>${def.nom}<small>${def.pa} PA${def.budget ? ` · ${def.budget} budget` : ""}</small>${gainTxt}${err ? `<small class="erreur">${esc(err)}</small>` : ""}</button>`;
+      h += `<button data-agir="${type}" data-iso="${iso}" title="${esc((def.aide ?? AIDES_ACTIONS[type] ?? "") + (err ? ` (${err})` : ""))}" ${err ? "disabled" : ""}>${c.priorite && PRIORITES[c.priorite].actions.includes(type) ? `★ ` : ""}${def.nom}<small>${def.pa} PA${def.budget ? ` · ${def.budget} budget` : ""}</small>${gainTxt}${err ? `<small class="erreur">${esc(err)}</small>` : ""}</button>`;
     }
     h += `</div>`;
   }
@@ -320,15 +322,25 @@ function blocCampagnes(): string {
     h += `<button data-campagne="${canal}" ${err ? `disabled title="${esc(err)}"` : ""}>${nom}</button>`;
   return h + `</div>${err ? `<small class="erreur">${esc(err)}</small>` : ""}`;
 }
+// Stratégie de l'année : priorité (+25 % sur une famille d'actions), agenda secret, renseignement.
+function blocStrategie(): string {
+  const e = etat!, c = e.camps[joueur()], errP = peutChoisirPriorite(e, joueur()), ag = progresAgenda(e, joueur()), errR = peutRenseigner(e, joueur());
+  const prio = (Object.keys(PRIORITES) as Priorite[]).map(k => `<button data-priorite="${k}" class="${c.priorite === k ? "actif" : ""}" title="${esc(PRIORITES[k].texte)}" ${errP ? "disabled" : ""}>${c.priorite === k ? "✓ " : ""}${PRIORITES[k].nom}<small>${esc(PRIORITES[k].texte)}</small></button>`).join("");
+  return `<details class="agir" ${errP ? "" : "open"}><summary>Stratégie de l'année${c.priorite ? ` : ${PRIORITES[c.priorite].nom}` : ""}</summary>
+    <p class="note">Priorité : une par an, elle rend 25 % plus efficace une famille d'actions.${errP ? ` ${esc(errP)}` : ""}</p><div class="grille-actions">${prio}</div>
+    ${ag ? `<p><strong>Agenda secret</strong> : ${esc(ag.texte)}. Progrès ${nombre(ag.progres, 1)} sur ${ag.cible}. <span class="note">Révélé à tous en fin d'année ; s'il est atteint : capital politique +${RECOMPENSE_AGENDA.cp}, budget +${RECOMPENSE_AGENDA.budget}.</span></p>` : ""}
+    <div class="grille-actions"><button id="renseigner" ${errR ? `disabled title="${esc(errR)}"` : ""}>Renseignement<small>${RENSEIGNEMENT.pa} PA · ${RENSEIGNEMENT.budget} budget : révèle les opérations secrètes adverses de l'année, sa main et son agenda probable</small></button></div></details>`;
+}
 // Diplomatie bilatérale : une initiative par an ; une offre adverse attend ta réponse jusqu'à la fin du trimestre.
 function blocDiplomatie(): string {
   const e = etat!, pr = e.proposition;
   let h = "";
   if (pr && pr.de !== joueur()) h += `<div class="mode prevision"><strong>Offre de l'adversaire : ${pr.type === "sommet" ? "sommet bilatéral" : "accord commercial"}</strong><small>${esc(DIPLOMATIE[pr.type].texte.replace("S'il accepte", "Si tu acceptes").replace("S'il refuse", "Si tu refuses"))} Sans réponse à la fin du trimestre, l'offre est refusée.</small>
     <div><button data-diplo-reponse="1">Accepter</button><button data-diplo-reponse="0">Refuser</button></div></div>`;
+  const dep = `Dépendance commerciale entre les deux blocs : ${Math.round(100 * dependanceCommerciale(e))} %, des sanctions te coûteraient ${nombre(coutSanctions(e), 1)} de budget.`;
   const boutons = (Object.keys(DIPLOMATIE) as Diplomatie[]).map(t => { const err = peutDiplomatie(e, joueur(), t);
     return `<button data-diplo="${t}" title="${esc(DIPLOMATIE[t].texte + (err ? ` (${err})` : ""))}" ${err ? "disabled" : ""}>${DIPLOMATIE[t].nom}<small>${DIPLOMATIE[t].cp} CP</small></button>`; }).join("");
-  return h + `<details class="agir"><summary>Diplomatie avec l'adversaire</summary><p class="note">Une initiative par an. Sommet et accord demandent son accord ; les sanctions non. ${(Object.keys(DIPLOMATIE) as Diplomatie[]).map(t => `<strong>${DIPLOMATIE[t].nom}</strong> : ${esc(DIPLOMATIE[t].texte)}`).join(" ")}</p><div class="grille-actions">${boutons}</div></details>`;
+  return h + `<details class="agir"><summary>Diplomatie avec l'adversaire</summary><p class="note">Une initiative par an. Sommet et accord demandent son accord ; les sanctions non. ${(Object.keys(DIPLOMATIE) as Diplomatie[]).map(t => `<strong>${DIPLOMATIE[t].nom}</strong> : ${esc(DIPLOMATIE[t].texte)}`).join(" ")} ${dep}</p><div class="grille-actions">${boutons}</div></details>`;
 }
 // Zones stratégiques hors des États : présence de chaque bloc, comptée dans la famille Ressources du score.
 function blocZonesStrategiques(): string {
@@ -355,6 +367,7 @@ function panneauPays(): string {
   const pente = Math.abs(a) < 0.1 ? "neutre" : a > 0 ? (a >= 0.4 ? "allié du bloc USA" : "penche vers le bloc USA") : (a <= -0.4 ? "allié du bloc Chine" : "penche vers le bloc Chine");
   let h = `<h2>${esc(nomPays(iso))}</h2>
     <p class="gros">Alignement ${avance(a, 2, 0.005)} <span class="note">(${pente})</span></p>
+    ${iso !== "USA" && iso !== "CHN" ? `<p class="note">Selon tes ambassadeurs (estimation) : ${estimationMemoire(e, iso, joueur())} envers ton bloc, ${estimationMemoire(e, iso, adversaire(joueur()))} envers l'adversaire.${auBord(e, iso) ? ` <strong>⚖ Au bord de la bascule</strong> (seuil ${avance(auBord(e, iso)!.seuil, 1, 0)}).` : ""}</p>` : ""}
     <table><tr><td>PIB</td><td class="v">${nombre(p.pib / 1e9, 0)} Md USD <span class="note">(int-$ 2011)</span></td></tr>
     <tr><td>Population</td><td class="v">${nombre(p.population / 1e6)} millions</td></tr>
     <tr><td>Stabilité</td><td class="v">${nombre(p.stabilite, 0)} / 100</td></tr></table>`;
@@ -415,6 +428,8 @@ function lierPanneau(zone: HTMLElement) {
   zone.querySelectorAll<HTMLSelectElement>("[data-cible]").forEach(sel => sel.onchange = () => { paysChoisi = sel.value || null; carteMonde.choisir(paysChoisi); afficher(); });
   zone.querySelector<HTMLSelectElement>("#paysAction")?.addEventListener("change", ev => { paysAction = (ev.target as HTMLSelectElement).value; if (paysAction) paysChoisi = paysAction; afficher(); });
   zone.querySelector<HTMLSelectElement>("#zoneCampagne")?.addEventListener("change", ev => { zoneCampagne = (ev.target as HTMLSelectElement).value; afficher(); });
+  zone.querySelectorAll<HTMLButtonElement>("[data-priorite]").forEach(b => b.onclick = () => tenter(() => choisirPriorite(etat!, joueur(), b.dataset.priorite as Priorite)));
+  zone.querySelector<HTMLButtonElement>("#renseigner")?.addEventListener("click", () => tenter(() => renseigner(etat!, joueur())));
   zone.querySelectorAll<HTMLButtonElement>("[data-diplo]").forEach(b => b.onclick = () => tenter(() => diplomatie(etat!, joueur(), b.dataset.diplo as Diplomatie)));
   zone.querySelectorAll<HTMLButtonElement>("[data-diplo-reponse]").forEach(b => b.onclick = () => tenter(() => repondreDiplomatie(etat!, joueur(), b.dataset.diploReponse === "1")));
   zone.querySelectorAll<HTMLButtonElement>("[data-zone-strat]").forEach(b => b.onclick = () => tenter(() => agirZone(etat!, joueur(), b.dataset.zoneStrat!, b.dataset.typeZone as ActionZone)));
@@ -458,6 +473,8 @@ function annotations(): Record<string, Annotation> {
       else if ((j.type === "action" || j.type === "carte") && j.camp === moi) m.push({ symbole: "✓", couleur: coul(moi), titre: `Toi : ${j.titre}` });
     }
     for (const c of e.conflits.filter(c => c.iso === iso)) m.unshift({ symbole: "⚔", couleur: "#b03a2e", titre: `Conflit en cours : ${c.titre}` });
+    const bord = auBord(e, iso);
+    if (bord) m.push({ symbole: "⚖", couleur: bord.vers === "OCC" ? "#4f8be0" : "#dc4b3c", titre: `Au bord de la bascule : un peu d'influence ${bord.vers === "OCC" ? "américaine" : "chinoise"} le ferait passer le seuil ${avance(bord.seuil, 1, 0)}` });
     if (p.stabilite < 30) m.push({ symbole: "↯", couleur: "#9b59b6", titre: `Pays instable (stabilité ${nombre(p.stabilite, 0)})` });
     const vus = new Set<string>(), uniques = m.filter(x => { const k = x.symbole + x.couleur; if (vus.has(k)) return false; vus.add(k); return true; });
     const io = influenceTotale(p, "OCC"), ic = influenceTotale(p, "CHN"), leader = iso === "USA" || iso === "CHN";
@@ -498,7 +515,7 @@ function marqueursHorsJeu(): Record<string, Marqueur[]> {
 }
 function legende(): string {
   const vue = $<HTMLSelectElement>("vue").value;
-  const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:#b03a2e">⚔</i>conflit</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#9b59b6">↯</i>instable</span><span><i style="background:#8a8f98">◈</i>zone stratégique</span></div>`
+  const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:#b03a2e">⚔</i>conflit</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#9b59b6">↯</i>instable</span><span><i style="background:#8a8f98">◈</i>zone stratégique</span><span><i style="background:#6a7f9a">⚖</i>au bord de la bascule</span></div>`
     + (options.influence ? `<div class="note">Chiffres : influence totale <span class="occ-t">bloc USA</span> · <span class="chn-t">bloc Chine</span> (0-100).</div>` : "")
     + (options.categories ? `<div class="note">Pastilles par canal : ${CANAUX_CARTE.map(c => `<span class="leg-canal" style="border-color:${c.couleur}"></span><b style="color:${c.couleur}">${c.lettre}</b> ${c.nom.toLowerCase()}`).join(" · ")} ; remplissage = part <span class="occ-t">bloc USA</span> / <span class="chn-t">bloc Chine</span>.</div>` : "")
     + (options.maritime || options.terrestre || options.aerien ? `<div class="lignes">${options.maritime ? `<span><b class="l-maritime"></b>maritime</span>` : ""}${options.terrestre ? `<span><b class="l-terrestre"></b>terrestre</span>` : ""}${options.aerien ? `<span><b class="l-aerien"></b>aérien</span>` : ""}<span class="note">trait plein = mondial, pointillé = régional, épaisseur = volume ; ≋ détroit ; ⚓ port, ✈ aéroport (grand = majeur), couleur du bloc = concession</span></div>` : "")
@@ -662,6 +679,17 @@ function aide() {
       <li><strong>Diplomatie</strong> : une initiative par an : sommet, accord commercial (il faut l'accord de l'autre) ou sanctions.</li>
       <li><strong>Ami d'un ami</strong> : quand un pays franchit un palier d'alignement (±0,1, ±0,4), ses voisins et alliés régionaux le suivent lentement, sur 4 trimestres, avec un plafond.</li>
       <li><strong>Court et long terme</strong> : une action donne 2/3 de son effet tout de suite et le reste sur 4 trimestres ; une sur cinq a une conséquence cachée (contrecoup ou succès inattendu).</li>
+    </ul>
+    <h3>Stratégie et mécanismes cachés</h3>
+    <ul class="conseillers">
+      <li><strong>Priorité de l'année</strong> : économie, sécurité ou rayonnement ; +${Math.round(100 * (BONUS_PRIORITE - 1))} % sur la famille d'actions choisie (★).</li>
+      <li><strong>Investissement durable</strong> : agir sur un même pays plusieurs trimestres de suite renforce l'effet long terme (+25 % par trimestre consécutif, jusqu'à +75 %).</li>
+      <li><strong>⚖ Pays au bord de la bascule</strong> : à moins de 0,03 d'un seuil d'alignement ; un petit effort le fait changer de palier (et entraîne ses proches).</li>
+      <li><strong>Mémoire des pays</strong> (cachée) : gratitude après une aide ou un projet de développement, rancune après une déstabilisation, un scandale ou une crise exploitée. Elle fait dériver lentement l'influence politique et s'efface avec le temps. Tes ambassadeurs n'en donnent qu'une estimation.</li>
+      <li><strong>Renseignement</strong> : révèle les opérations secrètes adverses de l'année, sa main et son agenda probable.</li>
+      <li><strong>Agenda secret</strong> : un objectif tiré chaque année pour chaque bloc, révélé en fin d'année ; atteint, il rapporte du capital politique et du budget.</li>
+      <li><strong>Dépendance commerciale</strong> : plus les deux blocs échangent, plus les sanctions coûtent aussi à celui qui les impose.</li>
+      <li><strong>Usure de l'opinion</strong> (cachée) : les engagements militaires répétés lassent l'opinion et rongent le capital politique ; seuls les sondages t'en avertissent.</li>
     </ul>
     <h3>Zones stratégiques</h3>
     <p>L'<strong>Arctique</strong>, l'<strong>Antarctique</strong>, la <strong>mer de Chine méridionale</strong> et le <strong>golfe de Guinée</strong> n'appartiennent à aucun pays du jeu. Chaque bloc y a une présence de 0 à 100 (missions scientifiques, déploiements navals), qui lui donne une part des ressources mondiales au score (poids : estimation). Sans entretien, la présence s'érode.</p>
