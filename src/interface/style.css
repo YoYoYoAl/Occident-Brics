@@ -1,10 +1,12 @@
 :root {
   --fond: #0f1419; --panneau: #172029; --bord: #2a3742; --texte: #e6edf3; --doux: #8b9aa7;
   --accent: #d9a441; --pays-hors: #232a30; --mer: #0b1a26;
+  color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--fond); color: var(--texte); height: 100vh; display: flex; flex-direction: column; }
+html { height: 100%; }
+body { margin: 0; background: var(--fond); color: var(--texte); height: 100%; display: flex; flex-direction: column; }
 .barre { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 16px; background: var(--panneau); border-bottom: 1px solid var(--bord); }
 .titre { font-weight: 700; letter-spacing: .02em; }
 .version { color: var(--doux); font-weight: 400; font-size: .85em; }
