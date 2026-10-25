@@ -12,6 +12,18 @@ export const DONNEES = brut as unknown as {
   pays: Record<string, { nom: string; valeurs: Record<string, Valeur | null> }>;
 };
 
+import scoresBrut from "./scores2000.json";
+
+export const SCORES = scoresBrut as unknown as {
+  annee: number; principe: string;
+  attributs: Record<string, { famille: string; definition: string; ajustements: Record<string, string> }>;
+  pays: Record<string, { nom: string; scores: Record<string, number> }>;
+};
+
+export function score(iso3: string, attribut: string): number | null {
+  return SCORES.pays[iso3]?.scores[attribut] ?? null;
+}
+
 export function valeur(iso3: string, cle: string): Valeur | null {
   return DONNEES.pays[iso3]?.valeurs[cle] ?? null;
 }

@@ -1,5 +1,5 @@
 import { FAMILLES } from "../data/attributs";
-import { DONNEES, valeur, indicateursDe, formater } from "../data/donnees2000";
+import { DONNEES, SCORES, valeur, indicateursDe, formater, score } from "../data/donnees2000";
 import type { EtatJeu } from "../moteur/etat";
 import { libelle } from "../moteur/temps";
 
@@ -15,7 +15,10 @@ export function ficheHtml(iso3: string, etat: EtatJeu): string {
     for (const attribut of ["Ensemble", ...fam.attributs]) {
       const cles = indicateursDe(cleFam, attribut);
       if (!cles.length && !DONNEES.sansSource[attribut]) continue;
-      html += `<tr class="attribut"><td colspan="2">${attribut === "Ensemble" ? "Ensemble de la famille" : attribut}</td></tr>`;
+      const sc = score(iso3, attribut), def = SCORES.attributs[attribut];
+      const aide = def ? echapper(`Score estimé : ${def.definition}` + (def.ajustements[iso3] ? ` — ajusté : ${def.ajustements[iso3]}` : "")) : "";
+      html += attribut === "Ensemble" ? `<tr class="attribut"><td colspan="2">Ensemble de la famille</td></tr>`
+        : `<tr class="attribut" title="${aide}"><td>${attribut}</td><td class="v score">${sc}/100</td></tr>`;
       if (!cles.length) html += `<tr><td colspan="2" class="note">Non sourcé : ${echapper(DONNEES.sansSource[attribut])}</td></tr>`;
       for (const c of cles) {
         const def = DONNEES.indicateurs[c], val = valeur(iso3, c);

@@ -1,5 +1,5 @@
 // Tests d'acceptation de la v0.2 : données réelles 2000 des 30 attributs (module M1 bis).
-import { DONNEES, valeur, indicateursDe, formater } from "../src/data/donnees2000";
+import { DONNEES, SCORES, valeur, indicateursDe, formater, score } from "../src/data/donnees2000";
 import { FAMILLES } from "../src/data/attributs";
 import v01 from "../src/data/pays2000.json";
 import { ficheHtml } from "../src/interface/fiche";
@@ -166,12 +166,48 @@ describe("M1b Estimations naval, aérien, cyber (demandées)", () => {
   });
 });
 
+describe("M1c Scores 0-100 des 30 attributs (estimations réalistes)", () => {
+  const ATTR = Object.values(FAMILLES).flatMap(f => f.attributs);
+  const premier = (a: string) => ISO.reduce((x, y) => (score(y, a)! > score(x, a)! ? y : x));
+  it("donne un score entier de 0 à 100 à chacun des 30 attributs pour les 50 pays", () => {
+    expect(Object.keys(SCORES.attributs).sort()).toEqual([...ATTR].sort());
+    for (const iso of ISO) for (const a of ATTR) {
+      const s = score(iso, a);
+      expect(Number.isInteger(s), `${iso} ${a}`).toBe(true);
+      expect(s!).toBeGreaterThanOrEqual(0); expect(s!).toBeLessThanOrEqual(100);
+    }
+  });
+  it("documente chaque ajustement manuel par une raison", () => {
+    for (const a of ATTR) {
+      expect(SCORES.attributs[a].definition.length, a).toBeGreaterThan(5);
+      for (const r of Object.values(SCORES.attributs[a].ajustements)) expect(r.length, a).toBeGreaterThan(3);
+    }
+  });
+  it("donne des premiers de classement réalistes", () => {
+    expect(premier("Effectif")).toBe("CHN");
+    expect(premier("Terres rares")).toBe("CHN");
+    expect(premier("Puissance financière")).toBe("USA");
+    expect(premier("Commerce")).toBe("USA");
+    expect(premier("Santé")).toBe("JPN");
+    expect(["USA", "RUS"]).toContain(premier("Nucléaire"));
+    for (const a of ["Naval", "Aérien", "Terrestre", "Spatial", "Cyber"]) expect(premier(a), a).toBe("USA");
+    expect(score("USA", "Cyber")! - score("NOR", "Cyber")!).toBeGreaterThan(50);
+  });
+  it("respecte des rapports de force connus de 2000", () => {
+    expect(score("RUS", "Nucléaire")!).toBeGreaterThan(score("CHN", "Nucléaire")!);
+    expect(score("CHN", "Terrestre")!).toBeGreaterThan(score("FRA", "Terrestre")!);
+    expect(score("SAU", "Énergie")!).toBeGreaterThan(score("FRA", "Énergie")!);
+    expect(score("NGA", "Fertilité")!).toBeGreaterThan(score("ITA", "Fertilité")!);
+    expect(score("NOR", "Gestion")!).toBeGreaterThan(score("NGA", "Gestion")!);
+  });
+});
+
 describe("M1b Fiche pays", () => {
   it("affiche, pour chaque pays, les 30 attributs avec valeurs ou raison d'absence", () => {
     const e = creerEtat(1);
     for (const iso of ISO) {
       const html = ficheHtml(iso, e);
-      for (const fam of Object.values(FAMILLES)) for (const a of fam.attributs) expect(html, `${iso} ${a}`).toContain(`<td colspan="2">${a}</td>`);
+      for (const fam of Object.values(FAMILLES)) for (const a of fam.attributs) expect(html, `${iso} ${a}`).toContain(`<td>${a}</td><td class="v score">${score(iso, a)}/100</td>`);
       expect(html).not.toContain("undefined");
     }
     expect(ficheHtml("CHN", e)).toContain("(estimation)");

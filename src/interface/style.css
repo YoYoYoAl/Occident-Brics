@@ -40,3 +40,4 @@ main { flex: 1; display: flex; min-height: 0; }
   .controles { margin-left: 0; }
 }
 .fiche tr.attribut td { padding-top: 8px; font-weight: 600; border-bottom: 0; }
+.fiche td.score { color: var(--accent); }

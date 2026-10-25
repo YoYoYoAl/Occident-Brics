@@ -15,7 +15,8 @@ Le développement avance par versions jouables (v0.1 à v1.0), chacune accompagn
 ## Version 0.2 (en cours) : données réelles 2000
 
 - 78 indicateurs réels de l'an 2000 pour les 50 pays, rattachés aux 30 attributs (`src/data/attributs2000.json`).
-- Fiche pays : chaque attribut avec ses indicateurs, l'année réelle si elle diffère de 2000 et la source au survol.
+- Scores 0-100 des 30 attributs pour les 50 pays (`src/data/scores2000.json`, `outils/scores_attributs.py`) : estimations réalistes, formule sur les données de 2000 puis corrections documentées.
+- Fiche pays : chaque attribut avec son score et ses indicateurs, l'année réelle si elle diffère de 2000 et la source au survol.
 - Religion : estimation 2000 = composition 2020 du Pew Research Center, signalée « estimation ».
 - Terres rares : USGS Minerals Yearbook 2000.
 - Naval et aérien : indices estimés par le projet (États-Unis = 100) et importations d'armes 1981-2000 (SIPRI) ; cyber : indice estimé (rang étatique, internautes, dépenses militaires). Toutes les estimations sont signalées dans la fiche.
