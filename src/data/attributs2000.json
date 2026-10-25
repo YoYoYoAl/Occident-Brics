@@ -203,6 +203,69 @@
    "code": "ST.INT.ARVL",
    "note": "Indicateur indirect du rayonnement culturel"
   },
+  "chretiens": {
+   "nom": "Chrétiens",
+   "unite": "% de la population",
+   "famille": "population",
+   "attribut": "Religion",
+   "source": "wikipedia",
+   "code": "Religions_by_country@1378781963",
+   "note": "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0"
+  },
+  "musulmans": {
+   "nom": "Musulmans",
+   "unite": "% de la population",
+   "famille": "population",
+   "attribut": "Religion",
+   "source": "wikipedia",
+   "code": "Religions_by_country@1378781963",
+   "note": "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0"
+  },
+  "sansReligion": {
+   "nom": "Sans religion",
+   "unite": "% de la population",
+   "famille": "population",
+   "attribut": "Religion",
+   "source": "wikipedia",
+   "code": "Religions_by_country@1378781963",
+   "note": "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0"
+  },
+  "hindous": {
+   "nom": "Hindous",
+   "unite": "% de la population",
+   "famille": "population",
+   "attribut": "Religion",
+   "source": "wikipedia",
+   "code": "Religions_by_country@1378781963",
+   "note": "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0"
+  },
+  "bouddhistes": {
+   "nom": "Bouddhistes",
+   "unite": "% de la population",
+   "famille": "population",
+   "attribut": "Religion",
+   "source": "wikipedia",
+   "code": "Religions_by_country@1378781963",
+   "note": "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0"
+  },
+  "autresReligions": {
+   "nom": "Autres religions",
+   "unite": "% de la population",
+   "famille": "population",
+   "attribut": "Religion",
+   "source": "wikipedia",
+   "code": "Religions_by_country@1378781963",
+   "note": "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0"
+  },
+  "juifs": {
+   "nom": "Juifs",
+   "unite": "% de la population",
+   "famille": "population",
+   "attribut": "Religion",
+   "source": "wikipedia",
+   "code": "Religions_by_country@1378781963",
+   "note": "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0"
+  },
   "urbanisation": {
    "nom": "Population urbaine",
    "unite": "% de la population",
@@ -568,7 +631,6 @@
  },
  "sansSource": {
   "Terres rares": "Production par pays en 2000 publiée par l'USGS (Mineral Commodity Summaries 2002), site non accessible depuis l'environnement de collecte.",
-  "Religion": "Pas de composition religieuse par pays pour 2000 dans les sources accessibles (Pew : 2010 ; World Religion Database : payante).",
   "Naval": "Inventaires de flottes 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
   "Aérien": "Inventaires aériens 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
   "Cyber": "Aucun indice de capacité cyber avant 2015 (Global Cybersecurity Index de l'UIT)."
@@ -660,6 +722,41 @@
     "touristes": {
      "v": 78343000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 64.01,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 1.19,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 29.73,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.9,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 1.29,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.19,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 1.69,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 79.0740897861327,
@@ -923,6 +1020,41 @@
      "v": 83444000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 1.78,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 1.82,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 89.62,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 3.74,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 3.03,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 36.4320234662299,
      "a": 2000
@@ -1184,6 +1316,41 @@
     "touristes": {
      "v": 21169000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 69.93,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 8.19,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 20.2,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.07,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.36,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.18,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.08,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 73.1568222045898,
@@ -1447,6 +1614,41 @@
      "v": 2649000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 2.21,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 15.19,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 79.37,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.68,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 2.55,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 27.6470407512523,
      "a": 2000
@@ -1699,6 +1901,41 @@
     "touristes": {
      "v": 5313000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 80.66,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.02,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 13.47,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.11,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 5.71,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.04,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 81.1484365423806,
@@ -1956,6 +2193,41 @@
      "v": 6001000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 85.25,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 1.6,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 3.12,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 1.06,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.03,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 8.85,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.07,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 56.2589954883628,
      "a": 2000
@@ -2212,6 +2484,41 @@
      "v": 4757000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 2.25,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.17,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 57.46,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.03,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 37.21,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 2.88,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 78.6126803295375,
      "a": 2000
@@ -2461,6 +2768,41 @@
     "touristes": {
      "v": 18983000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 56.24,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 6.55,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 36.15,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.16,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.35,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.43,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.14,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 80.0942160905637,
@@ -2723,6 +3065,41 @@
     "touristes": {
      "v": 25209000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 49.37,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 6.37,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 40.22,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 1.69,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.46,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.46,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.45,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 79.8241408315172,
@@ -2989,6 +3366,41 @@
      "v": 157551000,
      "a": 1997
     },
+    "chretiens": {
+     "v": 46.46,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 9.1,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 42.65,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.12,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.71,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.26,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.7,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 76.5143983146093,
      "a": 2000
@@ -3250,6 +3662,41 @@
     "touristes": {
      "v": 62702000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 80.47,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 4.42,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 13.27,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.43,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.62,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.72,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.07,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 67.1932283786243,
@@ -3513,6 +3960,41 @@
      "v": 48638000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 53.31,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 4.9,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 34.63,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 1.52,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 1.73,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 2.99,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.92,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 78.6292995508947,
      "a": 2000
@@ -3768,6 +4250,41 @@
     "touristes": {
      "v": 4931000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 46.78,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 3.5,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 42.35,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 2.95,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 2.6,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.4,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.43,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 85.1071608578257,
@@ -4031,6 +4548,41 @@
      "v": 5322000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 31.99,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.31,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 48.26,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.1,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 18.99,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.35,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 79.579960745642,
      "a": 2000
@@ -4289,6 +4841,41 @@
     "touristes": {
      "v": 105673000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 89.17,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 10.63,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.02,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.12,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.05,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 74.9203113970256,
@@ -4551,6 +5138,41 @@
     "touristes": {
      "v": 5064000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 10.26,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 86.97,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.09,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 1.58,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.68,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.42,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 41.9861540600656,
@@ -4817,6 +5439,41 @@
      "v": 10428000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 0.14,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 97.11,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 2.53,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.05,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.06,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.1,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.03,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 58.9706120006403,
      "a": 2000
@@ -5073,6 +5730,41 @@
      "a": 2000
     },
     "touristes": null,
+    "chretiens": {
+     "v": 4.39,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 92.71,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.1,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 2.61,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.06,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.13,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 79.9704860819453,
      "a": 2000
@@ -5325,6 +6017,41 @@
     "touristes": {
      "v": 2909000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 88.45,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.93,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 9.23,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.02,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.97,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.38,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 89.1760271133454,
@@ -5582,6 +6309,41 @@
      "v": 84515000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 91.2,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 8.65,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.13,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 61.7459160613903,
      "a": 2000
@@ -5837,6 +6599,41 @@
     "touristes": {
      "v": 11691000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 83.44,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.56,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 15.15,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.34,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.43,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.09,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 67.403857296906,
@@ -6099,6 +6896,41 @@
     "touristes": {
      "v": 74580000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 69.46,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 3.57,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 26.36,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.13,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.44,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.02,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 76.1650552349602,
@@ -6365,6 +7197,41 @@
      "v": 10003000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 35.09,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 5.5,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 54.08,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.57,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.28,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 4.25,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.17,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 78.4826828427081,
      "a": 2000
@@ -6626,6 +7493,41 @@
     "touristes": {
      "v": 3104000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 71.38,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 4.09,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 22.49,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.19,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.74,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.93,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 76.1338922449534,
@@ -6889,6 +7791,41 @@
      "v": 1342000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 0.15,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 99.77,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.08,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 64.4780120849609,
      "a": 2000
@@ -7148,6 +8085,41 @@
      "v": 78000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 0.38,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 99.5,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.12,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 67.6331913847871,
      "a": 2000
@@ -7388,6 +8360,41 @@
     "touristes": {
      "v": 2672000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 1.93,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 14.77,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 4.32,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.11,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.7,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 77.05,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 91.2809653237465,
@@ -7651,6 +8658,41 @@
      "v": 5506000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 4.82,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 95.17,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 42.7339398932519,
      "a": 2000
@@ -7898,6 +8940,41 @@
      "a": 2000
     },
     "touristes": null,
+    "chretiens": {
+     "v": 14.29,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 72.91,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.32,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 11.75,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.21,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.42,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 79.287092479995,
      "a": 2000
@@ -8139,6 +9216,41 @@
      "a": 2000
     },
     "touristes": null,
+    "chretiens": {
+     "v": 12.5,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 76.07,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 10.71,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.36,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 96.2942718926638,
      "a": 2000
@@ -8388,6 +9500,41 @@
     "touristes": {
      "v": 557000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 1.27,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 96.54,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.01,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 2.14,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.01,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.02,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 33.0046884491535,
@@ -8651,6 +9798,41 @@
      "v": 2140000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 8.33,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.07,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 67.67,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.04,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 23.02,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.87,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 24.3672526919772,
      "a": 2000
@@ -8909,6 +10091,41 @@
     "touristes": {
      "v": 9579000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 1.03,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 4.51,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.04,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 94.39,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 31.4626212652205,
@@ -9169,6 +10386,41 @@
      "v": 10222000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 9.15,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 64.12,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.86,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 6.11,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 18.88,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.89,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 61.9694564490726,
      "a": 2000
@@ -9421,6 +10673,41 @@
     "touristes": {
      "v": 7691000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 18.68,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 16.19,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 19.93,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 5.34,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 30.78,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 9.07,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 100,
@@ -9678,6 +10965,41 @@
      "v": 1992000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 91.46,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 6.46,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.04,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.04,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 2.0,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 39.1384171397742,
      "a": 2000
@@ -9910,6 +11232,41 @@
      "a": 2000
     },
     "touristes": null,
+    "chretiens": {
+     "v": 0.38,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 72.84,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 1.53,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 25.21,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 59.4196417703576,
      "a": 2000
@@ -10100,6 +11457,41 @@
      "c": "children-per-woman-un"
     },
     "touristes": null,
+    "chretiens": {
+     "v": 5.54,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.51,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 23.08,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 19.19,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 51.69,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": null,
     "gini": null,
     "part10Haut": null,
@@ -10256,6 +11648,41 @@
     "touristes": {
      "v": 1683000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 19.3,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 77.93,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 2.52,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.1,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.15,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 56.0239607657944,
@@ -10519,6 +11946,41 @@
      "v": 199000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 0.3,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 91.06,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 7.9,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.61,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.12,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 23.3145114975244,
      "a": 2000
@@ -10778,6 +12240,41 @@
      "v": 1492000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 43.35,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 56.07,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.38,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.2,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 43.2785051250243,
      "a": 2000
@@ -11031,6 +12528,41 @@
      "v": 136000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 61.58,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 36.24,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 0.06,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 2.11,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 14.9193096160889,
      "a": 2000
@@ -11283,6 +12815,41 @@
     "touristes": {
      "v": 1037000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 85.66,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 10.93,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 1.61,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.13,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.67,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 19.4553832211834,
@@ -11546,6 +13113,41 @@
      "v": 866000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 0.3,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 98.39,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 1.27,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 0.05,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 59.8521239445692,
      "a": 2000
@@ -11796,6 +13398,41 @@
      "v": 103000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 96.26,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 1.27,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 1.18,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.29,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 34.9008752617485,
      "a": 2000
@@ -12042,6 +13679,41 @@
     "touristes": {
      "v": 602000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 88.12,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.04,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 9.74,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 2.07,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 88.219476430842,
@@ -12292,6 +13964,41 @@
     "touristes": {
      "v": 707000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 86.25,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 9.93,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 3.79,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 74.3493570179247,
@@ -12549,6 +14256,41 @@
      "a": 2000
     },
     "touristes": null,
+    "chretiens": {
+     "v": 68.35,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.05,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 30.25,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 1.24,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.1,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 86.2710912457813,
      "a": 2000
@@ -12811,6 +14553,41 @@
      "v": 1774000,
      "a": 2000
     },
+    "chretiens": {
+     "v": 60.64,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 21.56,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.18,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 17.35,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
     "urbanisation": {
      "v": 75.635383605957,
      "a": 2000
@@ -13051,6 +14828,41 @@
     "touristes": {
      "v": 600000,
      "a": 2000
+    },
+    "chretiens": {
+     "v": 91.14,
+     "a": 2020,
+     "e": 1
+    },
+    "musulmans": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "sansReligion": {
+     "v": 6.29,
+     "a": 2020,
+     "e": 1
+    },
+    "hindous": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "bouddhistes": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
+    },
+    "autresReligions": {
+     "v": 2.1,
+     "a": 2020,
+     "e": 1
+    },
+    "juifs": {
+     "v": 0.0,
+     "a": 2020,
+     "e": 1
     },
     "urbanisation": {
      "v": 62.2165370013582,

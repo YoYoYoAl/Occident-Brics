@@ -8,7 +8,9 @@ Règles :
 - chaque indicateur cite sa source (SOURCES) et son code dans cette source ;
 - année visée 2000 ; à défaut, l'année la plus proche dans [2000 - FENETRE, 2000 + FENETRE]
   (à égalité, la plus ancienne), et l'année réelle est enregistrée avec la valeur ;
-- les pages Wikipedia sont lues à une révision fixe (oldid), pour que la collecte soit reproductible.
+- les pages Wikipedia sont lues à une révision fixe (oldid), pour que la collecte soit reproductible ;
+- seule exception, demandée le 25/10/2026 : la religion de 2000 est estimée par la composition 2020 (Pew),
+  marquée "e": 1 et hors fenêtre (année réelle 2020).
 """
 import csv, json, os, re, sys, time, urllib.error, urllib.request
 
@@ -74,6 +76,13 @@ ind("mortaliteInfantile", "Mortalité infantile", "pour 1 000 naissances", "popu
 ind("depensesSante", "Dépenses de santé", "% du PIB", "population", "Santé", "bm_wdi", "SH.XPD.CHEX.GD.ZS")
 ind("fecondite", "Indice de fécondité", "enfants par femme", "population", "Fertilité", "bm_wdi", "SP.DYN.TFRT.IN")
 ind("touristes", "Arrivées de touristes internationaux", "arrivées", "population", "Culture", "bm_wdi", "ST.INT.ARVL", "Indicateur indirect du rayonnement culturel")
+RELIGIONS = [("chretiens", "Christians", "Chrétiens"), ("musulmans", "Muslims", "Musulmans"), ("sansReligion", "Unaffiliated", "Sans religion"),
+             ("hindous", "Hindus", "Hindous"), ("bouddhistes", "Buddhists", "Bouddhistes"), ("autresReligions", "Other religions", "Autres religions"),
+             ("juifs", "Jews", "Juifs")]
+for cle, _, nom in RELIGIONS:
+    ind(cle, nom, "% de la population", "population", "Religion", "wikipedia", "Religions_by_country@1378781963",
+        "ESTIMATION pour 2000 : composition 2020 du Pew Research Center (juin 2025), reprise telle quelle ; "
+        "écart probable de quelques points, plus fort là où la sécularisation a été rapide ; « <10 000 » compté 0")
 ind("urbanisation", "Population urbaine", "% de la population", "population", "Urbanisation", "bm_wdi", "SP.URB.TOTL.IN.ZS")
 ind("gini", "Indice de Gini", "0 à 100", "population", "Inégalités", "bm_wdi", "SI.POV.GINI")
 ind("part10Haut", "Part du revenu des 10 % les plus aisés", "%", "population", "Inégalités", "bm_wdi", "SI.DST.10TH.10")
@@ -133,7 +142,6 @@ COMPLEMENTS = {
 # Attributs sans indicateur sourcé : raison affichée dans le jeu.
 SANS_SOURCE = {
     "Terres rares": "Production par pays en 2000 publiée par l'USGS (Mineral Commodity Summaries 2002), site non accessible depuis l'environnement de collecte.",
-    "Religion": "Pas de composition religieuse par pays pour 2000 dans les sources accessibles (Pew : 2010 ; World Religion Database : payante).",
     "Naval": "Inventaires de flottes 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
     "Aérien": "Inventaires aériens 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
     "Cyber": "Aucun indice de capacité cyber avant 2015 (Global Cybersecurity Index de l'UIT).",
@@ -272,6 +280,31 @@ def stock_chimique(cache, partie):
     return sortie, stocks
 
 
+def religions(cache):
+    """Parts (%) de chaque religion, calculées sur les effectifs 2020 du tableau Pew de Wikipedia."""
+    texte = wikitexte(I["chretiens"]["code"], cache)
+    i = texte.index("== 2020 Pew Research")
+    table = texte[i:texte.index("\n|}", i)]
+    entete = [l[1:].strip() for l in table.split("\n") if l.startswith("!")]
+    lignes = {}
+    for bloc in table.split("\n|-\n")[1:]:
+        cellules = [l[1:].strip() for l in bloc.split("\n") if l.startswith("|")]
+        m = re.search(r"\[\[(?:[^\]|]*\|)?([^\]]+)\]\]", cellules[0]) if cellules else None
+        if m and len(cellules) == len(entete):
+            nombres = [0.0 if c.startswith("<") else float(c.replace(",", "")) for c in cellules[1:]]
+            lignes[m.group(1)] = dict(zip(entete[1:], nombres))
+    alias = {"Kingdom of the Netherlands": "Netherlands", "Republic of China": "Taiwan", "Turkey": "Turkey",
+             "Congo, Democratic Republic of the": "Democratic Republic of the Congo"}
+    sortie = {cle: {} for cle, _, _ in RELIGIONS}
+    for iso, (_, en) in PAYS.items():
+        l = lignes[alias.get(en, en)]
+        if abs(sum(l[col] for _, col, _ in RELIGIONS) / l["Total"] - 1) > 0.02:
+            raise SystemExit(f"Religions {iso} : la somme ne fait pas le total")
+        for cle, col, _ in RELIGIONS:
+            sortie[cle][iso] = {"v": round(100 * l[col] / l["Total"], 2), "a": 2020, "e": 1}
+    return sortie
+
+
 def premier_lancement(cache):
     texte = wikitexte(I["lanceurOrbital"]["code"], cache)
     table = texte[texte.index('{| class="wikitable'):]
@@ -335,6 +368,7 @@ def main(cache):
                 print(f"{iso}.{cle} : 0 publié par la source, traité comme donnée manquante", file=sys.stderr)
                 valeurs[cle][iso] = None
     valeurs["lanceurOrbital"] = premier_lancement(cache)
+    valeurs.update(religions(cache))
     for cle, (src, code) in COMPLEMENTS.items():
         s = serie_owid(src, code, co2, energie, cache)
         for iso in PAYS:

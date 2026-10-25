@@ -1,7 +1,7 @@
 // Accès aux données réelles 2000 des 30 attributs (v0.2), générées par outils/collecter_attributs.py.
 import brut from "./attributs2000.json";
 
-export interface Valeur { v: number; a: number; s?: string; c?: string }
+export interface Valeur { v: number; a: number; s?: string; c?: string; e?: number } // e = 1 : estimation
 export interface Indicateur { nom: string; unite: string; famille: string; attribut: string; source: string; code: string; note?: string }
 
 export const DONNEES = brut as unknown as {

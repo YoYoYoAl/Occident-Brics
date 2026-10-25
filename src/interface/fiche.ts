@@ -20,7 +20,7 @@ export function ficheHtml(iso3: string, etat: EtatJeu): string {
       for (const c of cles) {
         const def = DONNEES.indicateurs[c], val = valeur(iso3, c);
         const src = DONNEES.sources[val?.s ?? def.source].nom + (def.note ? ` — ${def.note}` : "");
-        const annee = val && val.a !== DONNEES.annee ? ` <span class="note">(${val.a})</span>` : "";
+        const annee = !val ? "" : val.e ? ` <span class="note">(estimation)</span>` : val.a !== DONNEES.annee ? ` <span class="note">(${val.a})</span>` : "";
         html += `<tr title="${echapper(src)}"><td>${def.nom} <span class="note">(${def.unite})</span></td><td class="v">${val ? formater(c, val.v) + annee : "non disponible"}</td></tr>`;
       }
     }

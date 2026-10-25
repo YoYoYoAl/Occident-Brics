@@ -29,7 +29,7 @@ describe("M1b Catalogue des indicateurs", () => {
       expect(aIndicateur !== aRaison, a).toBe(true);
     }
     expect(n).toBe(30);
-    expect(Object.keys(DONNEES.sansSource).length).toBeLessThanOrEqual(5);
+    expect(Object.keys(DONNEES.sansSource).sort()).toEqual(["Aérien", "Cyber", "Naval", "Terres rares"]);
   });
   it("cite une source connue pour chaque indicateur et chaque valeur complétée", () => {
     for (const k of CLES) expect(DONNEES.sources[DONNEES.indicateurs[k].source], k).toBeDefined();
@@ -46,7 +46,8 @@ describe("M1b Valeurs : aucune donnée inventée", () => {
       const val = valeur(iso, k);
       if (val === null) continue;
       expect(Number.isFinite(val.v), `${iso}.${k}`).toBe(true);
-      expect(Math.abs(val.a - 2000), `${iso}.${k}`).toBeLessThanOrEqual(DONNEES.fenetre);
+      if (val.e) expect(DONNEES.indicateurs[k].note, k).toMatch(/^ESTIMATION/); // seules estimations admises, signalées
+      else expect(Math.abs(val.a - 2000), `${iso}.${k}`).toBeLessThanOrEqual(DONNEES.fenetre);
     }
   });
   it("respecte les bornes de chaque unité", () => {
@@ -117,6 +118,23 @@ describe("M1b Cohérence avec des faits connus de 2000", () => {
     expect(v("SGP", "urbanisation")).toBe(100);
     expect(v("TWN", "population")).toBeGreaterThan(22e6); // complément UN WPP via Our World in Data
     expect(valeur("TWN", "population")!.s).toBe("owid_co2");
+  });
+});
+
+describe("M1b Religion (estimation 2000 demandée)", () => {
+  const REL = indicateursDe("population", "Religion");
+  it("donne 7 parts dont la somme vaut 100 % (à 2 points près) pour les 50 pays", () => {
+    expect(REL).toHaveLength(7);
+    for (const iso of ISO) {
+      const somme = REL.reduce((s, k) => s + v(iso, k)!, 0);
+      expect(Math.abs(somme - 100), iso).toBeLessThan(2);
+      for (const k of REL) expect(valeur(iso, k)!.e, `${iso}.${k}`).toBe(1);
+    }
+  });
+  it("retrouve les majorités religieuses connues", () => {
+    const majeure = (iso: string) => REL.reduce((a, b) => (v(iso, a)! >= v(iso, b)! ? a : b));
+    expect(majeure("IND")).toBe("hindous"); expect(majeure("ISR")).toBe("juifs"); expect(majeure("IDN")).toBe("musulmans");
+    expect(majeure("BRA")).toBe("chretiens"); expect(majeure("CHN")).toBe("sansReligion"); expect(majeure("SAU")).toBe("musulmans");
   });
 });
 

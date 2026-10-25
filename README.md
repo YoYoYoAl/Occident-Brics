@@ -14,9 +14,10 @@ Le développement avance par versions jouables (v0.1 à v1.0), chacune accompagn
 
 ## Version 0.2 (en cours) : données réelles 2000
 
-- 65 indicateurs réels de l'an 2000 pour les 50 pays, rattachés aux 30 attributs (`src/data/attributs2000.json`).
+- 72 indicateurs réels de l'an 2000 pour les 50 pays, rattachés aux 30 attributs (`src/data/attributs2000.json`).
 - Fiche pays : chaque attribut avec ses indicateurs, l'année réelle si elle diffère de 2000 et la source au survol.
-- 5 attributs restent sans source accessible (terres rares, religion, naval, aérien, cyber) : la fiche en donne la raison.
+- Religion : estimation 2000 = composition 2020 du Pew Research Center, signalée « estimation ».
+- 4 attributs restent sans source accessible (terres rares, naval, aérien, cyber) : la fiche en donne la raison.
 
 ## Commandes
 
