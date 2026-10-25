@@ -158,7 +158,9 @@ describe("Tranche 2000-2008 : moteur", () => {
   });
 
   it("13. influence de départ propre à chaque pays (estimation), et naissance du bloc BRIC en 2006 T3", async () => {
-    const { INFLUENCE_2000 } = await import("../src/data/influence2000");
+    const { INFLUENCE_2000: I50 } = await import("../src/data/influence2000");
+    const { INFLUENCE_2000_MONDE } = await import("../src/data/influence2000_monde");
+    const INFLUENCE_2000 = { ...I50, ...INFLUENCE_2000_MONDE };
     const e = creerPartie(8, "OCC", SANS_ALEA);
     for (const iso of Object.keys(e.pays)) if (iso !== "USA" && iso !== "CHN") expect(INFLUENCE_2000[iso], iso).toBeDefined();
     expect(e.pays.IRN.influence.OCC.c).toBeLessThanOrEqual(10);

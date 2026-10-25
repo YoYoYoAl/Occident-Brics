@@ -217,3 +217,7 @@ body.plein-ecran main { position: relative; }
 @keyframes pulsation { 0% { stroke: rgba(255, 90, 70, .9); stroke-width: 1; } 70% { stroke: rgba(255, 90, 70, 0); stroke-width: 9; } 100% { stroke-width: 1; stroke: rgba(255, 90, 70, 0); } }
 .carte path.jeu { transition: fill .6s ease; }
 @media (prefers-reduced-motion: reduce) { .carte .flux path, .carte .m-conflit circle, .carte .m-alerte circle { animation: none; } }
+.zones-strat{display:grid;gap:.5rem}.zone-strat{border:1px solid #ffffff22;border-radius:6px;padding:.4rem}
+.barre-zone{display:flex;height:8px;background:#ffffff14;border-radius:4px;overflow:hidden;margin:.3rem 0}.barre-zone .occ-f{background:#3d78d6}.barre-zone .chn-f{background:#d4402f;margin-left:auto}
+.zone-strat button{margin:.2rem .3rem 0 0}
+.zone-strat button small{display:block}

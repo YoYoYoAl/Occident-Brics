@@ -1,13 +1,16 @@
-import { geoMercator, geoPath, geoGraticule } from "d3-geo";
+import { geoProjection, geoPath, geoGraticule } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Feature, FeatureCollection, Geometry, MultiPolygon, Polygon } from "geojson";
 import monde from "world-atlas/countries-50m.json";
 
 const NS = "http://www.w3.org/2000/svg";
 const LARGEUR = 1000, ZOOM_MAX = 24;
-// Carte rectangulaire (Mercator) cadrée sur les 50 pays du jeu : longitudes 128° O à 180°, latitudes 54° S à 78° N.
-// Sans l'Antarctique ni le Pacifique vide, elle remplit l'écran ; le Groenland reste borné.
-const LON_OUEST = -128, LON_EST = 180, CENTRE = 26, LAT_SUD = -54, LAT_NORD = 78, SANS = new Set(["010", "260"]); // Antarctique, Terres australes
+// Carte rectangulaire (Miller) cadrée sur les pays du jeu : longitudes 128° O à 168° O en passant par l'Asie (Samoa et Tonga compris), latitudes 75° S à 80° N.
+// Sans le Pacifique vide, elle remplit l'écran ; Groenland et Antarctique restent mesurés.
+const LON_OUEST = -128, LON_EST = 192, CENTRE = 32, LAT_SUD = -75, LAT_NORD = 80, SANS = new Set<string>();
+// Projection de Miller : rectangulaire comme Mercator mais moins étirée vers les pôles ; l'Antarctique tient dans une bande.
+const miller = (l: number, f: number): [number, number] => [l, 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * f))];
+(miller as any).invert = (x: number, y: number) => [x, 2.5 * Math.atan(Math.exp(0.8 * y)) - 0.625 * Math.PI];
 
 export interface Marqueur { symbole: string; couleur: string; titre: string }
 export interface Annotation {
@@ -31,7 +34,7 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   const tous = feature(monde as any, (monde as any).objects.countries) as unknown as FeatureCollection<Geometry, { name: string }>;
   const pays = { ...tous, features: tous.features.filter(f => !SANS.has(String(f.id))) };
   const cadre = { type: "Feature", properties: {}, geometry: { type: "MultiPoint", coordinates: [[LON_OUEST, LAT_SUD], [LON_EST - 0.01, LAT_NORD]] } } as Feature;
-  const projection = geoMercator().rotate([-CENTRE, 0]).fitWidth(LARGEUR, cadre);
+  const projection = geoProjection(miller as any).rotate([-CENTRE, 0]).fitWidth(LARGEUR, cadre);
   const chemin = geoPath(projection);
   const HAUTEUR = Math.round((projection([0, LAT_SUD])![1]) - (projection([0, LAT_NORD])![1]));
   projection.translate([projection.translate()[0], projection.translate()[1] - projection([0, LAT_NORD])![1]]);

@@ -21,3 +21,11 @@ export const ALLIES_2000: Record<"OCC" | "CHN", string[]> = {
 // Régimes non démocratiques en 2000 : estimation qualitative proche de la classification Polity IV (score < 6),
 // à vérifier sur données. Ils ne connaissent presque pas d'élection de rupture (facteur « democratie »).
 export const NON_DEMOCRATIES_2000 = ["CHN", "SAU", "IRN", "IRQ", "EGY", "ARE", "QAT", "PAK", "VNM", "PRK", "KAZ", "ETH", "DZA", "COD", "CUB", "SGP", "MYS", "RUS"];
+
+// ---------- Les 144 autres membres de l'ONU (complements2000.json : faits 2000, sauf expositions et régimes = ESTIMATIONS) ----------
+import complements from "./complements2000.json";
+const C = complements as unknown as { exposition: Record<Alea, string[]>; sanctionnes2000: string[]; allies2000: Record<"OCC" | "CHN", string[]>; nonDemocraties2000: string[] };
+for (const a of Object.keys(C.exposition) as Alea[]) EXPOSITION[a].push(...C.exposition[a].filter(i => !EXPOSITION[a].includes(i)));
+SANCTIONNES_2000.push(...C.sanctionnes2000);
+ALLIES_2000.OCC.push(...C.allies2000.OCC); ALLIES_2000.CHN.push(...C.allies2000.CHN);
+NON_DEMOCRATIES_2000.push(...C.nonDemocraties2000);
