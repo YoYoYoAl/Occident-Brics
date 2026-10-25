@@ -29,7 +29,7 @@ describe("M1b Catalogue des indicateurs", () => {
       expect(aIndicateur !== aRaison, a).toBe(true);
     }
     expect(n).toBe(30);
-    expect(Object.keys(DONNEES.sansSource).sort()).toEqual(["Aérien", "Cyber", "Naval", "Terres rares"]);
+    expect(Object.keys(DONNEES.sansSource).sort()).toEqual(["Aérien", "Cyber", "Naval"]);
   });
   it("cite une source connue pour chaque indicateur et chaque valeur complétée", () => {
     for (const k of CLES) expect(DONNEES.sources[DONNEES.indicateurs[k].source], k).toBeDefined();
@@ -111,6 +111,12 @@ describe("M1b Cohérence avec des faits connus de 2000", () => {
     expect(v("ARE", "partieCiac")).toBe(1); // entrée en vigueur le 28/12/2000
     expect(valeur("TWN", "partieCiac")).toBeNull();
     expect(v("RUS", "stockChimique")).toBe(40000);
+  });
+  it("donne à la Chine près de 90 % de la production de terres rares (USGS : 73 000 t sur 83 300)", () => {
+    const total = ISO.reduce((s, iso) => s + (v(iso, "terresRares") ?? 0), 0);
+    expect(v("CHN", "terresRares")).toBe(73000);
+    expect(v("CHN", "terresRares")! / total).toBeGreaterThan(0.85);
+    expect(valeur("RUS", "terresRares")).toBeNull(); // ex-URSS non répartie
   });
   it("retrouve les extrêmes démographiques et sanitaires connus", () => {
     expect(v("JPN", "esperanceVie")).toBeGreaterThan(80);

@@ -14,10 +14,11 @@ Le développement avance par versions jouables (v0.1 à v1.0), chacune accompagn
 
 ## Version 0.2 (en cours) : données réelles 2000
 
-- 72 indicateurs réels de l'an 2000 pour les 50 pays, rattachés aux 30 attributs (`src/data/attributs2000.json`).
+- 73 indicateurs réels de l'an 2000 pour les 50 pays, rattachés aux 30 attributs (`src/data/attributs2000.json`).
 - Fiche pays : chaque attribut avec ses indicateurs, l'année réelle si elle diffère de 2000 et la source au survol.
 - Religion : estimation 2000 = composition 2020 du Pew Research Center, signalée « estimation ».
-- 4 attributs restent sans source accessible (terres rares, naval, aérien, cyber) : la fiche en donne la raison.
+- Terres rares : USGS Minerals Yearbook 2000.
+- 3 attributs restent sans source accessible (naval, aérien, cyber) : la fiche en donne la raison.
 
 ## Commandes
 
@@ -39,7 +40,7 @@ téléchargés le 25 octobre 2026). Aucune valeur n'est inventée : un indicateu
 python3 -I outils/collecter_attributs.py <dossier_cache> > src/data/attributs2000.json
 ```
 
-Sources : Banque mondiale (WDI et WGI), SIPRI (dépenses militaires), Our World in Data (énergie, CO2, PIB en PPA,
+Sources : Banque mondiale (WDI et WGI), SIPRI (dépenses militaires), USGS (terres rares, `pdftotext` requis), Our World in Data (énergie, CO2, PIB en PPA,
 scolarité, ogives nucléaires de la FAS, objets spatiaux de l'ONU, biodiversité) et Wikipedia à révision fixe
 (convention sur les armes chimiques, premiers lancements orbitaux). Année visée 2000, sinon la plus proche dans
 1997-2003 (l'année réelle est enregistrée). Sans donnée, la valeur est `null`, jamais estimée.

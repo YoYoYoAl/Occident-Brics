@@ -1,7 +1,7 @@
 """Collecte les données réelles de l'an 2000 pour les 30 attributs des 50 pays (v0.2).
 
 Usage : python3 -I outils/collecter_attributs.py <dossier_cache> > src/data/attributs2000.json
-Dépendance : openpyxl (lecture du fichier SIPRI). Les téléchargements sont gardés dans <dossier_cache>.
+Dépendances : openpyxl (lecture du fichier SIPRI), pdftotext de poppler-utils (lecture du PDF de l'USGS). Les téléchargements sont gardés dans <dossier_cache>.
 
 Règles :
 - aucune valeur n'est inventée : sans donnée dans la source, la valeur est null ;
@@ -44,6 +44,7 @@ SOURCES = {
     "owid_co2": {"nom": "Our World in Data, co2-data (Global Carbon Budget ; PIB : Maddison Project Database)", "url": "https://github.com/owid/co2-data"},
     "owid_energie": {"nom": "Our World in Data, energy-data (Energy Institute Statistical Review, EIA)", "url": "https://github.com/owid/energy-data"},
     "owid_grapher": {"nom": "Our World in Data, graphiques (source d'origine indiquée par indicateur)", "url": "https://ourworldindata.org/grapher/"},
+    "usgs": {"nom": "U.S. Geological Survey, Minerals Yearbook 2000, Rare earths (J. B. Hedrick)", "url": "https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/mineral-pubs/rare-earth/740400.pdf"},
     "wikipedia": {"nom": "Wikipedia (en), révision fixe indiquée par indicateur", "url": "https://en.wikipedia.org/"},
 }
 
@@ -63,6 +64,9 @@ ind("terresArables", "Terres arables", "ha", "ressources", "Agriculture", "bm_wd
 ind("agriPib", "Agriculture, sylviculture et pêche", "% du PIB", "ressources", "Agriculture", "bm_wdi", "NV.AGR.TOTL.ZS")
 ind("rentesMinerales", "Rentes minérales (métaux et minerais)", "% du PIB", "ressources", "Métaux", "bm_wdi", "NY.GDP.MINR.RT.ZS")
 ind("exportsMetaux", "Exportations de minerais et métaux", "% des exportations de marchandises", "ressources", "Métaux", "bm_wdi", "TX.VAL.MMTL.ZS.UN")
+ind("terresRares", "Production minière de terres rares", "t d'oxydes (REO)", "ressources", "Terres rares", "usgs", "Minerals Yearbook 2000, Rare earths, table 6",
+    "Valeurs 2000 estimées par l'USGS ; 0 = pays absent de la liste des producteurs ; null : ex-URSS (2 000 t non réparties entre Russie, Kazakhstan, Ukraine) "
+    "et pays dont l'USGS juge la production probable mais inconnue (Indonésie, Corée du Nord, Viêt Nam)")
 ind("rentesNaturelles", "Rentes totales des ressources naturelles", "% du PIB", "ressources", "Autres", "bm_wdi", "NY.GDP.TOTL.RT.ZS")
 ind("rentesForestieres", "Rentes forestières", "% du PIB", "ressources", "Autres", "bm_wdi", "NY.GDP.FRST.RT.ZS")
 # Population
@@ -141,7 +145,6 @@ COMPLEMENTS = {
 
 # Attributs sans indicateur sourcé : raison affichée dans le jeu.
 SANS_SOURCE = {
-    "Terres rares": "Production par pays en 2000 publiée par l'USGS (Mineral Commodity Summaries 2002), site non accessible depuis l'environnement de collecte.",
     "Naval": "Inventaires de flottes 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
     "Aérien": "Inventaires aériens 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
     "Cyber": "Aucun indice de capacité cyber avant 2015 (Global Cybersecurity Index de l'UIT).",
@@ -305,6 +308,26 @@ def religions(cache):
     return sortie
 
 
+def terres_rares(cache):
+    """Table 6 de l'USGS (production minière par pays, 1996-2000), lue avec pdftotext (poppler-utils)."""
+    import subprocess
+    pdf = telecharger(SOURCES["usgs"]["url"], cache, "usgs_rare_earths_2000.pdf")
+    texte = subprocess.run(["pdftotext", "-layout", pdf, "-"], capture_output=True, text=True, check=True).stdout
+    i = texte.index("RARE EARTHS: WORLD MINE PRODUCTION, BY COUNTRY")
+    table = texte[i:texte.index("Total", i)]
+    noms = {"China": "CHN", "India": "IND", "Malaysia": "MYS", "Thailand": "THA", "United States": "USA"}
+    prod = {}
+    for ligne in table.split("\n"):
+        m = re.match(r"\s*([A-Z][A-Za-z. ]+?)(?: e/)?(?: \d/)*\s{2,}(.+)$", ligne)
+        if m and m.group(1).strip() in noms:
+            cellule = re.split(r"\s{2,}", m.group(2).strip())[-1]  # dernière colonne = 2000
+            prod[noms[m.group(1).strip()]] = 0.0 if cellule.startswith("--") else float(cellule.replace(",", ""))
+    if prod.get("CHN") != 73000 or len(prod) != len(noms):
+        raise SystemExit(f"USGS terres rares : lecture douteuse {prod}")
+    inconnus = {"RUS", "KAZ", "UKR", "IDN", "PRK", "VNM"}
+    return {iso: None if iso in inconnus else {"v": prod.get(iso, 0.0), "a": ANNEE} for iso in PAYS}
+
+
 def premier_lancement(cache):
     texte = wikitexte(I["lanceurOrbital"]["code"], cache)
     table = texte[texte.index('{| class="wikitable'):]
@@ -369,6 +392,7 @@ def main(cache):
                 valeurs[cle][iso] = None
     valeurs["lanceurOrbital"] = premier_lancement(cache)
     valeurs.update(religions(cache))
+    valeurs["terresRares"] = terres_rares(cache)
     for cle, (src, code) in COMPLEMENTS.items():
         s = serie_owid(src, code, co2, energie, cache)
         for iso in PAYS:
