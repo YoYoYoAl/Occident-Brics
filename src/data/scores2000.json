@@ -6,6 +6,7 @@
    "famille": "ressources",
    "definition": "Production de pétrole, gaz et charbon (log)",
    "ajustements": {
+    "ISR": "presque aucune production",
     "FRA": "nucléaire non compté dans la formule",
     "JPN": "nucléaire non compté",
     "KOR": "nucléaire non compté",
@@ -21,7 +22,8 @@
    "famille": "ressources",
    "definition": "Production de céréales et terres arables (log)",
    "ajustements": {
-    "TWN": "donnée manquante, estimation"
+    "TWN": "donnée manquante, estimation",
+    "NLD": "grand exportateur agricole"
    }
   },
   "Métaux": {
@@ -71,7 +73,12 @@
    "definition": "Bois et autres ressources hors énergie et métaux : rentes forestières en dollars (log)",
    "ajustements": {
     "PRK": "donnée manquante, estimation",
-    "TWN": "donnée manquante, estimation"
+    "TWN": "donnée manquante, estimation",
+    "NOR": "pêche non comptée",
+    "CHL": "pêche non comptée",
+    "ETH": "bois de feu surpondéré",
+    "NGA": "bois de feu surpondéré",
+    "KEN": "bois de feu surpondéré"
    }
   },
   "Effectif": {
@@ -84,7 +91,8 @@
    "definition": "Durée d'études, scolarisation secondaire et supérieure",
    "ajustements": {
     "SGP": "donnée manquante, estimation",
-    "PRK": "donnée manquante, estimation"
+    "PRK": "donnée manquante, estimation",
+    "CUB": "système éducatif réputé, données partielles"
    }
   },
   "Santé": {
@@ -240,7 +248,12 @@
   "Cyber": {
    "famille": "militaire",
    "definition": "Indice cyber estimé",
-   "ajustements": {}
+   "ajustements": {
+    "RUS": "FAPSI et héritage du KGB, devant la Chine en 2000",
+    "CHN": "capacités encore en construction en 2000",
+    "ISR": "unité 8200 de premier plan",
+    "PRK": "unité naissante en 2000"
+   }
   },
   "Chimique": {
    "famille": "militaire",
@@ -272,7 +285,10 @@
    "famille": "environnement",
    "definition": "Surface utile : terres agricoles et forêts (log)",
    "ajustements": {
-    "TWN": "donnée manquante, estimation"
+    "TWN": "donnée manquante, estimation",
+    "SAU": "pâturages désertiques surpondérés",
+    "KAZ": "steppe surpondérée",
+    "AUS": "pâturages arides surpondérés"
    }
   },
   "Eau": {
@@ -296,7 +312,7 @@
   },
   "Biodiversité": {
    "famille": "environnement",
-   "definition": "Indice Liste rouge et sites clés protégés",
+   "definition": "Richesse (pays mégadivers du PNUE-WCMC), indice Liste rouge et sites clés protégés",
    "ajustements": {
     "TWN": "donnée manquante, estimation",
     "CUB": "indice Liste rouge sévère pour les espèces endémiques",
@@ -343,7 +359,7 @@
     "Eau": 77,
     "Air": 70,
     "Climat": 14,
-    "Biodiversité": 47,
+    "Biodiversité": 68,
     "Forêt": 65
    }
   },
@@ -371,14 +387,14 @@
     "Aérien": 35,
     "Terrestre": 88,
     "Spatial": 45,
-    "Cyber": 73,
+    "Cyber": 65,
     "Chimique": 15,
     "Nucléaire": 58,
     "Terre": 95,
     "Eau": 68,
     "Air": 31,
     "Climat": 41,
-    "Biodiversité": 39,
+    "Biodiversité": 63,
     "Forêt": 52
    }
   },
@@ -406,14 +422,14 @@
     "Aérien": 50,
     "Terrestre": 85,
     "Spatial": 85,
-    "Cyber": 67,
+    "Cyber": 72,
     "Chimique": 100,
     "Nucléaire": 100,
     "Terre": 100,
     "Eau": 92,
     "Air": 55,
     "Climat": 24,
-    "Biodiversité": 61,
+    "Biodiversité": 48,
     "Forêt": 83
    }
   },
@@ -448,7 +464,7 @@
     "Eau": 60,
     "Air": 27,
     "Climat": 56,
-    "Biodiversité": 29,
+    "Biodiversité": 57,
     "Forêt": 52
    }
   },
@@ -483,7 +499,7 @@
     "Eau": 91,
     "Air": 50,
     "Climat": 46,
-    "Biodiversité": 44,
+    "Biodiversité": 66,
     "Forêt": 96
    }
   },
@@ -518,7 +534,7 @@
     "Eau": 63,
     "Air": 53,
     "Climat": 27,
-    "Biodiversité": 50,
+    "Biodiversité": 69,
     "Forêt": 44
    }
   },
@@ -553,7 +569,7 @@
     "Eau": 76,
     "Air": 75,
     "Climat": 25,
-    "Biodiversité": 26,
+    "Biodiversité": 27,
     "Forêt": 88
    }
   },
@@ -588,7 +604,7 @@
     "Eau": 67,
     "Air": 62,
     "Climat": 23,
-    "Biodiversité": 78,
+    "Biodiversité": 58,
     "Forêt": 55
    }
   },
@@ -623,7 +639,7 @@
     "Eau": 78,
     "Air": 63,
     "Climat": 25,
-    "Biodiversité": 89,
+    "Biodiversité": 65,
     "Forêt": 34
    }
   },
@@ -658,7 +674,7 @@
     "Eau": 78,
     "Air": 63,
     "Climat": 29,
-    "Biodiversité": 58,
+    "Biodiversité": 46,
     "Forêt": 52
    }
   },
@@ -693,7 +709,7 @@
     "Eau": 76,
     "Air": 47,
     "Climat": 27,
-    "Biodiversité": 56,
+    "Biodiversité": 45,
     "Forêt": 50
    }
   },
@@ -728,7 +744,7 @@
     "Eau": 100,
     "Air": 88,
     "Climat": 16,
-    "Biodiversité": 65,
+    "Biodiversité": 50,
     "Forêt": 72
    }
   },
@@ -759,11 +775,11 @@
     "Cyber": 54,
     "Chimique": 0,
     "Nucléaire": 0,
-    "Terre": 95,
+    "Terre": 85,
     "Eau": 92,
     "Air": 100,
     "Climat": 16,
-    "Biodiversité": 58,
+    "Biodiversité": 74,
     "Forêt": 49
    }
   },
@@ -833,7 +849,7 @@
     "Eau": 76,
     "Air": 58,
     "Climat": 37,
-    "Biodiversité": 25,
+    "Biodiversité": 55,
     "Forêt": 63
    }
   },
@@ -868,7 +884,7 @@
     "Eau": 77,
     "Air": 49,
     "Climat": 52,
-    "Biodiversité": 46,
+    "Biodiversité": 67,
     "Forêt": 75
    }
   },
@@ -903,7 +919,7 @@
     "Eau": 75,
     "Air": 50,
     "Climat": 38,
-    "Biodiversité": 41,
+    "Biodiversité": 36,
     "Forêt": 51
    }
   },
@@ -934,11 +950,11 @@
     "Cyber": 28,
     "Chimique": 0,
     "Nucléaire": 0,
-    "Terre": 84,
+    "Terre": 50,
     "Eau": 43,
     "Air": 19,
     "Climat": 16,
-    "Biodiversité": 55,
+    "Biodiversité": 44,
     "Forêt": 24
    }
   },
@@ -973,7 +989,7 @@
     "Eau": 83,
     "Air": 63,
     "Climat": 37,
-    "Biodiversité": 43,
+    "Biodiversité": 37,
     "Forêt": 49
    }
   },
@@ -1008,7 +1024,7 @@
     "Eau": 60,
     "Air": 50,
     "Climat": 27,
-    "Biodiversité": 78,
+    "Biodiversité": 58,
     "Forêt": 52
    }
   },
@@ -1043,7 +1059,7 @@
     "Eau": 68,
     "Air": 45,
     "Climat": 32,
-    "Biodiversité": 66,
+    "Biodiversité": 52,
     "Forêt": 41
    }
   },
@@ -1078,7 +1094,7 @@
     "Eau": 74,
     "Air": 66,
     "Climat": 28,
-    "Biodiversité": 47,
+    "Biodiversité": 40,
     "Forêt": 58
    }
   },
@@ -1086,7 +1102,7 @@
    "nom": "Pays-Bas",
    "scores": {
     "Énergie": 58,
-    "Agriculture": 55,
+    "Agriculture": 65,
     "Métaux": 0,
     "Terres rares": 0,
     "Autres": 28,
@@ -1113,7 +1129,7 @@
     "Eau": 57,
     "Air": 61,
     "Climat": 23,
-    "Biodiversité": 83,
+    "Biodiversité": 61,
     "Forêt": 26
    }
   },
@@ -1124,7 +1140,7 @@
     "Agriculture": 53,
     "Métaux": 10,
     "Terres rares": 0,
-    "Autres": 47,
+    "Autres": 65,
     "Effectif": 26,
     "Éducation": 90,
     "Santé": 93,
@@ -1148,7 +1164,7 @@
     "Eau": 99,
     "Air": 79,
     "Climat": 25,
-    "Biodiversité": 71,
+    "Biodiversité": 54,
     "Forêt": 56
    }
   },
@@ -1183,7 +1199,7 @@
     "Eau": 62,
     "Air": 38,
     "Climat": 32,
-    "Biodiversité": 63,
+    "Biodiversité": 49,
     "Forêt": 33
    }
   },
@@ -1218,14 +1234,14 @@
     "Eau": 49,
     "Air": 29,
     "Climat": 39,
-    "Biodiversité": 31,
+    "Biodiversité": 30,
     "Forêt": 21
    }
   },
   "ISR": {
    "nom": "Israël",
    "scores": {
-    "Énergie": 0,
+    "Énergie": 3,
     "Agriculture": 39,
     "Métaux": 10,
     "Terres rares": 0,
@@ -1246,7 +1262,7 @@
     "Aérien": 18,
     "Terrestre": 65,
     "Spatial": 25,
-    "Cyber": 64,
+    "Cyber": 68,
     "Chimique": 35,
     "Nucléaire": 46,
     "Terre": 34,
@@ -1288,7 +1304,7 @@
     "Eau": 30,
     "Air": 28,
     "Climat": 46,
-    "Biodiversité": 63,
+    "Biodiversité": 49,
     "Forêt": 3
    }
   },
@@ -1323,7 +1339,7 @@
     "Eau": 36,
     "Air": 23,
     "Climat": 9,
-    "Biodiversité": 47,
+    "Biodiversité": 39,
     "Forêt": 20
    }
   },
@@ -1358,7 +1374,7 @@
     "Eau": 40,
     "Air": 0,
     "Climat": 0,
-    "Biodiversité": 27,
+    "Biodiversité": 28,
     "Forêt": 0
    }
   },
@@ -1393,7 +1409,7 @@
     "Eau": 44,
     "Air": 23,
     "Climat": 60,
-    "Biodiversité": 58,
+    "Biodiversité": 46,
     "Forêt": 27
    }
   },
@@ -1428,7 +1444,7 @@
     "Eau": 72,
     "Air": 37,
     "Climat": 60,
-    "Biodiversité": 34,
+    "Biodiversité": 32,
     "Forêt": 60
    }
   },
@@ -1463,7 +1479,7 @@
     "Eau": 74,
     "Air": 41,
     "Climat": 42,
-    "Biodiversité": 70,
+    "Biodiversité": 54,
     "Forêt": 63
    }
   },
@@ -1498,7 +1514,7 @@
     "Eau": 91,
     "Air": 55,
     "Climat": 33,
-    "Biodiversité": 49,
+    "Biodiversité": 69,
     "Forêt": 80
    }
   },
@@ -1533,7 +1549,7 @@
     "Eau": 44,
     "Air": 57,
     "Climat": 25,
-    "Biodiversité": 61,
+    "Biodiversité": 48,
     "Forêt": 29
    }
   },
@@ -1568,7 +1584,7 @@
     "Eau": 74,
     "Air": 40,
     "Climat": 56,
-    "Biodiversité": 43,
+    "Biodiversité": 65,
     "Forêt": 47
    }
   },
@@ -1596,14 +1612,14 @@
     "Aérien": 9,
     "Terrestre": 80,
     "Spatial": 0,
-    "Cyber": 40,
+    "Cyber": 25,
     "Chimique": 70,
     "Nucléaire": 5,
     "Terre": 58,
     "Eau": 77,
     "Air": 50,
     "Climat": 41,
-    "Biodiversité": 51,
+    "Biodiversité": 42,
     "Forêt": 79
    }
   },
@@ -1669,11 +1685,11 @@
     "Cyber": 14,
     "Chimique": 0,
     "Nucléaire": 0,
-    "Terre": 86,
+    "Terre": 65,
     "Eau": 72,
     "Air": 64,
     "Climat": 26,
-    "Biodiversité": 46,
+    "Biodiversité": 39,
     "Forêt": 24
    }
   },
@@ -1708,7 +1724,7 @@
     "Eau": 64,
     "Air": 18,
     "Climat": 77,
-    "Biodiversité": 55,
+    "Biodiversité": 45,
     "Forêt": 34
    }
   },
@@ -1719,7 +1735,7 @@
     "Agriculture": 79,
     "Métaux": 0,
     "Terres rares": 0,
-    "Autres": 80,
+    "Autres": 55,
     "Effectif": 70,
     "Éducation": 11,
     "Santé": 1,
@@ -1743,7 +1759,7 @@
     "Eau": 56,
     "Air": 16,
     "Climat": 59,
-    "Biodiversité": 68,
+    "Biodiversité": 53,
     "Forêt": 48
    }
   },
@@ -1754,7 +1770,7 @@
     "Agriculture": 70,
     "Métaux": 1,
     "Terres rares": 0,
-    "Autres": 79,
+    "Autres": 45,
     "Effectif": 61,
     "Éducation": 3,
     "Santé": 8,
@@ -1778,7 +1794,7 @@
     "Eau": 47,
     "Air": 56,
     "Climat": 95,
-    "Biodiversité": 36,
+    "Biodiversité": 33,
     "Forêt": 54
    }
   },
@@ -1789,7 +1805,7 @@
     "Agriculture": 62,
     "Métaux": 0,
     "Terres rares": 0,
-    "Autres": 66,
+    "Autres": 40,
     "Effectif": 51,
     "Éducation": 21,
     "Santé": 21,
@@ -1813,7 +1829,7 @@
     "Eau": 50,
     "Air": 61,
     "Climat": 69,
-    "Biodiversité": 54,
+    "Biodiversité": 44,
     "Forêt": 30
    }
   },
@@ -1848,7 +1864,7 @@
     "Eau": 54,
     "Air": 68,
     "Climat": 42,
-    "Biodiversité": 48,
+    "Biodiversité": 40,
     "Forêt": 22
    }
   },
@@ -1883,7 +1899,7 @@
     "Eau": 67,
     "Air": 37,
     "Climat": 100,
-    "Biodiversité": 64,
+    "Biodiversité": 78,
     "Forêt": 93
    }
   },
@@ -1918,7 +1934,7 @@
     "Eau": 93,
     "Air": 52,
     "Climat": 32,
-    "Biodiversité": 57,
+    "Biodiversité": 75,
     "Forêt": 79
    }
   },
@@ -1953,7 +1969,7 @@
     "Eau": 94,
     "Air": 46,
     "Climat": 50,
-    "Biodiversité": 36,
+    "Biodiversité": 62,
     "Forêt": 81
    }
   },
@@ -1964,7 +1980,7 @@
     "Agriculture": 59,
     "Métaux": 72,
     "Terres rares": 0,
-    "Autres": 63,
+    "Autres": 70,
     "Effectif": 42,
     "Éducation": 62,
     "Santé": 80,
@@ -2001,7 +2017,7 @@
     "Terres rares": 0,
     "Autres": 34,
     "Effectif": 38,
-    "Éducation": 59,
+    "Éducation": 75,
     "Santé": 82,
     "Fertilité": 10,
     "Culture": 30,
@@ -2058,7 +2074,7 @@
     "Eau": 90,
     "Air": 60,
     "Climat": 47,
-    "Biodiversité": 38,
+    "Biodiversité": 35,
     "Forêt": 80
    }
   }
