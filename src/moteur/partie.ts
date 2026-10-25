@@ -8,6 +8,8 @@ import { HISTORIQUES_ERE1 } from "../contenu/historiques";
 import { FAMILLES, MODELES_LOT1 } from "../contenu/generiques";
 import { CARTES_ERE1 } from "../contenu/cartes";
 import { BRIEFINGS_ERE1 } from "../contenu/briefings";
+import { SCORES } from "../data/donnees2000";
+import { FAMILLES as FAMILLES_ATTRIBUTS, type Famille } from "../data/attributs";
 import { suivant } from "./alea";
 import { date, libelle, NB_ROUNDS } from "./temps";
 import {
@@ -31,6 +33,8 @@ export interface EtatPays {
   ancre: Record<Camp, Record<Canal, number>>;          // valeur vers laquelle l'usure ramène p, m, c
   bonus: { points: number; reste: number }[];          // écarts de croissance (points annuels)
   co2Mod: { pourcent: number; reste: number }[];
+  environnement: number; // qualité de l'environnement local 0-100, dégradée par la pollution du pays lui-même
+  pibMax: number;
 }
 export interface EtatCamp {
   cp: number; budget: number; main: string[]; pa: number; paParPays: Record<string, number>; paAchetes: number;
@@ -49,7 +53,7 @@ export interface EtatPartie {
   drapeaux: string[]; historiquesFaits: string[]; briefingsFaits: string[];
   pioche: string[]; defausse: string[]; retirees: string[];
   attente: EffetPrevu[]; journal: EntreeJournal[];
-  scoreDepart: number; termine: boolean; resultat: string | null;
+  scoreDepart: number; termine: boolean; resultat: string | null; decomptes: number[]; deficitDepart: Record<Camp, number>;
   reglages: Reglages;
 }
 // Réglages de test : désactiver les génériques ou l'IA isole la trajectoire de référence.
@@ -93,7 +97,7 @@ function melanger<T>(e: EtatPartie, t: T[]): T[] {
 }
 const borne = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 function normale(e: EtatPartie): number { return Math.sqrt(-2 * Math.log(1 - tirer(e))) * Math.cos(2 * Math.PI * tirer(e)); }
-const CONTAGION = 0.5, PAPILLON = 0.006; // écart-type du choc de niveau par trimestre : environ 3,6 % cumulés sur 2000-2008
+const CONTAGION = 0.5, PAPILLON = 0.005; // écart-type du choc de niveau par trimestre : environ 3 % cumulés sur 2000-2008
 
 // ---------- Indicateurs dérivés ----------
 export function influenceTotale(p: EtatPays, camp: Camp): number {
@@ -109,20 +113,43 @@ export const cran = (e: EtatPartie) => Math.min(5, 1 + Math.floor(e.tension / 20
 const pibParHab = (p: EtatPays) => p.pib / p.population;
 const pibMonde = (e: EtatPartie) => ISO.reduce((s, i) => s + e.pays[i].pib, 0);
 
+// ---------- Score composite ----------
+// Cinq familles de qualificatifs à poids égaux. Chaque camp compte son leader (poids 1) et les autres pays pondérés
+// par leur alignement ; la part d'une famille est rapportée au total des 50 pays.
+const moyenne = (iso: string, attributs: string[]) => attributs.reduce((s, a) => s + (SCORES.pays[iso]?.scores[a] ?? 50), 0) / attributs.length;
+const QUALITE: Record<Famille, Record<string, number>> = Object.fromEntries((Object.keys(FAMILLES_ATTRIBUTS) as Famille[]).map(f =>
+  [f, Object.fromEntries(ISO.map(i => [i, moyenne(i, f === "population" ? ["Éducation", "Santé", "Urbanisation"] : f === "environnement" ? ["Terre", "Eau", "Air", "Biodiversité", "Forêt"] : FAMILLES_ATTRIBUTS[f].attributs)]))])) as Record<Famille, Record<string, number>>;
+const ENV_2000: Record<string, number> = QUALITE.environnement;
+export const NOMS_FAMILLES: Record<Famille, string> = { economie: "Économie", population: "Population", ressources: "Matières premières", militaire: "Puissance militaire", environnement: "Environnement" };
+function masse(e: EtatPartie, f: Famille, iso: string): number {
+  const p = e.pays[iso];
+  switch (f) {
+    case "economie": return p.pib * QUALITE.economie[iso] / 100;      // PIB × commerce, gestion, finance, infrastructures
+    case "population": return p.population * QUALITE.population[iso] / 100; // effectif × éducation, santé, urbanisation
+    case "environnement": return p.environnement;                     // pollution locale du pays
+    default: return QUALITE[f][iso];                                   // ressources et armée : scores 2000
+  }
+}
+export const poidsCamp = (e: EtatPartie, camp: Camp, iso: string) =>
+  iso === "USA" || iso === "CHN" ? (iso === (camp === "OCC" ? "USA" : "CHN") ? 1 : 0) : Math.max(0, (camp === "OCC" ? 1 : -1) * alignement(e, iso));
+export function partFamille(e: EtatPartie, camp: Camp, f: Famille): number {
+  let num = 0, den = 0;
+  for (const i of ISO) { const m = masse(e, f, i); num += m * poidsCamp(e, camp, i); den += m; }
+  return num / den;
+}
 export function puissance(e: EtatPartie, camp: Camp): number {
-  const signe = camp === "OCC" ? 1 : -1;
-  // part du PIB des 48 autres pays alignée sur le camp : la croissance propre des leaders n'est pas une victoire d'influence
-  const autres = ISO.filter(i => i !== "USA" && i !== "CHN");
-  return autres.reduce((s, i) => s + e.pays[i].pib * Math.max(0, signe * alignement(e, i)), 0) / autres.reduce((s, i) => s + e.pays[i].pib, 0);
+  const fams = Object.keys(NOMS_FAMILLES) as Famille[];
+  return fams.reduce((s, f) => s + partFamille(e, camp, f), 0) / fams.length;
 }
 export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
-// Compensation (komi, comme au go) : le monde de 2000-2008 avantage la Chine (essor économique, événements
-// historiques) d'environ 12,5 points en IA contre IA. L'Occident la reçoit au fil des 36 trimestres, et le seuil
-// d'égalité donne la cible validée : environ 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
-export const KOMI = 12.5, SEUIL_EGALITE = 0.5;
-export const bilan = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE; // progression depuis 2000, sans jugement sur l'écart à l'histoire
+// Compensation (komi, comme au go) mesurée en IA contre IA pour viser 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
+export const KOMI = 8.4, SEUIL_EGALITE = 0.3;
+// Progression depuis 2000 (sans jugement sur l'écart à l'histoire), komi au prorata du temps écoulé.
+export const progression = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE;
+// Bilan : moyenne des décomptes annuels (fin de chaque T4) ; avant le premier décompte, la progression courante.
+export const bilan = (e: EtatPartie) => e.decomptes.length ? e.decomptes.reduce((a, b) => a + b, 0) / e.decomptes.length : progression(e);
 
 // ---------- Création ----------
 function cibleEconomique(e: EtatPartie, iso: string, camp: Camp): number {
@@ -140,7 +167,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
     for (const camp of CAMPS) if (ALLIES_2000[camp].includes(p.iso3)) { inf[camp].p = 50; inf[camp].m = 60; }
     if (SANCTIONNES_2000.includes(p.iso3)) inf.OCC.p = 0;
     pays[p.iso3] = { iso3: p.iso3, population: t.population[0], pib: t.pib[0], stabilite: 50, influence: inf,
-      ancre: { OCC: { ...inf.OCC }, CHN: { ...inf.CHN } }, bonus: [], co2Mod: [] };
+      ancre: { OCC: { ...inf.OCC }, CHN: { ...inf.CHN } }, bonus: [], co2Mod: [], environnement: ENV_2000[p.iso3], pibMax: t.pib[0] };
   }
   const e: EtatPartie = {
     version: VERSION_ETAT, graine, alea: graine | 0, round: 0, joueur, pays,
@@ -149,7 +176,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
       CHN: { cp: 70, budget: 0, main: [], pa: 0, paParPays: {}, paAchetes: 0, carteJouee: false, briefing: null, doctrine: "développement pacifique" },
     },
     tension: 15, co2Cumule: 0, ecartTemp: ECART_2000, drapeaux: [], historiquesFaits: [], briefingsFaits: [],
-    pioche: [], defausse: [], retirees: [], attente: [], journal: [], scoreDepart: 0, termine: false, resultat: null, reglages,
+    pioche: [], defausse: [], retirees: [], attente: [], journal: [], scoreDepart: 0, termine: false, resultat: null, decomptes: [], deficitDepart: { OCC: 0, CHN: 0 }, reglages,
   };
   for (const iso of ISO) for (const camp of CAMPS) {
     const v = cibleEconomique(e, iso, camp);
@@ -158,6 +185,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
   e.pioche = melanger(e, CARTES_ERE1.map(c => c.id));
   for (const camp of CAMPS) e.camps[camp].budget = budgetAnnuel(e, camp);
   e.scoreDepart = bilanBrut(e);
+  for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
   return debutRound(e, true);
 }
 
@@ -318,7 +346,7 @@ function tirerGeneriques(e: EtatPartie) {
         continue;
       }
       const iso = choisirPondere(e, ISO, ISO.map(i => poidsRisque(e, m, i)));
-      executer(e, rebond(m.effets, avant, intensite), null, iso, m.titre, () => intensite);
+      executer(e, rebond(m.effets, avant, intensite, resilience(e, iso)), null, iso, m.titre, () => intensite);
       noter(e, { type: "generique", titre: m.titre.replace("{pays}", nomPays(iso)) + (intensite > 1 ? ` (intensité ${intensite})` : ""),
         texte: m.texte.split("{pays}").join(nomPays(iso)), famille: f.id, pays: [iso], visiblePour: visibleDans(e, [iso]) });
     }
@@ -329,9 +357,12 @@ function tirerGeneriques(e: EtatPartie) {
 // Les génériques sont un bruit de fond : sans amortissement, ils apportaient +6,7 de tension et -1,5 de stabilité
 // par pays et par trimestre (tension 79/100 et stabilité moyenne 32 en 2008). Calibrage : équilibre vers tension 30, stabilité 42.
 const AMORTI_GENERIQUE = { tension: 0.3, stabilite: 0.25 };
-function rebond(effets0: Effet[], avant: boolean, intensite: number): Effet[] {
+// Résilience : une grande économie diversifiée encaisse mieux un choc local (racine quatrième du rapport au PIB moyen).
+const resilience = (e: EtatPartie, iso: string) => Math.min(1, Math.pow(pibMonde(e) / ISO.length / e.pays[iso].pib, 0.25));
+function rebond(effets0: Effet[], avant: boolean, intensite: number, amorti = 1): Effet[] {
   const effets = effets0.map((ef): Effet => ef.type === "tension" ? { ...ef, valeur: ef.valeur * AMORTI_GENERIQUE.tension }
-    : ef.type === "stabilite" ? { ...ef, valeur: ef.valeur * AMORTI_GENERIQUE.stabilite } : ef);
+    : ef.type === "stabilite" ? { ...ef, valeur: ef.valeur * AMORTI_GENERIQUE.stabilite }
+    : ef.type === "croissance" ? { ...ef, points: ef.points * amorti } : ef);
   if (!avant) return effets;
   return effets.flatMap((ef): Effet[] => {
     if (ef.type !== "croissance") return [ef];
@@ -542,6 +573,7 @@ function populationReference(iso: string, annee: number): number {
   const t = TRAJ[iso].population, k = Math.min(annee - 2000, t.length - 2);
   return t[k + 1] / t[k] - 1;
 }
+const EMIS_2000: Record<string, number> = Object.fromEntries(ISO.map(i => [i, TRAJ[i].co2[0]]));
 function intensiteCo2(iso: string, annee: number): number {
   const t = TRAJ[iso], k = Math.min(annee - 2000, t.pib.length - 1);
   return (t.co2[k] / t.pib[k]) * Math.pow(0.98, Math.max(0, annee - 2022));
@@ -567,7 +599,11 @@ export function finRound(e0: EtatPartie): EtatPartie {
     p.population *= Math.pow(1 + populationReference(iso, annee), 0.25);
     p.bonus = p.bonus.map(b => ({ ...b, reste: b.reste - 1 })).filter(b => b.reste > 0);
     const mod = p.co2Mod.reduce((s, m) => s * (1 + m.pourcent / 100), 1);
-    emissions += intensiteCo2(iso, annee) * p.pib * mod / 4;
+    const emisPays = intensiteCo2(iso, annee) * p.pib * mod;
+    emissions += emisPays / 4;
+    // pollution locale : la qualité de l'environnement suit la racine quatrième de l'évolution des émissions du pays
+    p.environnement = borne(ENV_2000[iso] * Math.pow(EMIS_2000[iso] / Math.max(1e-9, emisPays), 0.25), 0, 100);
+    p.pibMax = Math.max(p.pibMax, p.pib);
     p.co2Mod = p.co2Mod.map(m => ({ ...m, reste: m.reste - 1 })).filter(m => m.reste > 0);
   }
   e.co2Cumule += emissions / PART_CO2_50 / 1000; // Mt -> Gt
@@ -583,8 +619,22 @@ export function finRound(e0: EtatPartie): EtatPartie {
   e.tension = borne(e.tension - 0.08 * (e.tension - 10), 0, 100);
   for (const iso of ISO) e.pays[iso].stabilite += 0.05 * (50 - e.pays[iso].stabilite);
   for (const camp of CAMPS) e.camps[camp].cp = borne(e.camps[camp].cp + 1, 0, 100);
-  // fin d'année : main (2 cartes gardées au plus), élections
+  // pénurie de ressources : si l'écart entre le poids économique d'un camp et les ressources qu'il contrôle se creuse
+  // par rapport à 2000 (déjà contenu dans la trajectoire réelle), la croissance de son leader est freinée
+  for (const camp of CAMPS) {
+    const deficit = Math.max(0, deficitRessources(e, camp) - e.deficitDepart[camp]);
+    if (deficit > 0) e.pays[camp === "OCC" ? "USA" : "CHN"].bonus.push({ points: -PENURIE * deficit, reste: 1 });
+  }
+  // seuils extrêmes : défaite immédiate
+  const defaite = seuilAtteint(e);
+  if (defaite) {
+    e.termine = true; e.resultat = defaite.titre;
+    noter(e, { type: "bilan", titre: defaite.titre, texte: defaite.texte, visiblePour: [...CAMPS] });
+    return e;
+  }
+  // fin d'année : main (2 cartes gardées au plus), élections, décompte
   if (trimestre === 4) {
+    e.decomptes.push(progression({ ...e, termine: true }));
     for (const camp of CAMPS) { const c = e.camps[camp]; while (c.main.length > 2) e.defausse.push(c.main.pop()!); }
     if (ELECTIONS_USA.includes(annee)) election(e, "OCC", 1 / (1 + Math.exp(-(e.camps.OCC.cp - 50) / 10)), "Élection présidentielle américaine");
     if (CONGRES_CHINE.includes(annee)) election(e, "CHN", 1 - 1 / (1 + Math.exp(-(40 - e.camps.CHN.cp) / 8)), "Congrès du Parti communiste chinois");
@@ -593,13 +643,25 @@ export function finRound(e0: EtatPartie): EtatPartie {
     e.termine = true;
     const b = bilan(e);
     e.resultat = Math.abs(b) < SEUIL_EGALITE ? "Égalité" : b > 0 ? "Victoire de l'Occident" : "Victoire de la Chine";
-    noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Bilan ${b >= 0 ? "+" : ""}${b.toFixed(1)} points (positif = Occident). Puissance Occident ${(100 * puissance(e, "OCC")).toFixed(1)} %, Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
+    noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Bilan ${b >= 0 ? "+" : ""}${b.toFixed(1)} points (positif = Occident), moyenne de ${e.decomptes.length} décomptes annuels. Puissance Occident ${(100 * puissance(e, "OCC")).toFixed(1)} %, Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
     return e;
   }
   e.round += 1;
   return debutRound(e, true);
 }
 
+const deficitRessources = (e: EtatPartie, camp: Camp) => Math.max(0, partFamille(e, camp, "economie") - partFamille(e, camp, "ressources"));
+const PENURIE = 5; // points de croissance annuelle perdus par unité de déficit (part économique − part des ressources)
+export const SEUILS = { population: 0.9, banqueroute: 0.8, climat: 3 };
+function seuilAtteint(e: EtatPartie): { titre: string; texte: string } | null {
+  if (e.ecartTemp >= SEUILS.climat) return { titre: "Catastrophe climatique : défaite des deux camps", texte: `Le réchauffement atteint ${e.ecartTemp.toFixed(2)} °C : le système international s'effondre.` };
+  for (const camp of CAMPS) {
+    const l = e.pays[camp === "OCC" ? "USA" : "CHN"], nom = camp === "OCC" ? "l'Occident" : "la Chine";
+    if (l.population < SEUILS.population * TRAJ[l.iso3].population[0]) return { titre: `Défaite de ${nom} : effondrement démographique`, texte: "La population du leader a perdu plus de 10 % depuis 2000." };
+    if (l.pib < SEUILS.banqueroute * l.pibMax) return { titre: `Défaite de ${nom} : banqueroute`, texte: "Le PIB du leader a chuté de plus de 20 % sous son sommet : l'État ne peut plus payer." };
+  }
+  return null;
+}
 const DOCTRINES: Record<Camp, string[]> = { OCC: ["internationaliste", "interventionniste", "isolationniste", "pro-commerce"], CHN: ["développement pacifique", "nationaliste", "réformatrice"] };
 function election(e: EtatPartie, camp: Camp, pMaintien: number, titre: string) {
   if (tirer(e) < pMaintien) { noter(e, { type: "politique", titre: `${titre} : continuité`, texte: `Le pouvoir en place est reconduit (probabilité ${(100 * pMaintien).toFixed(0)} %).`, camp, visiblePour: [...CAMPS] }); return; }

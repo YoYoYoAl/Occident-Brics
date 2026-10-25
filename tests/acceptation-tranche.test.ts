@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import trajectoires from "../src/data/trajectoires.json";
 import { FAMILLES } from "../src/contenu/generiques";
 import {
-  creerPartie, roundAutomatique, serialiserPartie, chargerPartie, finRound, jouerCarte, alignement, bilan, ROUNDS_TRANCHE, type EtatPartie,
+  creerPartie, roundAutomatique, serialiserPartie, chargerPartie, partFamille, NOMS_FAMILLES, SEUILS, finRound, jouerCarte, alignement, bilan, ROUNDS_TRANCHE, type EtatPartie,
 } from "../src/moteur/partie";
 import { CAMPS, CANAUX } from "../src/moteur/types";
 
@@ -124,5 +124,32 @@ describe("Tranche 2000-2008 : moteur", () => {
     expect(JSON.stringify(jouer(repris))).toBe(JSON.stringify(jouer(e)));
     expect(() => chargerPartie(JSON.stringify({ ...e, version: 1 }))).toThrow(/version/);
     expect(() => chargerPartie("{}")).toThrow();
+  });
+
+  it("10. score composite : 5 familles à parts bornées, leader compté pour son camp, 9 décomptes annuels", () => {
+    const e0 = creerPartie(3, "OCC");
+    for (const f of Object.keys(NOMS_FAMILLES) as (keyof typeof NOMS_FAMILLES)[]) {
+      const o = partFamille(e0, "OCC", f), c = partFamille(e0, "CHN", f);
+      expect(o).toBeGreaterThan(0); expect(c).toBeGreaterThan(0); expect(o + c).toBeLessThanOrEqual(1 + 1e-9);
+    }
+    const e = jouer(e0);
+    expect(e.decomptes).toHaveLength(9);
+    expect(bilan(e)).toBeCloseTo(e.decomptes.reduce((a, b) => a + b, 0) / 9, 9);
+  });
+
+  it("11. la pollution locale d'un pays se dégrade quand ses émissions montent", () => {
+    const e = jouer(creerPartie(4, null, SANS_ALEA));
+    expect(e.pays.CHN.environnement).toBeLessThan(creerPartie(4, null, SANS_ALEA).pays.CHN.environnement); // émissions chinoises x2 en 2000-2008
+  });
+
+  it("12. seuils extrêmes : banqueroute, effondrement démographique, catastrophe climatique", () => {
+    const base = creerPartie(6, "OCC", SANS_ALEA);
+    const b = structuredClone(base); b.pays.USA.pibMax = b.pays.USA.pib / (SEUILS.banqueroute - 0.05);
+    expect(finRound(b).resultat).toMatch(/Défaite de l'Occident : banqueroute/);
+    const p = structuredClone(base); p.pays.CHN.population *= SEUILS.population - 0.05;
+    expect(finRound(p).resultat).toMatch(/Défaite de la Chine : effondrement/);
+    const c = structuredClone(base); c.ecartTemp = SEUILS.climat + 1; c.co2Cumule = (SEUILS.climat + 1 - 0.8) / 0.45 * 1000;
+    expect(finRound(c).resultat).toMatch(/Catastrophe climatique/);
+    expect(finRound(c).termine).toBe(true);
   });
 });

@@ -3,7 +3,7 @@ import { dessinerCarte, couleurLog, couleurAlignement } from "./carte";
 import { ficheHtml } from "./fiche";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, acheterPA, peutAcheterPA, PRIX_PA,
-  repondreBriefing, KOMI, SEUIL_EGALITE, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
+  repondreBriefing, KOMI, SEUIL_EGALITE, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
   decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, type EtatPartie, type TypeAction, type EntreeJournal,
 } from "../moteur/partie";
 import { CANAUX, adversaire, type Camp } from "../moteur/types";
@@ -50,7 +50,7 @@ const fenetreOuverte = () => !$("fenetre").hidden;
 
 function choisirCamp() {
   ouvrir(`<h2>Nouvelle partie</h2>
-    <p>De 2000 à 2008, 36 trimestres. Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le bilan mesure la part du PIB mondial (hors leaders) alignée sur chaque camp, et sa progression depuis 2000.</p>
+    <p>De 2000 à 2008, 36 trimestres. Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le score compte, pour 5 familles (économie, population, ressources, armée, environnement), la part du monde que contrôle chaque camp ; un décompte a lieu chaque fin d'année.</p>
     <div class="choix-camp">
       <button data-camp="OCC" class="occ"><strong>Occident</strong><span>États-Unis et alliés. Riche et influent partout, mais l'essor chinois grignote ta position.</span></button>
       <button data-camp="CHN" class="chn"><strong>Chine</strong><span>Croissance à deux chiffres, peu d'alliés. Transforme ton poids économique en influence.</span></button>
@@ -111,9 +111,9 @@ function finDePartie() {
   const b = bilan(etat!), fin = etat!.journal.filter(j => j.type === "bilan").pop();
   const gagne = (b > 0 && joueur() === "OCC") || (b < 0 && joueur() === "CHN");
   ouvrir(`<h2>${esc(etat!.resultat ?? "")}</h2>
-    <p class="gros">${Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : bilan ${signe(b)} points (positif = Occident).</p>
+    <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : bilan ${signe(b)} points (positif = Occident).</p>
     <p>${esc(fin?.texte ?? "")}</p>
-    <p class="note">Le bilan mesure la progression depuis 2000 : la part du PIB des 48 autres pays alignée sur chaque camp, plus un dixième de l'écart de capital politique, plus la compensation de ${nombre(KOMI)} points accordée à l'Occident (le monde de 2000-2008 favorise la Chine). Égalité sous ${nombre(SEUIL_EGALITE)} point.</p>
+    <p class="note">Le bilan est la moyenne des décomptes annuels : progression depuis 2000 de la puissance de chaque camp (5 familles de qualificatifs à poids égaux), plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour l'Occident. Égalité sous ${nombre(SEUIL_EGALITE)} point. Détail dans l'onglet Score.</p>
     <div class="actions-fenetre"><button id="rejouer" class="principal">Nouvelle partie</button><button id="voir">Voir la carte</button></div>`,
   bt => { bt.querySelector<HTMLButtonElement>("#rejouer")!.onclick = choisirCamp; bt.querySelector<HTMLButtonElement>("#voir")!.onclick = fermer; });
 }
@@ -174,6 +174,24 @@ function panneauPays(): string {
   return h;
 }
 
+function panneauScore(): string {
+  const e = etat!;
+  let h = `<h2>Score</h2><p class="note">Pour chaque famille, part du total des 50 pays contrôlée par chaque camp : le leader compte en entier, les autres pays au prorata de leur alignement. Les 5 familles pèsent autant.</p>
+    <table><tr><td></td><td class="v occ-t">Occident</td><td class="v chn-t">Chine</td></tr>`;
+  for (const f of Object.keys(NOMS_FAMILLES) as (keyof typeof NOMS_FAMILLES)[])
+    h += `<tr><td>${NOMS_FAMILLES[f]}</td><td class="v">${nombre(100 * partFamille(e, "OCC", f), 0)} %</td><td class="v">${nombre(100 * partFamille(e, "CHN", f), 0)} %</td></tr>`;
+  h += `<tr><td><strong>Puissance</strong></td><td class="v"><strong>${nombre(100 * puissance(e, "OCC"))} %</strong></td><td class="v"><strong>${nombre(100 * puissance(e, "CHN"))} %</strong></td></tr></table>
+    <h3>Décomptes annuels (positif = Occident)</h3>`;
+  h += e.decomptes.length ? `<table>${e.decomptes.map((d, i) => `<tr><td>Fin ${2000 + i}</td><td class="v ${d >= 0 ? "occ-t" : "chn-t"}">${signe(d)}</td></tr>`).join("")}
+    <tr><td><strong>Moyenne = bilan</strong></td><td class="v"><strong>${signe(bilan(e))}</strong></td></tr></table>` : `<p class="note">Premier décompte fin 2000.</p>`;
+  h += `<p class="note">Chaque décompte mesure la progression depuis 2000 : écart de puissance entre les camps, plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour l'Occident, versée au prorata du temps. Égalité sous ${nombre(SEUIL_EGALITE)} point.</p>
+    <h3>Seuils de défaite</h3><ul class="conseillers"><li>Banqueroute : PIB du leader à moins de ${nombre(100 * SEUILS.banqueroute, 0)} % de son sommet.</li>
+    <li>Effondrement démographique : population du leader sous ${nombre(100 * SEUILS.population, 0)} % de 2000.</li>
+    <li>Catastrophe climatique (défaite commune) : réchauffement de ${nombre(SEUILS.climat)} °C (actuel ${nombre(e.ecartTemp, 2)} °C).</li></ul>
+    <p class="note">Pénurie : si ton poids économique dépasse davantage qu'en 2000 la part des ressources que tu contrôles, la croissance de ton leader est freinée.</p>`;
+  return h;
+}
+
 function panneauJournal(): string {
   const v = visibles().slice().reverse();
   if (!v.length) return `<p class="note">Journal vide.</p>`;
@@ -203,7 +221,7 @@ function lierPanneau(zone: HTMLElement) {
 function couleurs(): Record<string, string> {
   const e = etat!, vue = $<HTMLSelectElement>("vue").value, isos = Object.keys(e.pays);
   if (vue === "alignement") return Object.fromEntries(isos.map(i => [i, couleurAlignement(alignement(e, i))]));
-  const val = (i: string) => vue === "population" ? e.pays[i].population : vue === "pib" ? e.pays[i].pib : e.pays[i].stabilite + 1;
+  const val = (i: string) => vue === "population" ? e.pays[i].population : vue === "pib" ? e.pays[i].pib : vue === "environnement" ? e.pays[i].environnement + 1 : e.pays[i].stabilite + 1;
   const vs = isos.map(val), min = Math.min(...vs), max = Math.max(...vs);
   return Object.fromEntries(isos.map(i => [i, couleurLog(val(i), min, max)]));
 }
@@ -215,8 +233,8 @@ function afficher() {
   $("camp").textContent = `Tu joues : ${NOM_CAMP[monCamp]}`;
   $("camp").className = monCamp === "OCC" ? "occ-t" : "chn-t";
   $("jauges").innerHTML = [
-    `<span title="Bilan : positif = Occident ; compensation Occident incluse au prorata du temps">Bilan <strong class="${b >= 0 ? "occ-t" : "chn-t"}">${signe(b)}</strong></span>`,
-    `<span title="Part du PIB des 48 autres pays alignée sur chaque camp">Puissance <strong class="occ-t">${nombre(100 * puissance(e, "OCC"), 0)} %</strong> / <strong class="chn-t">${nombre(100 * puissance(e, "CHN"), 0)} %</strong></span>`,
+    `<span title="Bilan = moyenne des décomptes annuels (positif = Occident). Progression actuelle : ${signe(progression(e))}">Bilan <strong class="${b >= 0 ? "occ-t" : "chn-t"}">${signe(b)}</strong></span>`,
+    `<span title="Moyenne des 5 familles (économie, population, ressources, armée, environnement) contrôlées par chaque camp">Puissance <strong class="occ-t">${nombre(100 * puissance(e, "OCC"), 0)} %</strong> / <strong class="chn-t">${nombre(100 * puissance(e, "CHN"), 0)} %</strong></span>`,
     `<span title="Tension mondiale ${nombre(e.tension, 0)} / 100">Tension <strong>${cran(e)}/5</strong></span>`,
     `<span title="Capital politique (élections, coûts)">CP <strong>${nombre(c.cp, 0)}</strong></span>`,
     `<span title="Budget annuel = PIB du leader / 1 000 Md">Budget <strong>${nombre(c.budget, 0)}</strong></span>`,
@@ -229,7 +247,7 @@ function afficher() {
   carteMonde.choisir(paysChoisi);
   document.querySelectorAll<HTMLButtonElement>("[data-onglet]").forEach(x => x.classList.toggle("actif", x.dataset.onglet === onglet));
   const zone = $("contenu");
-  zone.innerHTML = onglet === "main" ? panneauMain() : onglet === "pays" ? panneauPays() : panneauJournal();
+  zone.innerHTML = onglet === "main" ? panneauMain() : onglet === "pays" ? panneauPays() : onglet === "score" ? panneauScore() : panneauJournal();
   lierPanneau(zone);
   $<HTMLButtonElement>("btnFin").disabled = e.termine;
 }
