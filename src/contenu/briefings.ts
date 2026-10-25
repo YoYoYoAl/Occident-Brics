@@ -1,4 +1,4 @@
-// Briefings de l'ère 1 : 4 par camp. Effets affichés en fourchette ; effets réels tirés entre ×0,5 et ×1,5 ;
+// Briefings de l'ère 1 : 5 par camp (dont un dès 2000). Effets affichés en fourchette ; effets réels tirés entre ×0,5 et ×1,5 ;
 // effets cachés révélés à leur échéance. Personnes réelles non nommées : on parle de fonctions.
 import type { Briefing } from "../moteur/types";
 
@@ -7,6 +7,19 @@ const MONDE_ARABE = ["SAU", "EGY", "ARE", "QAT", "DZA", "IRQ"];
 
 export const BRIEFINGS_ERE1: Briefing[] = [
   // ---------- Occident ----------
+  { id: "b_o_commerce_chine", camp: "OCC", titre: "Normaliser le commerce avec la Chine ?", maxChoix: 1,
+    dossier: "Le Congrès doit voter les relations commerciales normales et permanentes avec la Chine, préalable à son entrée à l'OMC. Les grandes entreprises poussent au oui ; les syndicats et les défenseurs des droits de l'homme s'y opposent.",
+    declencheur: { annee: 2000, trimestre: 2 },
+    conseillers: [
+      { role: "Représentant au Commerce", avis: "Un marché d'un milliard de consommateurs s'ouvre à nos entreprises." },
+      { role: "Secrétaire au Travail", avis: "Nos usines vont partir en Chine ; protégeons les emplois industriels." },
+      { role: "Conseiller à la sécurité nationale", avis: "Intégrer la Chine au système l'arrimera à nos règles." } ],
+    options: [
+      { libelle: "Voter la normalisation", cout: { cp: 2 }, effets: [{ type: "croissance", pays: "USA", points: 0.3, duree: 8 }, { type: "influence", pays: "tous", camp: J, canal: "e", valeur: 1 }],
+        caches: [{ probabilite: 0.6, effets: [{ type: "croissance", pays: "CHN", points: 0.5, duree: 8, delai: 4 }] }] },
+      { libelle: "La conditionner aux droits de l'homme", cout: { cp: 3 }, effets: [{ type: "influence", pays: ["GBR", "FRA", "DEU", "CAN", "AUS", "JPN"], camp: J, canal: "c", valeur: 3 }, { type: "tension", valeur: 1 }] },
+      { libelle: "Reporter le vote", cout: {}, effets: [{ type: "cp", camp: J, valeur: 2 }, { type: "influence", pays: ["KOR", "TWN", "SGP"], camp: J, canal: "e", valeur: -2 }] } ] },
+
   { id: "b_o_apres_11_septembre", camp: "OCC", titre: "Après le 11 septembre", maxChoix: 2,
     dossier: "Le pays est sous le choc. Le Congrès est prêt à voter des pouvoirs étendus ; les alliés de l'OTAN ont invoqué l'article 5. Il faut définir la riposte et la doctrine pour les années qui viennent.",
     declencheur: { evenement: "h_11_septembre" },
@@ -63,6 +76,19 @@ export const BRIEFINGS_ERE1: Briefing[] = [
         caches: [{ probabilite: 0.7, effets: [{ type: "croissance", pays: "USA", points: -2, duree: 4, delai: 1 }, { type: "stabilite", pays: "USA", valeur: -6, delai: 2 }] }] } ] },
 
   // ---------- Chine ----------
+  { id: "b_c_taiwan_2000", camp: "CHN", titre: "Un indépendantiste élu à Taïwan", maxChoix: 1,
+    dossier: "Pour la première fois, le candidat du parti favorable à l'indépendance remporte la présidentielle à Taïwan. Washington appelle au calme ; l'armée propose des manœuvres dans le détroit.",
+    declencheur: { annee: 2000, trimestre: 1 },
+    conseillers: [
+      { role: "Chef d'état-major", avis: "Une démonstration de force rappellera que la ligne rouge existe." },
+      { role: "Ministre des Affaires étrangères", avis: "Attendons ses premiers actes ; ne poussons pas l'île vers Washington." },
+      { role: "Responsable des affaires de Taïwan", avis: "Courtisons les milieux d'affaires taïwanais qui investissent sur le continent." } ],
+    options: [
+      { libelle: "Manœuvres dans le détroit", cout: { budget: 1 }, effets: [{ type: "cp", camp: J, valeur: 3 }, { type: "tension", valeur: 4 }, { type: "influence", pays: ["JPN", "KOR", "PHL"], camp: A, canal: "m", valeur: 3 }] },
+      { libelle: "Attendre et observer", cout: {}, effets: [{ type: "influence", pays: ["THA", "MYS", "SGP", "IDN"], camp: J, canal: "p", valeur: 2 }] },
+      { libelle: "Séduire les entreprises taïwanaises", cout: { budget: 2 }, effets: [{ type: "influence", pays: "TWN", camp: J, canal: "e", valeur: 6 }, { type: "croissance", pays: "CHN", points: 0.2, duree: 4 }],
+        caches: [{ probabilite: 0.4, effets: [{ type: "cp", camp: J, valeur: -2, delai: 2 }] }] } ] },
+
   { id: "b_c_omc", camp: "CHN", titre: "Les conditions de l'entrée à l'OMC", maxChoix: 1,
     dossier: "L'adhésion à l'OMC est à portée de main. Les négociateurs étrangers exigent l'ouverture des services et la réforme des entreprises d'État, au prix de millions d'emplois.",
     declencheur: { annee: 2001, trimestre: 3 },

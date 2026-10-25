@@ -1,4 +1,5 @@
 // Tests d'acceptation de la tranche verticale 2000-2008 (document « Règles chiffrées de la tranche 2000-2008 »).
+import { HISTORIQUES_ERE1 } from "../src/contenu/historiques";
 import { describe, it, expect } from "vitest";
 import trajectoires from "../src/data/trajectoires.json";
 import { FAMILLES } from "../src/contenu/generiques";
@@ -24,7 +25,10 @@ describe("Tranche 2000-2008 : moteur", () => {
   it("2. PIB fin 2008 : exact sans aléa (±1 %), et à ±10 % de la trajectoire réelle pour 90 % des pays avec aléas", () => {
     const e = jouer(creerPartie(1, null, SANS_ALEA));
     expect(e.round + 1).toBe(ROUNDS_TRANCHE);
+    // un événement historique qui dévie (10 % de hasard) est compensé : ses pays quittent alors la trajectoire réelle, c'est voulu
+    const devies = new Set(HISTORIQUES_ERE1.filter(h => h.compensationSiAbsent && !e.historiquesFaits.includes(h.id)).flatMap(h => h.pays));
     for (const iso of Object.keys(e.pays)) {
+      if (devies.has(iso)) continue;
       const reel = TRAJ[iso].pib[9]; // niveau annuel 2009 = sortie du 4e trimestre 2008
       expect(Math.abs(e.pays[iso].pib / reel - 1), iso).toBeLessThan(0.01);
     }

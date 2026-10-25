@@ -19,7 +19,10 @@ button:disabled { opacity: .4; cursor: default; }
 main { flex: 1; display: flex; min-height: 0; }
 .carte { flex: 1; min-width: 0; background: var(--mer); }
 .carte svg { width: 100%; height: 100%; display: block; }
-.carte path { stroke: #1c3a52; stroke-width: .5; }
+.carte path { stroke: rgba(225, 235, 245, .32); stroke-width: .6; }
+.carte .fond .ocean { fill: transparent; }
+.carte .fond path.graticule { fill: none; stroke: rgba(160, 205, 235, .12); stroke-width: .5; pointer-events: none; }
+.carte .fond * { pointer-events: none; }
 .carte path.jeu { cursor: pointer; }
 .carte path.jeu:hover { stroke: var(--texte); stroke-width: 1; }
 .carte path.choisi { stroke: var(--accent); stroke-width: 1.6; }
@@ -47,7 +50,7 @@ main { flex: 1; display: flex; min-height: 0; }
 
 .jauges { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .9em; color: var(--doux); }
 .jauges strong { color: var(--texte); }
-.occ-t { color: var(--occ) !important; } .chn-t { color: var(--chn) !important; }
+.occ-t { color: var(--occ) !important; } .chn-t { color: var(--chn) !important; } .egal-t { color: var(--doux); }
 button.principal { background: var(--accent); color: #1a1406; border-color: var(--accent); font-weight: 600; }
 .alerte-btn { border-color: var(--chn); color: var(--chn); }
 .carte-jeu { border: 1px solid var(--bord); border-left: 4px solid var(--doux); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px; background: #1b2530; }
@@ -65,6 +68,12 @@ button.principal { background: var(--accent); color: #1a1406; border-color: var(
 .achat { margin-top: 10px; }
 .grille-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .grille-actions button small { display: block; color: var(--doux); font-size: .78em; }
+.grille-actions button .gain { display: block; font-style: normal; font-size: .72em; color: #8fd19e; }
+.groupe-actions { margin: 10px 0 4px; font-size: .9em; color: var(--accent); }
+.mode.prevision { border-left: 3px solid var(--chn); padding-left: 8px; }
+label.cible select { margin-left: 4px; max-width: 70%; }
+.campagnes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.campagnes select { flex: 1 1 100%; }
 .qualificatifs { margin-top: 16px; } .qualificatifs summary { cursor: pointer; color: var(--accent); }
 .gros { font-size: 1.1em; }
 .journal { list-style: none; padding: 0; margin: 0; }
@@ -114,7 +123,9 @@ button.principal { background: var(--accent); color: #1a1406; border-color: var(
 .zone-carte .carte { flex: 1; }
 .outils-carte { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100% - 70px); z-index: 2; }
 .outils-carte button { background: rgba(23, 32, 41, .88); font-size: .82em; padding: 4px 8px; }
-.outils-carte button.actif { border-color: var(--accent); color: var(--accent); }
+.outils-carte button { opacity: .75; }
+.outils-carte button.actif { opacity: 1; background: var(--accent); border-color: var(--accent); color: #10161c; font-weight: 600; }
+.outils-carte button.actif::before { content: "✓ "; }
 body.sans-panneau .panneau { display: none; }
 body.plein-ecran .barre .version, body.plein-ecran .jauges { display: none; }
 body.plein-ecran .panneau { position: absolute; right: 10px; top: 60px; bottom: 10px; width: 360px; border: 1px solid var(--bord); border-radius: 8px; opacity: .97; z-index: 3; }
@@ -125,8 +136,13 @@ body.plein-ecran main { position: relative; }
 .carte svg.avec-sigles .sigles { display: inline; }
 .carte .barres { display: none; }
 .carte svg.avec-barres .barres { display: inline; }
-.carte .barres .b-o { fill: #4f8be0; } .carte .barres .b-c { fill: #dc4b3c; }
-.carte .v-occ { fill: #9cc3ff; } .carte .v-chn { fill: #ffa595; }
+.carte .barres .b-o { fill: #3d78d6; } .carte .barres .b-c { fill: #d4402f; }
+.carte .barres .b-cadre { fill: none; stroke-width: 2px; }
+.carte .noms text.b-lettre { font-size: 8.5px; font-weight: 800; fill: #fff; stroke: rgba(0,0,0,.6); stroke-width: 1.6px; }
+.carte .noms text.valeur { font-size: 10.5px; fill: #eef3f7; stroke: rgba(10,16,22,.9); stroke-width: 2.6px; }
+.carte .v-occ { fill: #a9cbff; } .carte .v-chn { fill: #ffab9c; }
+.carte .noms text.sigles { font-size: 8px; fill: #f4e3b5; stroke: rgba(10,16,22,.9); stroke-width: 2.4px; }
+.leg-canal { display: inline-block; width: 11px; height: 11px; border: 2px solid; border-radius: 2px; background: linear-gradient(90deg, #3d78d6 50%, #d4402f 50%); vertical-align: -1px; margin-right: 2px; }
 .bulle table.mini { font-size: .78em; border-collapse: collapse; margin: 4px 0; }
 .bulle table.mini td { padding: 0 4px; text-align: right; }
 /* ---------- Images, rapport, réactions ---------- */
@@ -163,7 +179,7 @@ body.plein-ecran main { position: relative; }
 /* ---------- Habillage ---------- */
 .barre { background: linear-gradient(90deg, #121b24, #1a2733 55%, #22161a); box-shadow: 0 2px 10px rgba(0,0,0,.4); position: relative; z-index: 4; }
 .titre { font-size: 1.15em; background: linear-gradient(90deg, var(--occ), #f2e6c9 50%, var(--chn)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.carte { background: radial-gradient(ellipse at 50% 40%, #2f6d93 0%, #24506e 55%, #173449 100%); }
+.carte { background: radial-gradient(ellipse at 50% 45%, #1d3142 0%, #142330 60%, #0c161f 100%); }
 .panneau { background: linear-gradient(180deg, rgba(23,32,41,.94), rgba(23,32,41,.98)), var(--fond-panneau, none) center / cover; }
 .carte-jeu header { align-items: center; }
 .carte-jeu header img { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; border: 1px solid var(--bord); flex: none; }
@@ -179,3 +195,25 @@ body.plein-ecran main { position: relative; }
 @keyframes apparition { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
 .journal li { border-radius: 6px; }
 .journal li.j-historique { background: rgba(217,164,65,.07); }
+/* ---------- Ports, aéroports, flux par pays ---------- */
+.carte .point-flux circle { stroke: rgba(255, 255, 255, .7); }
+.barre-flux { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 3px 0; background: #2a3742; }
+.barre-flux span { display: block; height: 100%; }
+.carte .flux .flux-maritime { stroke: #7cc8f0; }
+.carte .flux .flux-terrestre { stroke: #f0a848; }
+.carte .flux .flux-aerien { stroke: #e8e8f4; }
+.carte .flux .local { opacity: .9; stroke-dasharray: 3 3; }
+.carte .flux path:hover { opacity: 1; stroke-width: 5px; }
+/* ---------- Carte texturée et animée ---------- */
+.carte .grain { pointer-events: none; mix-blend-mode: overlay; }
+.carte .grain path { stroke: none; }
+.carte .vignette { pointer-events: none; }
+.carte .flux .flux-maritime, .carte .flux .flux-aerien { animation: flux-defile 2.4s linear infinite; }
+.carte .flux .flux-aerien { animation-duration: 3.5s; }
+.carte .flux .coupe { animation: clignote 1.2s ease-in-out infinite; }
+@keyframes flux-defile { to { stroke-dashoffset: -20; } }
+@keyframes clignote { 50% { opacity: .25; } }
+.carte .m-conflit circle, .carte .m-alerte circle { animation: pulsation 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes pulsation { 0% { stroke: rgba(255, 90, 70, .9); stroke-width: 1; } 70% { stroke: rgba(255, 90, 70, 0); stroke-width: 9; } 100% { stroke-width: 1; stroke: rgba(255, 90, 70, 0); } }
+.carte path.jeu { transition: fill .6s ease; }
+@media (prefers-reduced-motion: reduce) { .carte .flux path, .carte .m-conflit circle, .carte .m-alerte circle { animation: none; } }

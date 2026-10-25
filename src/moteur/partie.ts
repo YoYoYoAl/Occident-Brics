@@ -7,8 +7,9 @@ import { EXPOSITION, SANCTIONNES_2000, NON_DEMOCRATIES_2000 } from "../data/geog
 import { INFLUENCE_2000 } from "../data/influence2000";
 import { HISTORIQUES_ERE1 } from "../contenu/historiques";
 import { FAMILLES, MODELES_LOT1, EXPOSES_CLIMAT } from "../contenu/generiques";
-import { CONTEXTES, VILLES, enPays, duPays } from "../contenu/contextes";
+import { CONTEXTES, MINEURS, VILLES, enPays, duPays } from "../contenu/contextes";
 import { FLUX, DETROITS, type Flux } from "../data/flux";
+import { hubsDe } from "../data/hubs";
 import { CARTES_ERE1 } from "../contenu/cartes";
 import { BRIEFINGS_ERE1 } from "../contenu/briefings";
 import { SCORES } from "../data/donnees2000";
@@ -50,7 +51,7 @@ export const NOMS_TYPES: Record<TypeCarte, string> = { camp: "de ton camp", adve
 export interface EntreeJournal {
   round: number; type: "historique" | "generique" | "carte" | "briefing" | "cache" | "politique" | "bilan" | "action";
   titre: string; texte: string; famille?: string; pays?: string[]; camp?: Camp; visiblePour: Camp[];
-  effets?: string[]; intensite?: number; joueParCamp?: Camp; reactif?: boolean; source?: string; // source : identifiant de l'événement historique ; reactif : événement négatif localisé, on peut y réagir (aider, exploiter) // joueParCamp : qui a posé la carte (≠ camp quand l'événement adverse se déclenche) // effets lisibles (« ce que ça change ») et intensité 1-3 des événements génériques
+  effets?: string[]; intensite?: number; mineur?: boolean; joueParCamp?: Camp; reactif?: boolean; source?: string; // source : identifiant de l'événement historique ; reactif : événement négatif localisé, on peut y réagir (aider, exploiter) // joueParCamp : qui a posé la carte (≠ camp quand l'événement adverse se déclenche) // effets lisibles (« ce que ça change ») et intensité 1-3 des événements génériques
 }
 interface EffetPrevu { round: number; effet: Effet; joueur: Camp | null; paysTire?: string; source: string; cache: boolean; facteur: number }
 
@@ -65,6 +66,7 @@ export interface EtatPartie {
   reglages: Reglages;
   conflits: Conflit[]; // conflits armés en cours (symboles sur la carte)
   blocages: { detroit: string; fin: number }[]; // détroits fermés : les flux qui les traversent sont coupés
+  concessions: { hub: string; iso: string; camp: Camp; fin: number }[]; // ports et aéroports sous concession d'un bloc
 }
 export interface Conflit { iso: string; titre: string; fin: number }
 // Réglages de test : désactiver les génériques ou l'IA isole la trajectoire de référence.
@@ -156,7 +158,7 @@ export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
 // Compensation (komi, comme au go) mesurée en IA contre IA pour viser 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
-export const KOMI = 11, SEUIL_EGALITE = 0.3;
+export const KOMI = 10.8, SEUIL_EGALITE = 0.3;
 // Progression depuis 2000 (sans jugement sur l'écart à l'histoire), komi au prorata du temps écoulé.
 export const progression = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE;
 // Bilan : moyenne des décomptes annuels (fin de chaque T4) ; avant le premier décompte, la progression courante.
@@ -181,7 +183,12 @@ export function fluxActif(e: EtatPartie, f: Flux): boolean {
 }
 export function lienFlux(e: EtatPartie, iso: string, camp: Camp): number {
   const leader = camp === "OCC" ? "USA" : "CHN";
-  return FLUX.filter(f => f.pays.includes(iso) && f.pays.includes(leader) && fluxActif(e, f)).reduce((s, f) => s + f.volume, 0);
+  return FLUX.filter(f => f.pays.includes(iso) && f.pays.includes(leader) && fluxActif(e, f)).reduce((s, f) => s + f.volume, 0)
+    + 2 * (e.concessions ?? []).filter(c => c.iso === iso && c.camp === camp).length;
+}
+// Le plus gros port ou aéroport du pays qui n'est pas déjà sous concession.
+export function hubLibre(e: EtatPartie, camp: Camp, iso: string) {
+  return hubsDe(iso).filter(h => !(e.concessions ?? []).some(c => c.hub === h.id)).sort((a, b) => b.volume / (b.type === "port" ? 1 : 10) - a.volume / (a.type === "port" ? 1 : 10))[0];
 }
 // Blocage d'un détroit : les pays qui dépendent des routes qui le traversent perdent de la croissance, selon le volume.
 function bloquerDetroit(e: EtatPartie, intensite: number, avant: boolean) {
@@ -214,7 +221,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
       CHN: { cp: 70, budget: 0, main: [], pa: 0, paParPays: {}, paAchetes: 0, carteJouee: false, briefing: null, doctrine: "développement pacifique", reactions: [], typesJoues: [] },
     },
     tension: 15, co2Cumule: 0, ecartTemp: ECART_2000, drapeaux: [], historiquesFaits: [], briefingsFaits: [],
-    pioche: [], defausse: [], retirees: [], attente: [], journal: [], scoreDepart: 0, termine: false, resultat: null, decomptes: [], deficitDepart: { OCC: 0, CHN: 0 }, reglages, conflits: [], blocages: [],
+    pioche: [], defausse: [], retirees: [], attente: [], journal: [], scoreDepart: 0, termine: false, resultat: null, decomptes: [], deficitDepart: { OCC: 0, CHN: 0 }, reglages, conflits: [], blocages: [], concessions: [],
   };
   for (const iso of ISO) for (const camp of CAMPS) {
     const v = cibleEconomique(e, iso, camp);
@@ -253,6 +260,27 @@ export function conditionVraie(e: EtatPartie, c: Condition, paysTire?: string): 
     case "drapeau": return e.drapeaux.includes(c.id) === c.present;
   }
 }
+// Explique une condition non réunie, avec la valeur actuelle (sans présenter un bloc comme « négatif »).
+const cote = (x: number, d = 2) => Math.abs(x) < 0.005 ? "neutre" : `${x > 0 ? "USA" : "Chine"} ${Math.abs(x).toFixed(d).replace(".", ",")}`;
+export function expliquerCondition(e: EtatPartie, c: Condition, paysTire?: string): string {
+  const borne = (min?: number, max?: number, f = (x: number) => String(x)) => [min !== undefined ? `au moins ${f(min)}` : "", max !== undefined ? `au plus ${f(max)}` : ""].filter(Boolean).join(" et ");
+  switch (c.type) {
+    case "alignement": {
+      const iso = c.pays === "$pays" ? paysTire : c.pays;
+      if (!iso) return "choisis d'abord un pays cible";
+      const a = alignement(e, iso), nom = nomPays(iso);
+      const voulu = c.max !== undefined && c.min === undefined ? `${nom} ne doit pas pencher vers le bloc USA de plus de ${cote(c.max)}`
+        : c.min !== undefined && c.max === undefined ? `${nom} doit pencher vers le bloc USA d'au moins ${cote(c.min)}` : `alignement de ${nom} entre ${cote(c.min ?? -1)} et ${cote(c.max ?? 1)}`;
+      return `${voulu} (actuel : ${cote(a)})`;
+    }
+    case "cran": return `tension mondiale ${borne(c.min, c.max, x => `cran ${x}`)} (actuel : cran ${cran(e)})`;
+    case "stabilite": return `stabilité de ${nomPays(c.pays)} ${borne(c.min, c.max)} (actuelle : ${Math.round(e.pays[c.pays].stabilite)})`;
+    case "evenement": { const h = HISTORIQUES_ERE1.find(x => x.id === c.id); return `${c.fait ? "il faut que" : "il ne faut pas que"} « ${h?.titre ?? c.id} » ait eu lieu`; }
+    case "drapeau": return `${c.present ? "il faut" : "il ne faut pas"} avoir fait le choix « ${c.id.replace(/_/g, " ")} »`;
+  }
+}
+export const conditionsManquantes = (e: EtatPartie, cs: Condition[] | undefined, paysTire?: string) =>
+  (cs ?? []).filter(c => !conditionVraie(e, c, paysTire)).map(c => expliquerCondition(e, c, paysTire));
 export const conditionsVraies = (e: EtatPartie, cs: Condition[] | undefined, paysTire?: string) => (cs ?? []).every(c => conditionVraie(e, c, paysTire));
 
 // Applique un effet maintenant (facteur = intensité ou tirage dans la fourchette).
@@ -302,6 +330,7 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   }
   e.conflits = e.conflits.filter(c => c.fin >= e.round);
   e.blocages = e.blocages.filter(b => b.fin >= e.round);
+  e.concessions = e.concessions.filter(c => c.fin >= e.round);
   // 2. événements historiques du trimestre
   for (const h of HISTORIQUES_ERE1.filter(h => h.annee === annee && h.trimestre === trimestre)) {
     const ok = conditionsVraies(e, h.conditions);
@@ -310,10 +339,11 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
       e.historiquesFaits.push(h.id);
       executer(e, h.effets, null, undefined, h.titre, () => 1);
       if (h.conflit) for (const iso of h.conflit.pays) e.conflits.push({ iso, titre: h.titre, fin: e.round + h.conflit.duree - 1 });
-      noter(e, { type: "historique", titre: h.titre, texte: h.texte, famille: h.famille, source: h.id, pays: h.pays, visiblePour: [...CAMPS], effets: decrire(e, h.effets, null) });
+      const reactif = h.pays.includes("USA") && h.pays.includes("CHN") || h.effets.some(ef => (ef.type === "stabilite" && ef.valeur < 0) || (ef.type === "croissance" && ef.points < 0));
+      noter(e, { type: "historique", titre: h.titre, texte: h.texte, famille: h.famille, source: h.id, pays: h.pays, visiblePour: [...CAMPS], effets: decrire(e, h.effets, null), reactif });
     } else {
       if (h.compensationSiAbsent) executer(e, h.compensationSiAbsent, null, undefined, h.titre, () => 1);
-      noter(e, { type: "historique", source: h.id, titre: `L'histoire dévie : ${h.titre.toLowerCase()} n'a pas lieu`, texte: "Les conditions réelles de cet événement ne sont plus réunies dans votre partie.", famille: h.famille, pays: h.pays, visiblePour: [...CAMPS] });
+      noter(e, { type: "historique", source: h.id, titre: `L'histoire dévie : ${h.titre.toLowerCase()} n'a pas lieu`, texte: ok ? "Le hasard en a décidé autrement (10 % de chances de déviation même quand les conditions sont réunies)." : `Condition réelle qui manque dans votre partie : ${conditionsManquantes(e, h.conditions).join(" ; ")}.`, famille: h.famille, pays: h.pays, visiblePour: [...CAMPS] });
     }
   }
   // 3. événements génériques calibrés
@@ -399,13 +429,21 @@ function poidsRisque(e: EtatPartie, m: ModeleGenerique, iso: string): number {
   return w;
 }
 
+// Plafond réaliste par pays et par an : 3 événements génériques au plus, et pas deux fois la même famille
+// (le tirage passe alors à un autre pays ; la fréquence mondiale ne change pas).
+const MAX_GENERIQUES_PAYS_AN = 3;
 function tirerGeneriques(e: EtatPartie) {
+  const debutAn = e.round - (e.round % 4), deja: Record<string, string[]> = {};
+  for (let i = e.journal.length - 1; i >= 0 && e.journal[i].round >= debutAn; i--) {
+    const j = e.journal[i]; if (j.type === "generique" && j.pays?.length === 1 && j.famille) (deja[j.pays[0]] ??= []).push(j.famille);
+  }
   for (const f of FAMILLES) {
     const modeles = MODELES_PAR_FAMILLE[f.id]; if (!modeles) continue;
     const n = poisson(e, (f.taux / 4) * (f.climat ? multiplicateurClimat(e) : 1));
     for (let k = 0; k < n; k++) {
       const m = modeles[Math.floor(tirer(e) * modeles.length)];
-      const intensite = choisirPondere(e, [1, 2, 3], [0.6, 0.3, 0.1]);
+      // gravité : les incidents mineurs (½) sont les plus fréquents quand la famille en a une version ; les crises graves sont rares
+      const intensite = MINEURS[f.id] ? choisirPondere(e, [0.5, 1, 2, 3], [0.45, 0.35, 0.15, 0.05]) : choisirPondere(e, [1, 2, 3], [0.65, 0.27, 0.08]);
       const avant = e.round < 92; // avant 2023 : la trajectoire réelle contient déjà les chocs, l'écart est temporaire
       if (f.id === "blocage_detroit") { bloquerDetroit(e, intensite, avant); continue; }
       if (f.monde || m.risque.includes("monde")) {
@@ -419,28 +457,32 @@ function tirerGeneriques(e: EtatPartie) {
         noter(e, { type: "generique", titre: `${f.nom} hors des pays suivis`, texte: "Un événement de ce type touche un pays non simulé.", famille: f.id, visiblePour: [] });
         continue;
       }
-      const iso = choisirPondere(e, ISO, ISO.map(i => poidsRisque(e, m, i)));
-      const h = habiller(e, f.id, m, iso);
+      const poids = ISO.map(i => (deja[i]?.length ?? 0) >= MAX_GENERIQUES_PAYS_AN || deja[i]?.includes(f.id) ? 0 : poidsRisque(e, m, i));
+      if (!poids.some(x => x > 0)) continue;
+      const iso = choisirPondere(e, ISO, poids);
+      (deja[iso] ??= []).push(f.id);
+      const h = habiller(e, f.id, m, iso, intensite < 1);
       executer(e, rebond(m.effets, avant, intensite, resilience(e, iso)), null, iso, h.titre, () => intensite);
-      const reactif = m.effets.some(ef => (ef.type === "stabilite" && ef.valeur < 0) || (ef.type === "croissance" && ef.points < 0));
-      noter(e, { type: "generique", titre: h.titre + (intensite > 1 ? ` (intensité ${intensite})` : ""),
+      const reactif = intensite >= 1 && m.effets.some(ef => (ef.type === "stabilite" && ef.valeur < 0) || (ef.type === "croissance" && ef.points < 0));
+      noter(e, { type: "generique", titre: h.titre + (intensite > 1 ? ` (intensité ${intensite})` : ""), mineur: intensite < 1 || undefined,
         texte: h.texte, famille: f.id, pays: [iso], visiblePour: visibleDans(e, [iso]), intensite, reactif,
         effets: decrire(e, rebond(m.effets, false, intensite, resilience(e, iso)).map(ef => fois(ef, intensite)), null, iso) });
       const duree = DUREE_CONFLIT[f.id];
-      if (duree) e.conflits.push({ iso, titre: h.titre, fin: e.round + duree * intensite - 1 });
+      if (duree && intensite >= 1) e.conflits.push({ iso, titre: h.titre, fin: e.round + duree * intensite - 1 });
     }
   }
 }
 // Conflits armés : durée en trimestres par point d'intensité (symbole ⚔ sur la carte).
 const DUREE_CONFLIT: Record<string, number> = { guerre_civile: 4, guerre_interetatique: 2, conflit_frontalier: 1 };
 // Habillage : un titre et une cause tirés pour la famille, une ville réelle du pays, des prépositions justes.
-function habiller(e: EtatPartie, famille: string, m: ModeleGenerique, iso?: string): { titre: string; texte: string } {
-  const ctx = CONTEXTES[famille], villes = iso ? VILLES[iso] ?? [nomPays(iso)] : [];
+function habiller(e: EtatPartie, famille: string, m: ModeleGenerique, iso?: string, mineur = false): { titre: string; texte: string } {
+  const ctx = mineur && MINEURS[famille] ? MINEURS[famille] : CONTEXTES[famille], villes = iso ? VILLES[iso] ?? [nomPays(iso)] : [];
   const ville = villes.length ? villes[Math.floor(tirer(e) * villes.length)] : "";
   const remplir = (t: string) => iso ? t.split("{ville}").join(ville).split("{en_pays}").join(enPays(iso, nomPays(iso)))
     .split("{du_pays}").join(duPays(iso, nomPays(iso))).split("{pays}").join(nomPays(iso)) : t;
   if (!ctx) return { titre: remplir(m.titre), texte: remplir(m.texte) };
   const titre = ctx.titres[Math.floor(tirer(e) * ctx.titres.length)], cause = ctx.causes[Math.floor(tirer(e) * ctx.causes.length)];
+  if (mineur && MINEURS[famille]) return { titre: remplir(titre), texte: remplir(cause) };
   return { titre: remplir(titre), texte: `${remplir(m.texte)} ${remplir(cause)}` };
 }
 // Avant 2023, un choc de croissance générique est suivi d'un rebond égal : le niveau du PIB revient sur la trajectoire réelle.
@@ -473,7 +515,7 @@ export function peutJouerMode(e: EtatPartie, camp: Camp, idCarte: string, mode: 
   if (m.cible === "pays" && (!pays || pays === "USA" || pays === "CHN")) return "Choisis un pays cible (hors leaders).";
   if ((m.cout.budget ?? 0) > e.camps[camp].budget) return "Budget insuffisant.";
   if ((m.cout.cp ?? 0) > e.camps[camp].cp) return "Capital politique insuffisant.";
-  if (!conditionsVraies(e, m.conditions, pays)) return "Conditions non réunies.";
+  if (!conditionsVraies(e, m.conditions, pays)) return `Condition non réunie : ${conditionsManquantes(e, m.conditions, pays).join(" ; ")}.`;
   return null;
 }
 
@@ -508,14 +550,25 @@ function declencherCarte(e: EtatPartie, camp: Camp, c: Carte, mode: number, pays
     pays: pays ? [pays] : undefined, visiblePour: [...CAMPS], joueParCamp: parAdversaire ? adversaire(camp) : camp, effets: decrire(e, m.effets, camp, pays, 0.3).concat(m.caches?.length ? ["Conséquences cachées possibles"] : []) });
 }
 
-export type TypeAction = "politique" | "culturelle" | "economique" | "militaire" | "contre" | "developpement";
-export const ACTIONS: Record<TypeAction, { nom: string; pa: number; budget: number }> = {
+export type TypeAction = "politique" | "culturelle" | "economique" | "militaire" | "contre" | "developpement" | "armes" | "exercices" | "clandestin" | "destabiliser" | "espionnage" | "infrastructure";
+export const ACTIONS: Record<TypeAction, { nom: string; pa: number; budget: number; famille?: "militaire" | "secret"; aide?: string }> = {
   politique: { nom: "Influence politique", pa: 1, budget: 0 },
   culturelle: { nom: "Influence culturelle", pa: 1, budget: 0 },
   economique: { nom: "Influence économique", pa: 1, budget: 1 },
-  militaire: { nom: "Présence militaire", pa: 2, budget: 1 },
+  militaire: { nom: "Base militaire", pa: 2, budget: 1, famille: "militaire" },
   contre: { nom: "Contre-influence", pa: 2, budget: 0 },
   developpement: { nom: "Développement", pa: 2, budget: 2 },
+  armes: { nom: "Vente d'armes", pa: 1, budget: 0, famille: "militaire", aide: "Influence militaire +6, économique +2 ; rapporte 1 de budget ; tension +0,5. Le pays ne doit pas pencher vers l'adversaire." },
+  exercices: { nom: "Exercices conjoints", pa: 1, budget: 1, famille: "militaire", aide: "Influence militaire +5, stabilité du pays +2 ; tension +1. Le pays doit pencher vers toi." },
+  clandestin: { nom: "Soutien clandestin", pa: 1, budget: 1, famille: "secret", aide: "Influence politique +7, invisible pour l'adversaire. 25 % de risque d'être révélé : influence politique −10, capital politique −3, tension +1." },
+  destabiliser: { nom: "Déstabilisation", pa: 2, budget: 2, famille: "secret", aide: "Stabilité −8, influence adverse politique −6 et économique −3. 35 % de risque d'être révélé : influence politique −8, capital politique −5, tension +2." },
+  infrastructure: { nom: "Investir dans un port ou un aéroport", pa: 1, budget: 2, aide: "Concession de 4 ans sur le principal port ou aéroport du pays : influence économique +6 et lien de flux +2 avec ton bloc tant qu'elle dure." },
+  espionnage: { nom: "Espionnage économique", pa: 1, budget: 0, famille: "secret", aide: "Influence économique +4 et adverse −3, rapporte 1 de budget. 20 % de risque d'être révélé : influence économique −6, capital politique −2." },
+};
+export const AIDES_ACTIONS: Partial<Record<TypeAction, string>> = {
+  politique: "Influence politique +8 (moins si déjà forte).", culturelle: "Influence culturelle +4.", economique: "Influence économique +8.",
+  militaire: "Base militaire : influence militaire +10, tension +1. Le pays doit pencher vers toi (0,2).", contre: "Influence politique adverse −5.",
+  developpement: "Croissance du pays +0,5 pt pendant 4 trimestres, influence économique +3.",
 };
 
 export function peutAgir(e: EtatPartie, camp: Camp, type: TypeAction, iso: string): string | null {
@@ -524,11 +577,20 @@ export function peutAgir(e: EtatPartie, camp: Camp, type: TypeAction, iso: strin
   if (c.pa < a.pa) return "Points d'action insuffisants.";
   if (c.budget < a.budget) return "Budget insuffisant.";
   if ((c.paParPays[iso] ?? 0) + a.pa > MAX_PA_PAR_PAYS) return "Maximum 2 points par pays et par trimestre.";
-  if (type === "militaire" && (camp === "OCC" ? alignement(e, iso) < 0.2 : alignement(e, iso) > -0.2)) return "Présence militaire : le pays doit pencher vers toi (alignement 0,2).";
+  const vers = (camp === "OCC" ? 1 : -1) * alignement(e, iso), nomA = camp === "OCC" ? "USA" : "Chine";
+  if (type === "militaire" && vers < 0.2) return `Base militaire : le pays doit pencher vers ton bloc d'au moins 0,20 (actuel : ${vers >= 0 ? `${nomA} ${vers.toFixed(2).replace(".", ",")}` : `vers l'adversaire ${(-vers).toFixed(2).replace(".", ",")}`}).`;
+  if (type === "exercices" && vers < 0.1) return `Exercices conjoints : le pays doit pencher vers ton bloc d'au moins 0,10 (actuel : ${vers >= 0 ? `${nomA} ${vers.toFixed(2).replace(".", ",")}` : `vers l'adversaire ${(-vers).toFixed(2).replace(".", ",")}`}).`;
+  if (type === "infrastructure") {
+    const h = hubLibre(e, camp, iso);
+    if (!hubsDe(iso).length) return "Ce pays n'a pas de grand port ni de grand aéroport dans le jeu.";
+    if (!h) return "Tous ses ports et aéroports sont déjà sous concession.";
+    if (vers < -0.3) return "Le pays penche trop vers l'adversaire pour t'accorder une concession.";
+  }
+  if (type === "armes" && vers < -0.2) return `Vente d'armes : le pays penche trop vers l'adversaire (${(-vers).toFixed(2).replace(".", ",")} ; limite 0,20).`;
   return null;
 }
 
-export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string): EtatPartie {
+export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string, apercu = false): EtatPartie {
   const err = peutAgir(e0, camp, type, iso); if (err) throw new Error(err);
   const e = copie(e0), c = e.camps[camp], a = ACTIONS[type], inf = e.pays[iso].influence[camp];
   c.pa -= a.pa; c.budget -= a.budget; c.paParPays[iso] = (c.paParPays[iso] ?? 0) + a.pa;
@@ -539,8 +601,79 @@ export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string):
   if (type === "militaire") { gain("m", 10); e.tension = borne(e.tension + 1, 0, 100); }
   if (type === "contre") { const adv = e.pays[iso].influence[adversaire(camp)]; adv.p = Math.max(0, adv.p - 5); }
   if (type === "developpement") { e.pays[iso].bonus.push({ points: 0.5, reste: 4 }); inf.e = borne(inf.e + 3, 0, 100); }
+  if (type === "infrastructure") { const h = hubLibre(e, camp, iso)!; gain("e", 6); e.concessions.push({ hub: h.id, iso, camp, fin: e.round + 15 });
+    noter(e, { type: "action", titre: `Concession : ${h.nom} (${nomPays(iso)})`, texte: "Concession de 4 ans : influence économique +6, lien de flux +2.", camp, pays: [iso], visiblePour: [...CAMPS] }); return e; }
+  if (type === "armes") { gain("m", 6); gain("e", 2); c.budget += 1; e.tension = borne(e.tension + 0.5, 0, 100); }
+  if (type === "exercices") { gain("m", 5); e.pays[iso].stabilite = borne(e.pays[iso].stabilite + 2, 0, 100); e.tension = borne(e.tension + 1, 0, 100); }
+  if (a.famille === "secret") {
+    const adv = e.pays[iso].influence[adversaire(camp)], perte = (canal: Canal, k: number) => { inf[canal] = borne(inf[canal] - k, 0, 100); };
+    const risque = { clandestin: 0.25, destabiliser: 0.35, espionnage: 0.2 }[type as "clandestin" | "destabiliser" | "espionnage"];
+    if (type === "clandestin") gain("p", 7);
+    if (type === "destabiliser") { e.pays[iso].stabilite = borne(e.pays[iso].stabilite - 8, 0, 100); adv.p = Math.max(0, adv.p - 6); adv.e = Math.max(0, adv.e - 3); }
+    if (type === "espionnage") { gain("e", 4); adv.e = Math.max(0, adv.e - 3); c.budget += 1; }
+    const revele = !apercu && tirer(e) < risque;
+    noter(e, { type: "action", titre: `Opération secrète, ${a.nom.toLowerCase()} : ${nomPays(iso)}`, texte: revele ? "" : "L'adversaire n'en sait rien.", camp, pays: [iso], visiblePour: [camp] });
+    if (revele) {
+      if (type === "clandestin") { perte("p", 10); c.cp = borne(c.cp - 3, 0, 100); e.tension = borne(e.tension + 1, 0, 100); }
+      if (type === "destabiliser") { perte("p", 8); c.cp = borne(c.cp - 5, 0, 100); e.tension = borne(e.tension + 2, 0, 100); }
+      if (type === "espionnage") { perte("e", 6); c.cp = borne(c.cp - 2, 0, 100); }
+      noter(e, { type: "action", titre: `Scandale : une opération secrète ${camp === "OCC" ? "américaine" : "chinoise"} est révélée (${nomPays(iso)})`, texte: `${a.nom} démasquée par la presse et les services du pays.`, camp, pays: [iso], famille: "scandale_dirigeant", visiblePour: [...CAMPS] });
+    }
+    return e;
+  }
   noter(e, { type: "action", titre: `${a.nom} : ${nomPays(iso)}`, texte: "", camp, pays: [iso], visiblePour: [...CAMPS] });
   return e;
+}
+
+// Aperçu d'une action : alignement et puissance du camp avant et après (effets certains seulement).
+export function apercuAction(e: EtatPartie, camp: Camp, type: TypeAction, iso: string): { alignement: number; puissance: number } | null {
+  // calculé même sans points d'action, pour que le joueur voie l'intérêt de chaque action ; sans le risque des opérations secrètes
+  const e2 = structuredClone(e); e2.camps[camp].pa += 10; e2.camps[camp].budget += 10;
+  if (peutAgir(e2, camp, type, iso)) return null;
+  const apres = agir(e2, camp, type, iso, true), s = camp === "OCC" ? 1 : -1;
+  return { alignement: s * (alignement(apres, iso) - alignement(e, iso)), puissance: 100 * (puissance(apres, camp) - puissance(e, camp)) };
+}
+
+// ---------- Campagnes régionales : impact diffus sur toute une zone ----------
+export const ZONES: Record<string, { nom: string; pays: string[] }> = {
+  afrique: { nom: "Afrique subsaharienne", pays: ["NGA", "ETH", "KEN", "COD", "ZAF"] },
+  moyen_orient: { nom: "Moyen-Orient et Afrique du Nord", pays: ["SAU", "ARE", "QAT", "IRN", "IRQ", "ISR", "EGY", "TUR", "DZA"] },
+  asie_sud_est: { nom: "Asie du Sud-Est", pays: ["VNM", "THA", "MYS", "SGP", "PHL", "IDN"] },
+  amerique_latine: { nom: "Amérique latine", pays: ["BRA", "ARG", "MEX", "COL", "CHL", "VEN", "CUB", "PAN"] },
+  europe: { nom: "Europe", pays: ["DEU", "GBR", "FRA", "ITA", "ESP", "NLD", "NOR", "POL", "UKR"] },
+  asie_sud_centre: { nom: "Asie du Sud et centrale", pays: ["IND", "PAK", "BGD", "KAZ"] },
+  asie_est: { nom: "Asie de l'Est et Pacifique", pays: ["JPN", "KOR", "TWN", "PRK", "AUS"] },
+};
+export const CAMPAGNE = { pa: 2, budget: 1, gain: { p: 3, e: 3, c: 2 } as Record<"p" | "e" | "c", number> };
+export function peutCampagne(e: EtatPartie, camp: Camp, zone: string): string | null {
+  const c = e.camps[camp];
+  if (!ZONES[zone]) return "Zone inconnue.";
+  if (c.pa < CAMPAGNE.pa) return "Points d'action insuffisants (2).";
+  if (c.budget < CAMPAGNE.budget) return "Budget insuffisant (1).";
+  if (c.paParPays[`zone:${zone}`]) return "Une campagne par zone et par trimestre.";
+  return null;
+}
+export function campagne(e0: EtatPartie, camp: Camp, zone: string, canal: "p" | "e" | "c"): EtatPartie {
+  const err = peutCampagne(e0, camp, zone); if (err) throw new Error(err);
+  const e = copie(e0), c = e.camps[camp];
+  c.pa -= CAMPAGNE.pa; c.budget -= CAMPAGNE.budget; c.paParPays[`zone:${zone}`] = CAMPAGNE.pa;
+  for (const iso of ZONES[zone].pays) { const inf = e.pays[iso].influence[camp]; inf[canal] = borne(inf[canal] + CAMPAGNE.gain[canal] * (1 - inf[canal] / 100), 0, 100); }
+  noter(e, { type: "action", titre: `Campagne ${NOMS_CANAUX[canal]} : ${ZONES[zone].nom}`, texte: `Influence ${NOMS_CANAUX[canal]} +${CAMPAGNE.gain[canal]} dans ${ZONES[zone].pays.length} pays.`, camp, pays: ZONES[zone].pays, visiblePour: [...CAMPS] });
+  return e;
+}
+
+// ---------- Cartes : pays possibles et effet d'une carte adverse ----------
+export function paysEligibles(e: EtatPartie, camp: Camp, idCarte: string, mode: number): string[] {
+  const m = CARTES[idCarte]?.modes[mode];
+  if (!m || m.cible !== "pays") return [];
+  return ISO.filter(i => i !== "USA" && i !== "CHN" && conditionsVraies(e, m.conditions, i)).sort((a, b) => nomPays(a).localeCompare(nomPays(b), "fr"));
+}
+export function previsionAdverse(e: EtatPartie, camp: Camp, idCarte: string): { titre: string; effets: string[] } | null {
+  const c = CARTES[idCarte], adv = adversaire(camp);
+  if (c.camp !== adv) return null;
+  const best = meilleurMode(e, adv, c); if (!best) return { titre: "Aucun effet possible pour l'adversaire en ce moment", effets: [] };
+  const m = c.modes[best.mode];
+  return { titre: `${m.nom}${best.pays ? ` (${nomPays(best.pays)})` : ""}`, effets: decrire(e, m.effets, adv, best.pays, 0.3).concat(m.caches?.length ? ["Conséquences cachées possibles"] : []) };
 }
 
 // Le budget achète des points d'action : la richesse du leader devient un levier (3 unités = 1 point, 2 par trimestre).
@@ -558,11 +691,16 @@ export function acheterPA(e0: EtatPartie, camp: Camp): EtatPartie {
 }
 
 // ---------- Réactions aux événements (aider un pays frappé, exploiter le malheur d'un pays du camp adverse) ----------
-export type TypeReaction = "aider" | "exploiter";
-export const REACTIONS: Record<TypeReaction, { nom: string; budget: number; texte: string }> = {
+export type TypeReaction = "aider" | "exploiter" | "fermete" | "apaiser";
+export const REACTIONS: Record<TypeReaction, { nom: string; budget: number; cp?: number; texte: string }> = {
   aider: { nom: "Envoyer de l'aide", budget: 2, texte: "Stabilité +3, influence politique +3 pour ton bloc dans le pays (sur ton leader : stabilité +3, capital politique +2)." },
   exploiter: { nom: "Exploiter la crise", budget: 2, texte: "Influence politique +2 pour ton bloc et −3 pour l'adversaire dans le pays (sur le leader adverse : son capital politique −3)." },
+  // face-à-face entre les deux leaders (incident, crise bilatérale)
+  fermete: { nom: "Fermeté", budget: 0, cp: 2, texte: "Exiger des excuses et montrer les muscles : capital politique de l'adversaire −3, influence politique +2 chez tes alliés, tension +2." },
+  apaiser: { nom: "Apaisement", budget: 0, cp: 2, texte: "Désamorcer la crise : tension −3, influence politique +2 dans les pays neutres." },
 };
+// Événement qui oppose directement les deux leaders : on peut y répondre par la fermeté ou l'apaisement.
+export const faceAFace = (j: EntreeJournal) => !!j.pays?.includes("USA") && !!j.pays?.includes("CHN");
 export const MAX_REACTIONS = 2;
 const leaderDe = (c: Camp) => c === "OCC" ? "USA" : "CHN";
 export function peutReagir(e: EtatPartie, camp: Camp, index: number, type: TypeReaction): string | null {
@@ -570,7 +708,9 @@ export function peutReagir(e: EtatPartie, camp: Camp, index: number, type: TypeR
   if (!j || !j.reactif || !j.pays?.length || j.round !== e.round) return "On ne peut réagir qu'aux événements de ce trimestre.";
   if (c.reactions.includes(index)) return "Tu as déjà réagi à cet événement.";
   if (c.reactions.length >= MAX_REACTIONS) return `${MAX_REACTIONS} réactions par trimestre au plus.`;
-  if (c.budget < REACTIONS[type].budget) return "Budget insuffisant.";
+  if (c.budget < REACTIONS[type].budget) return `Budget insuffisant (${REACTIONS[type].budget} requis, tu as ${Math.floor(c.budget)}).`;
+  if (c.cp < (REACTIONS[type].cp ?? 0)) return `Capital politique insuffisant (${REACTIONS[type].cp} requis).`;
+  if ((type === "fermete" || type === "apaiser") !== faceAFace(j)) return type === "fermete" || type === "apaiser" ? "Réservé aux crises entre les deux leaders." : "Crise entre les deux leaders : réponds par la fermeté ou l'apaisement.";
   const iso = j.pays[0], s = camp === "OCC" ? 1 : -1;
   if (type === "exploiter" && iso !== leaderDe(adversaire(camp)) && s * alignement(e, iso) > -0.1) return "On n'exploite que les malheurs d'un pays qui penche vers l'adversaire.";
   if (type === "aider" && iso === leaderDe(adversaire(camp))) return "Le leader adverse refuse ton aide.";
@@ -579,8 +719,11 @@ export function peutReagir(e: EtatPartie, camp: Camp, index: number, type: TypeR
 export function reagir(e0: EtatPartie, camp: Camp, index: number, type: TypeReaction): EtatPartie {
   const err = peutReagir(e0, camp, index, type); if (err) throw new Error(err);
   const e = copie(e0), c = e.camps[camp], iso = e.journal[index].pays![0], adv = adversaire(camp);
-  c.budget -= REACTIONS[type].budget; c.reactions.push(index);
-  const effets: Effet[] = type === "aider"
+  c.budget -= REACTIONS[type].budget; c.cp -= REACTIONS[type].cp ?? 0; c.reactions.push(index);
+  const s = camp === "OCC" ? 1 : -1, allies = ISO.filter(i => i !== "USA" && i !== "CHN" && s * alignement(e, i) >= 0.3), neutres = ISO.filter(i => Math.abs(alignement(e, i)) < 0.2 && i !== "USA" && i !== "CHN");
+  const effets: Effet[] = type === "fermete" ? [{ type: "cp", camp: adv, valeur: -3 }, { type: "influence", pays: allies, camp, canal: "p", valeur: 2 }, { type: "tension", valeur: 2 }]
+    : type === "apaiser" ? [{ type: "tension", valeur: -3 }, { type: "influence", pays: neutres, camp, canal: "p", valeur: 2 }]
+    : type === "aider"
     ? iso === leaderDe(camp) ? [{ type: "stabilite", pays: iso, valeur: 3 }, { type: "cp", camp, valeur: 2 }]
       : [{ type: "stabilite", pays: iso, valeur: 3 }, { type: "influence", pays: iso, camp, canal: "p", valeur: 3 }]
     : iso === leaderDe(adv) ? [{ type: "cp", camp: adv, valeur: -3 }]
@@ -782,7 +925,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
     e.termine = true;
     const b = bilan(e);
     e.resultat = Math.abs(b) < SEUIL_EGALITE ? "Égalité" : b > 0 ? "Victoire du bloc USA" : "Victoire du bloc Chine";
-    noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Bilan ${b >= 0 ? "+" : ""}${b.toFixed(1)} points (positif = bloc USA), moyenne de ${e.decomptes.length} décomptes annuels. Puissance bloc USA ${(100 * puissance(e, "OCC")).toFixed(1)} %, bloc Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
+    noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Avance ${b >= 0 ? "bloc USA" : "bloc Chine"} : ${Math.abs(b).toFixed(1).replace(".", ",")} points, moyenne de ${e.decomptes.length} décomptes annuels. Puissance bloc USA ${(100 * puissance(e, "OCC")).toFixed(1)} %, bloc Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
     return e;
   }
   e.round += 1;
@@ -850,6 +993,6 @@ export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
-  e.conflits ??= []; e.blocages ??= []; for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; }
+  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; }
   return e;
 }

@@ -1,12 +1,13 @@
 import donnees from "../data/pays2000.json";
-import { dessinerCarte, couleurLog, couleurAlignement, type Annotation, type Marqueur, type OptionsCarte } from "./carte";
+import { dessinerCarte, couleurLog, couleurAlignement, CANAUX_CARTE, type Annotation, type Marqueur, type OptionsCarte } from "./carte";
 import { image, imageEvenement, portrait, imageBriefing, imageCarte } from "./images";
 import { organisations, SIGLES } from "../data/organisations";
+import { HUBS, hubsDe } from "../data/hubs";
 import { FLUX, DETROITS } from "../data/flux";
 import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique } from "./sons";
 import { ficheHtml } from "./fiche";
 import {
-  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, acheterPA, peutAcheterPA, PRIX_PA,
+  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, KOMI, SEUIL_EGALITE, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
   decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, reagir, peutReagir, REACTIONS, MAX_REACTIONS, fluxActif, lienFlux,
   peutJouerCarte, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
@@ -22,6 +23,9 @@ const NOM_CANAL = { e: "Économique", p: "Politique", m: "Militaire", c: "Cultur
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const nombre = (x: number, d = 1) => x.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: d });
 const signe = (x: number, d = 1) => (x >= 0 ? "+" : "") + nombre(x, d);
+// Avance d'un bloc, sans signe : chaque bloc a sa couleur (pas de bloc « négatif »).
+const avance = (x: number, d = 1, seuil = 0) => Math.abs(x) <= seuil || nombre(Math.abs(x), d) === nombre(0, d) ? `<span class="egal-t">équilibre</span>`
+  : `<span class="${x > 0 ? "occ-t" : "chn-t"}">${x > 0 ? "USA" : "Chine"} ${nombre(Math.abs(x), d)}</span>`;
 
 let etat: EtatPartie | null = null;
 let paysChoisi: string | null = null;
@@ -92,9 +96,10 @@ function boutonsReaction(j: EntreeJournal): string {
   if (!j.reactif || index < 0 || j.round !== etat!.round) return "";
   const fait = etat!.camps[joueur()].reactions.includes(index);
   if (fait) return `<div class="reactions"><span class="note">Tu as réagi.</span></div>`;
-  const b = (["aider", "exploiter"] as TypeReaction[]).map(t => ({ t, err: peutReagir(etat!, joueur(), index, t) }))
-    .filter(x => !/leader adverse refuse|n'exploite que/.test(x.err ?? ""));
-  return b.length ? `<div class="reactions">${b.map(x => `<button data-reagir="${x.t}" data-index="${index}" ${x.err ? `disabled title="${esc(x.err)}"` : `title="${esc(REACTIONS[x.t].texte)}"`}>${REACTIONS[x.t].nom} (${REACTIONS[x.t].budget} budget)</button>`).join("")}</div>` : "";
+  const b = (["aider", "exploiter", "fermete", "apaiser"] as TypeReaction[]).map(t => ({ t, err: peutReagir(etat!, joueur(), index, t) }))
+    .filter(x => !/leader adverse refuse|n'exploite que|Réservé aux crises|réponds par la fermeté/.test(x.err ?? ""));
+  const prix = (t: TypeReaction) => REACTIONS[t].budget ? `${REACTIONS[t].budget} budget` : `${REACTIONS[t].cp} CP`;
+  return b.length ? `<div class="reactions">${b.map(x => `<button data-reagir="${x.t}" data-index="${index}" title="${esc(REACTIONS[x.t].texte)}" ${x.err ? "disabled" : ""}>${REACTIONS[x.t].nom} (${prix(x.t)})</button>`).join("")}${b.filter(x => x.err).map(x => `<small class="erreur">${REACTIONS[x.t].nom} : ${esc(x.err!)}</small>`).join("")}</div>` : "";
 }
 function lierReactions(zone: HTMLElement, apres: () => void) {
   zone.querySelectorAll<HTMLButtonElement>("[data-reagir]").forEach(b => b.onclick = () => {
@@ -136,7 +141,7 @@ function rapport(titre: string, debut = journalVu) {
   const moi = joueur(), adv = adversaire(moi), vu = (j: EntreeJournal) => j.visiblePour.includes(moi);
   const histoire = tout.filter(j => vu(j) && (j.type === "historique" || j.type === "politique" || j.type === "bilan"));
   const consequences = tout.filter(j => vu(j) && j.type === "cache");
-  const generiques = tout.filter(j => vu(j) && j.type === "generique");
+  const generiques = tout.filter(j => vu(j) && j.type === "generique" && !j.mineur), faitsDivers = tout.filter(j => vu(j) && j.type === "generique" && j.mineur);
   const chezMoi = generiques.filter(j => campTouche(j) === moi), chezAdv = generiques.filter(j => campTouche(j) === adv);
   const monde = generiques.filter(j => !campTouche(j)).map(j => ({ j, n: importance(j) })).sort((a, b) => b.n - a.n);
   const retenus = monde.filter(x => x.n >= 3).slice(0, MAX_MONDE).map(x => x.j), autres = monde.map(x => x.j).filter(j => !retenus.includes(j));
@@ -146,11 +151,12 @@ function rapport(titre: string, debut = journalVu) {
   const noteReaction = `<p class="note">Tu peux réagir à ${MAX_REACTIONS} événements par trimestre (${MAX_REACTIONS - reste} restant${MAX_REACTIONS - reste > 1 ? "s" : ""}, budget ${nombre(etat!.camps[moi].budget, 0)}). Aussi depuis l'onglet Main.</p>`;
   ouvrir(`<h2>${titre} : ${libelle(etat!.round)}</h2>
     ${recapBlocs(tout)}
-    ${section("Histoire et politique", histoire)}
+    ${section("Histoire et politique", histoire, true)}
     ${section(`Ton camp (${NOM_CAMP[moi]}) est touché`, chezMoi, true, noteReaction)}
     ${section(`Chez l'adversaire (${NOM_CAMP[adv]})`, chezAdv, true)}
     ${section("Conséquences de tes choix passés", consequences)}
     ${section("Dans le monde", retenus, true)}
+    ${faitsDivers.length ? `<details><summary>${faitsDivers.length} fait${faitsDivers.length > 1 ? "s" : ""} divers et incident${faitsDivers.length > 1 ? "s" : ""} mineur${faitsDivers.length > 1 ? "s" : ""}</summary>${liste(faitsDivers)}</details>` : ""}
     ${autres.length ? `<details><summary>${autres.length} autre${autres.length > 1 ? "s" : ""} événement${autres.length > 1 ? "s" : ""} mineur${autres.length > 1 ? "s" : ""}, loin de ton jeu</summary>${liste(autres, true)}</details>` : ""}
     ${!histoire.length && !chezMoi.length && !chezAdv.length && !consequences.length && !retenus.length ? `<p class="note">Trimestre calme.</p>` : ""}
     <div class="actions-fenetre"><button id="okRapport" class="principal">Continuer</button></div>`,
@@ -177,7 +183,7 @@ function recapBlocs(tout: EntreeJournal[]): string {
   const bascules = Object.keys(e.pays).filter(i => i !== "USA" && i !== "CHN").map(i => ({ i, d: alignement(e, i) - (avantTour!.alignements[i] ?? 0) }))
     .filter(x => Math.abs(x.d) >= 0.03).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 6);
   return `<h3>Le trimestre des deux blocs</h3><div class="recap">${colonne("OCC")}${colonne("CHN")}</div>
-    ${bascules.length ? `<p class="note">Alignements qui ont le plus bougé : ${bascules.map(x => `${esc(nomPays(x.i))} <span class="${x.d > 0 ? "occ-t" : "chn-t"}">${signe(x.d, 2)}</span>`).join(", ")} (positif = vers le bloc USA).</p>` : ""}`;
+    ${bascules.length ? `<p class="note">Alignements qui ont le plus bougé : ${bascules.map(x => `${esc(nomPays(x.i))} <span class="${x.d > 0 ? "occ-t" : "chn-t"}">vers ${x.d > 0 ? "USA" : "Chine"} ${nombre(Math.abs(x.d), 2)}</span>`).join(", ")} ( USA).</p>` : ""}`;
 }
 
 function proposerBriefing(forcer = false) {
@@ -217,7 +223,7 @@ function finDePartie() {
   const victoire = gagne && Math.abs(b) >= SEUIL_EGALITE;
   son(victoire ? "victoire" : "defaite", 0.6); jouerJingle(victoire); musique(victoire ? "victoire" : "defaite");
   ouvrir(`<h2>${esc(etat!.resultat ?? "")}</h2>
-    <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : bilan ${signe(b)} points (positif = bloc USA).</p>
+    <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : avance ${avance(b)} points (bloc USA).</p>
     <p>${esc(fin?.texte ?? "")}</p>
     <p class="note">Le bilan est la moyenne des décomptes annuels : progression depuis 2000 de la puissance de chaque camp (5 familles de qualificatifs à poids égaux), plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour le bloc USA. Égalité sous ${nombre(SEUIL_EGALITE)} point. Détail dans l'onglet Score.</p>
     <div class="actions-fenetre"><button id="rejouer" class="principal">Nouvelle partie</button><button id="voir">Voir la carte</button></div>`,
@@ -234,7 +240,7 @@ function panneauMain(): string {
   let h = `<div class="suivi-cartes" title="Chaque année : 6 cartes (2 de ton camp, 2 adverses, 2 neutres). Tu en joues une par trimestre, au moins une de chaque type. Les 2 restantes sont défaussées.">Cette année : ${suivi}</div>
     ${oblig ? `<p class="alerte">Obligatoire ce trimestre : une carte ${manque.map(t => NOMS_TYPES[t]).join(" ou ")}.</p>` : ""}
     <p class="note">${c.carteJouee ? "Carte jouée ce trimestre." : "Une carte par trimestre : son événement, ou ses points d'action."} Les cartes ciblées s'appliquent au pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : " (aucun choisi)"}.</p>`;
-  const aReagir = e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (campTouche(j) !== null || importance(j) >= 3));
+  const aReagir = e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (j.type === "historique" || campTouche(j) !== null || importance(j) >= 3));
   if (aReagir.length) h += `<details class="a-reagir" ${c.reactions.length < MAX_REACTIONS ? "open" : ""}><summary>Réagir aux événements du trimestre (${c.reactions.length}/${MAX_REACTIONS})</summary><ul class="journal">${aReagir.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
   if (!c.main.length) h += `<p class="note">Main vide : nouvelle main au premier trimestre.</p>`;
   for (const id of c.main) {
@@ -245,9 +251,16 @@ function panneauMain(): string {
       <p>${esc(k.texte)}</p>`;
     if (ouverte && errCarte && !c.carteJouee) h += `<p class="alerte">${esc(errCarte)}</p>`;
     if (ouverte) {
-      if (adverse) h += `<p class="alerte">Carte adverse : tu peux la jouer pour ses points, mais son événement se déclenche alors au profit de l'adversaire.</p>`;
-      else k.modes.forEach((m, i) => {
-        const pays = m.cible === "pays" ? paysChoisi ?? undefined : undefined;
+      if (adverse) {
+        const prev = previsionAdverse(e, joueur(), id);
+        h += `<p class="alerte">Carte adverse : tu peux la jouer pour ses points, mais son événement se déclenche alors au profit de l'adversaire.</p>
+          ${prev ? `<div class="mode prevision"><div><strong>Ce que l'adversaire en tirerait :</strong> ${esc(prev.titre)}</div><small>${prev.effets.map(esc).join("<br>")}</small></div>` : ""}`;
+      } else k.modes.forEach((m, i) => {
+        const eligibles = m.cible === "pays" ? paysEligibles(e, joueur(), id, i) : [];
+        const pays = m.cible === "pays" ? (paysChoisi && eligibles.includes(paysChoisi) ? paysChoisi : undefined) : undefined;
+        if (m.cible === "pays") h += eligibles.length
+          ? `<label class="cible">Pays cible : <select data-cible>${pays ? "" : `<option value="">choisir (${eligibles.length} possibles)</option>`}${eligibles.map(x => `<option value="${x}" ${x === pays ? "selected" : ""}>${esc(nomPays(x))}</option>`).join("")}</select></label>`
+          : `<p class="alerte">Aucun pays ne remplit la condition en ce moment.</p>`;
         const err = c.carteJouee ? "Carte déjà jouée ce trimestre." : errCarte ?? peutJouerMode(e, joueur(), id, i, pays);
         h += `<div class="mode"><div><strong>${esc(m.nom)}</strong> <em>${cout(m.cout)}${m.cible === "pays" ? " · cible un pays" : ""}</em></div>
           <small>${m.effets.map(ef => esc(decrireEffet(e, ef, joueur(), pays, 0.3))).join("<br>")}${m.caches?.length ? "<br><i>Conséquences incertaines possibles.</i>" : ""}</small>
@@ -257,17 +270,53 @@ function panneauMain(): string {
     }
     h += `</article>`;
   }
+  const cibles = Object.keys(e.pays).filter(i => i !== "USA" && i !== "CHN").sort((a, b) => nomPays(a).localeCompare(nomPays(b), "fr"));
+  const isoA = paysAction || paysChoisi && cibles.includes(paysChoisi) && paysChoisi || "";
+  h += `<details class="agir" open><summary>Agir avec tes points d'action (${nombre(c.pa, 0)} PA)</summary>
+    <label class="cible">Pays : <select id="paysAction"><option value="">choisir un pays</option>${cibles.map(x => `<option value="${x}" ${x === isoA ? "selected" : ""}>${esc(nomPays(x))}</option>`).join("")}</select></label>
+    ${isoA ? blocActions(isoA) : `<p class="note">Choisis un pays ici ou clique-le sur la carte : influence, actions militaires, opérations secrètes.</p>`}
+    ${blocCampagnes()}</details>`;
   const errAchat = peutAcheterPA(e, joueur());
   h += `<div class="achat"><button id="acheter" ${errAchat ? `disabled title="${esc(errAchat)}"` : ""}>Acheter 1 point d'action (${PRIX_PA} budget)</button> <span class="note">2 par trimestre au plus.</span></div>`;
   return h;
 }
+
+// Actions sur un pays, groupées (influence, militaire, opérations secrètes), avec ce qu'elles rapportent.
+function blocActions(iso: string): string {
+  const e = etat!, c = e.camps[joueur()];
+  const groupes: [string, TypeAction[]][] = [["Influence", ["politique", "economique", "culturelle", "contre", "developpement", "infrastructure"]], ["Militaire", ["militaire", "armes", "exercices"]], ["Opérations secrètes (invisibles pour l'adversaire, sauf si révélées)", ["clandestin", "destabiliser", "espionnage"]]];
+  let h = `<h3>Agir sur ${esc(nomPays(iso))} (${nombre(c.pa, 0)} point${c.pa > 1 ? "s" : ""} d'action, budget ${nombre(c.budget, 0)})</h3>
+    <p class="note">Sous chaque action : ce qu'elle rapporte tout de suite, en alignement du pays et en points de puissance pour ton bloc (le score).</p>`;
+  for (const [titre, types] of groupes) {
+    h += `<h4 class="groupe-actions">${titre}</h4><div class="grille-actions">`;
+    for (const type of types) {
+      const def = ACTIONS[type], err = peutAgir(e, joueur(), type, iso), ap = apercuAction(e, joueur(), type, iso);
+      const gainTxt = ap ? `<em class="gain">alignement ${ap.alignement >= 0 ? "+" : "−"}${nombre(Math.abs(ap.alignement), 3)} · puissance ${ap.puissance >= 0 ? "+" : "−"}${nombre(Math.abs(ap.puissance), 3)} pt</em>` : "";
+      h += `<button data-agir="${type}" data-iso="${iso}" title="${esc((def.aide ?? AIDES_ACTIONS[type] ?? "") + (err ? ` (${err})` : ""))}" ${err ? "disabled" : ""}>${def.nom}<small>${def.pa} PA${def.budget ? ` · ${def.budget} budget` : ""}</small>${gainTxt}${err ? `<small class="erreur">${esc(err)}</small>` : ""}</button>`;
+    }
+    h += `</div>`;
+  }
+  return h;
+}
+
+// Campagnes régionales : impact plus faible, mais sur toute une zone.
+function blocCampagnes(): string {
+  const e = etat!;
+  let h = `<h3>Campagnes régionales</h3><p class="note">${CAMPAGNE.pa} PA et ${CAMPAGNE.budget} de budget : influence +${CAMPAGNE.gain.p} (politique ou économique) ou +${CAMPAGNE.gain.c} (culturelle) dans chaque pays de la zone. Moins fort qu'une action ciblée (+8), mais diffus. Une campagne par zone et par trimestre.</p>
+    <div class="campagnes"><select id="zoneCampagne">${Object.entries(ZONES).map(([k, z]) => `<option value="${k}" ${k === zoneCampagne ? "selected" : ""}>${esc(z.nom)} (${z.pays.length} pays)</option>`).join("")}</select>`;
+  const err = peutCampagne(e, joueur(), zoneCampagne);
+  for (const [canal, nom] of [["p", "Politique"], ["e", "Économique"], ["c", "Culturelle"]] as const)
+    h += `<button data-campagne="${canal}" ${err ? `disabled title="${esc(err)}"` : ""}>${nom}</button>`;
+  return h + `</div>${err ? `<small class="erreur">${esc(err)}</small>` : ""}`;
+}
+let zoneCampagne = "afrique", paysAction = "";
 
 function panneauPays(): string {
   if (!paysChoisi) return `<p class="aide">Clique sur un pays en couleur pour ouvrir sa fiche et y agir.</p>`;
   const e = etat!, iso = paysChoisi, p = e.pays[iso], a = alignement(e, iso);
   const pente = Math.abs(a) < 0.1 ? "neutre" : a > 0 ? (a >= 0.4 ? "allié du bloc USA" : "penche vers le bloc USA") : (a <= -0.4 ? "allié du bloc Chine" : "penche vers le bloc Chine");
   let h = `<h2>${esc(nomPays(iso))}</h2>
-    <p class="gros">Alignement ${signe(a, 2)} <span class="note">(${pente})</span></p>
+    <p class="gros">Alignement ${avance(a, 2, 0.005)} <span class="note">(${pente})</span></p>
     <table><tr><td>PIB</td><td class="v">${nombre(p.pib / 1e9, 0)} Md USD <span class="note">(int-$ 2011)</span></td></tr>
     <tr><td>Population</td><td class="v">${nombre(p.population / 1e6)} millions</td></tr>
     <tr><td>Stabilité</td><td class="v">${nombre(p.stabilite, 0)} / 100</td></tr></table>`;
@@ -275,12 +324,7 @@ function panneauPays(): string {
     h += `<h3>Influence (0 à 100)</h3><p class="note">Poids : économique 35 %, politique 30 %, militaire 20 %, culturelle 15 %. Alignement = (total USA − total Chine) / 70, borné entre −1 et +1.</p><table><tr><td></td><td class="v occ-t">USA</td><td class="v chn-t">Chine</td></tr>
       ${CANAUX.map(k => `<tr><td>${NOM_CANAL[k]}</td><td class="v">${nombre(p.influence.OCC[k], 0)}</td><td class="v">${nombre(p.influence.CHN[k], 0)}</td></tr>`).join("")}
       <tr><td><strong>Total pondéré</strong></td><td class="v"><strong>${nombre(influenceTotale(p, "OCC"))}</strong></td><td class="v"><strong>${nombre(influenceTotale(p, "CHN"))}</strong></td></tr></table>
-      <h3>Agir (${nombre(e.camps[joueur()].pa, 0)} point${e.camps[joueur()].pa > 1 ? "s" : ""} d'action)</h3><div class="grille-actions">`;
-    for (const [type, def] of Object.entries(ACTIONS) as [TypeAction, typeof ACTIONS[TypeAction]][]) {
-      const err = peutAgir(e, joueur(), type, iso);
-      h += `<button data-agir="${type}" ${err ? `disabled title="${esc(err)}"` : ""}>${def.nom}<small>${def.pa} PA${def.budget ? ` · ${def.budget} budget` : ""}</small></button>`;
-    }
-    h += `</div>`;
+      ${blocActions(iso)}`;
   } else h += `<p class="note">Leader de camp : pas de cible d'influence.</p>`;
   // Données 2000 et qualificatifs de la v0.1 (attributs en 5 familles)
   const etatV01 = { pays: { [iso]: { population: p.population } }, round: e.round } as unknown as EtatJeu;
@@ -295,9 +339,9 @@ function panneauScore(): string {
   for (const f of Object.keys(NOMS_FAMILLES) as (keyof typeof NOMS_FAMILLES)[])
     h += `<tr><td>${NOMS_FAMILLES[f]}</td><td class="v">${nombre(100 * partFamille(e, "OCC", f), 0)} %</td><td class="v">${nombre(100 * partFamille(e, "CHN", f), 0)} %</td></tr>`;
   h += `<tr><td><strong>Puissance</strong></td><td class="v"><strong>${nombre(100 * puissance(e, "OCC"))} %</strong></td><td class="v"><strong>${nombre(100 * puissance(e, "CHN"))} %</strong></td></tr></table>
-    <h3>Décomptes annuels (positif = bloc USA)</h3>`;
-  h += e.decomptes.length ? `<table>${e.decomptes.map((d, i) => `<tr><td>Fin ${2000 + i}</td><td class="v ${d >= 0 ? "occ-t" : "chn-t"}">${signe(d)}</td></tr>`).join("")}
-    <tr><td><strong>Moyenne = bilan</strong></td><td class="v"><strong>${signe(bilan(e))}</strong></td></tr></table>` : `<p class="note">Premier décompte fin 2000.</p>`;
+    <h3>Décomptes annuels (bloc en avance)</h3>`;
+  h += e.decomptes.length ? `<table>${e.decomptes.map((d, i) => `<tr><td>Fin ${2000 + i}</td><td class="v">${avance(d)}</td></tr>`).join("")}
+    <tr><td><strong>Moyenne = bilan</strong></td><td class="v"><strong>${avance(bilan(e))}</strong></td></tr></table>` : `<p class="note">Premier décompte fin 2000.</p>`;
   h += `<p class="note">Chaque décompte mesure la progression depuis 2000 : écart de puissance entre les camps, plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour le bloc USA, versée au prorata du temps. Égalité sous ${nombre(SEUIL_EGALITE)} point.</p>
     <h3>Seuils de défaite</h3><ul class="conseillers"><li>Banqueroute : PIB du leader à moins de ${nombre(100 * SEUILS.banqueroute, 0)} % de son sommet.</li>
     <li>Effondrement démographique : population du leader sous ${nombre(100 * SEUILS.population, 0)} % de 2000.</li>
@@ -329,7 +373,11 @@ function lierPanneau(zone: HTMLElement) {
   });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
   lierReactions(zone, afficher);
-  zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, paysChoisi!)));
+  zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, b.dataset.iso ?? paysChoisi!)));
+  zone.querySelectorAll<HTMLSelectElement>("[data-cible]").forEach(sel => sel.onchange = () => { paysChoisi = sel.value || null; carteMonde.choisir(paysChoisi); afficher(); });
+  zone.querySelector<HTMLSelectElement>("#paysAction")?.addEventListener("change", ev => { paysAction = (ev.target as HTMLSelectElement).value; if (paysAction) paysChoisi = paysAction; afficher(); });
+  zone.querySelector<HTMLSelectElement>("#zoneCampagne")?.addEventListener("change", ev => { zoneCampagne = (ev.target as HTMLSelectElement).value; afficher(); });
+  zone.querySelectorAll<HTMLButtonElement>("[data-campagne]").forEach(b => b.onclick = () => tenter(() => campagne(etat!, joueur(), zoneCampagne, b.dataset.campagne as "p" | "e" | "c")));
 }
 
 // ---------- Affichage ----------
@@ -353,7 +401,7 @@ function valeurVue(iso: string): string {
     case "stabilite": return `${nombre(p.stabilite, 0)}`;
     case "environnement": return `${nombre(p.environnement, 0)}`;
     case "militaire": return iso === "USA" || iso === "CHN" ? "leader" : `${nombre(p.influence.OCC.m, 0)} / ${nombre(p.influence.CHN.m, 0)}`;
-    default: return iso === "USA" || iso === "CHN" ? "leader" : signe(alignement(e, iso), 2);
+    default: { if (iso === "USA" || iso === "CHN") return "leader"; const a = alignement(e, iso); return Math.abs(a) < 0.005 ? "neutre" : `${a > 0 ? "USA" : "Chine"} ${nombre(Math.abs(a), 2)}`; }
   }
 }
 function annotations(): Record<string, Annotation> {
@@ -378,17 +426,29 @@ function annotations(): Record<string, Annotation> {
       valeurs: options.influence && !leader ? [nombre(io, 0), nombre(ic, 0)] : undefined,
       barres: options.categories && !leader ? { o: CANAUX.map(k => p.influence.OCC[k]), c: CANAUX.map(k => p.influence.CHN[k]) } : undefined,
       sigles: options.sigles && sig.length ? sig.join(" ") : undefined,
-      info: `<strong>${esc(nomPays(iso))}</strong><div class="note">${pente}${leader ? "" : ` · alignement ${signe(a, 2)}`}</div>
+      info: `<strong>${esc(nomPays(iso))}</strong><div class="note">${pente}${leader ? "" : ` · alignement ${avance(a, 2, 0.005)}`}</div>
         ${leader ? "" : `<div class="barres"><span class="b-occ" style="width:${Math.min(100, io)}%"></span></div><div class="barres"><span class="b-chn" style="width:${Math.min(100, ic)}%"></span></div>
         <div class="note">Influence USA ${nombre(io, 0)} · Chine ${nombre(ic, 0)}</div>`}
         ${leader ? "" : `<table class="mini"><tr><td></td>${CANAUX.map(k => `<td>${NOM_CANAL[k].slice(0, 4)}.</td>`).join("")}</tr><tr><td class="occ-t">USA</td>${CANAUX.map(k => `<td>${nombre(p.influence.OCC[k], 0)}</td>`).join("")}</tr><tr><td class="chn-t">Chine</td>${CANAUX.map(k => `<td>${nombre(p.influence.CHN[k], 0)}</td>`).join("")}</tr></table>`}
         <div class="note">PIB ${nombre(p.pib / 1e9, 0)} Md · ${nombre(p.population / 1e6, 0)} M hab. · stabilité ${nombre(p.stabilite, 0)}</div>
-        ${leader ? "" : `<div class="note">Flux vers le bloc USA ${lienFlux(e, iso, "OCC")} · vers le bloc Chine ${lienFlux(e, iso, "CHN")} (volume des routes partagées avec chaque leader)</div>`}
+        ${repartitionFlux(iso)}
         ${sig.length ? `<div class="note">${sig.map(x => `<abbr title="${esc(SIGLES[x] ?? x)}">${esc(x)}</abbr>`).join(" · ")}</div>` : ""}
         ${m.length ? `<ul>${m.map(x => `<li><span class="pastille" style="background:${x.couleur}">${x.symbole}</span> ${esc(x.titre)}</li>`).join("")}</ul>` : ""}
         <div class="note">Clic : fiche et actions</div>` };
   }
   return out;
+}
+// Répartition des flux d'un pays : part de chaque mode et part des échanges orientés vers chaque leader (volumes estimés).
+function repartitionFlux(iso: string): string {
+  const e = etat!, routes = FLUX.filter(f => f.pays.includes(iso) && fluxActif(e, f) && (!f.depuis || f.depuis <= Math.floor(e.round / 4) + 2000));
+  const total = routes.reduce((t, f) => t + f.volume, 0);
+  if (!total) return "";
+  const parMode = (["maritime", "terrestre", "aerien"] as const).map(m => [m, routes.filter(f => f.mode === m).reduce((t, f) => t + f.volume, 0)] as const).filter(x => x[1]);
+  const o = lienFlux(e, iso, "OCC"), c = lienFlux(e, iso, "CHN"), pct = (x: number) => `${Math.round(100 * x / total)} %`;
+  const noms = { maritime: "maritime", terrestre: "terrestre", aerien: "aérien" };
+  return `<div class="flux-pays"><div class="note">Flux (${routes.length} route${routes.length > 1 ? "s" : ""}) : ${parMode.map(([m, v]) => `${noms[m]} ${pct(v)}`).join(" · ")}</div>
+    <div class="barre-flux" title="Part des volumes partagés avec chaque leader"><span class="b-occ" style="width:${100 * o / (o + c || 1)}%"></span><span class="b-chn" style="width:${100 * c / (o + c || 1)}%"></span></div>
+    <div class="note">vers le bloc USA <span class="occ-t">${o}</span> · vers le bloc Chine <span class="chn-t">${c}</span>${hubsDe(iso).length ? ` · ${hubsDe(iso).map(h => (h.type === "port" ? "⚓ " : "✈ ") + h.nom.split(" (")[0]).join(", ")}` : ""}</div></div>`;
 }
 function marqueursHorsJeu(): Record<string, Marqueur[]> {
   const out: Record<string, Marqueur[]> = {};
@@ -399,8 +459,8 @@ function legende(): string {
   const vue = $<HTMLSelectElement>("vue").value;
   const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:#b03a2e">⚔</i>conflit</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#9b59b6">↯</i>instable</span></div>`
     + (options.influence ? `<div class="note">Chiffres : influence totale <span class="occ-t">bloc USA</span> · <span class="chn-t">bloc Chine</span> (0-100).</div>` : "")
-    + (options.categories ? `<div class="note">Barres : influence économique, politique, militaire, culturelle ; <span class="occ-t">bleu USA</span>, <span class="chn-t">rouge Chine</span>.</div>` : "")
-    + (options.maritime || options.terrestre || options.aerien ? `<div class="lignes">${options.maritime ? `<span><b class="l-maritime"></b>maritime</span>` : ""}${options.terrestre ? `<span><b class="l-terrestre"></b>terrestre</span>` : ""}${options.aerien ? `<span><b class="l-aerien"></b>aérien</span>` : ""}<span class="note">épais = mondial, fin = régional ; ⚓ détroit</span></div>` : "")
+    + (options.categories ? `<div class="note">Pastilles par canal : ${CANAUX_CARTE.map(c => `<span class="leg-canal" style="border-color:${c.couleur}"></span><b style="color:${c.couleur}">${c.lettre}</b> ${c.nom.toLowerCase()}`).join(" · ")} ; remplissage = part <span class="occ-t">bloc USA</span> / <span class="chn-t">bloc Chine</span>.</div>` : "")
+    + (options.maritime || options.terrestre || options.aerien ? `<div class="lignes">${options.maritime ? `<span><b class="l-maritime"></b>maritime</span>` : ""}${options.terrestre ? `<span><b class="l-terrestre"></b>terrestre</span>` : ""}${options.aerien ? `<span><b class="l-aerien"></b>aérien</span>` : ""}<span class="note">trait plein = mondial, pointillé = régional, épaisseur = volume ; ≋ détroit ; ⚓ port, ✈ aéroport (grand = majeur), couleur du bloc = concession</span></div>` : "")
     + (options.sigles ? `<div class="note">Sigles : ${Object.entries(SIGLES).map(([k, v]) => `<abbr title="${esc(v)}">${esc(k)}</abbr>`).join(" · ")}</div>` : "");
   if (vue === "militaire") return `<div class="degrade"><span>Présence militaire chinoise</span><b style="background:linear-gradient(90deg,${couleurAlignement(-1)},${couleurAlignement(0)},${couleurAlignement(1)})"></b><span>américaine</span></div><div class="note">Valeurs : influence militaire USA / Chine (bases, traités, armes).</div>${symboles}`;
   if (vue === "alignement") return `<div class="degrade"><span>Bloc Chine</span><b style="background:linear-gradient(90deg,${couleurAlignement(-1)},${couleurAlignement(0)},${couleurAlignement(1)})"></b><span>Bloc USA</span></div>${symboles}`;
@@ -416,7 +476,7 @@ function afficher() {
   $("camp").textContent = `Tu joues : ${NOM_CAMP[monCamp]}`;
   $("camp").className = monCamp === "OCC" ? "occ-t" : "chn-t";
   $("jauges").innerHTML = [
-    `<span title="Bilan = moyenne des décomptes annuels (positif = bloc USA). Progression actuelle : ${signe(progression(e))}">Bilan <strong class="${b >= 0 ? "occ-t" : "chn-t"}">${signe(b)}</strong></span>`,
+    `<span title="Bilan = moyenne des décomptes annuels du bloc en avance. Progression actuelle : ${(x => (x >= 0 ? "USA " : "Chine ") + nombre(Math.abs(x)))(progression(e))}">Bilan <strong>${avance(b)}</strong></span>`,
     `<span title="Moyenne des 5 familles (économie, population, ressources, armée, environnement) contrôlées par chaque camp">Puissance <strong class="occ-t">${nombre(100 * puissance(e, "OCC"), 0)} %</strong> / <strong class="chn-t">${nombre(100 * puissance(e, "CHN"), 0)} %</strong></span>`,
     `<span title="Tension mondiale ${nombre(e.tension, 0)} / 100">Tension <strong>${cran(e)}/5</strong></span>`,
     `<span title="Capital politique (élections, coûts)">CP <strong>${nombre(c.cp, 0)}</strong></span>`,
@@ -429,7 +489,12 @@ function afficher() {
   carteMonde.colorer(couleurs(), legende());
   carteMonde.tracerFlux(FLUX.filter(f => !f.depuis || f.depuis <= Math.floor(e.round / 4) + 2000).map(f => ({ id: f.id, mode: f.mode, portee: f.portee, volume: f.volume, trace: f.trace, actif: fluxActif(e, f),
     titre: `${f.nom} (${f.mode}, ${f.portee === "mondial" ? "mondial" : "régional"}, volume ${f.volume}/5 estimé)${fluxActif(e, f) ? "" : " : COUPÉ par un blocage"}` })),
-    options.maritime ? DETROITS.map(d => { const bloque = e.blocages.some(b => b.detroit === d.id); return { id: d.id, position: d.position, marqueur: { symbole: "⚓", couleur: bloque ? "#dc4b3c" : "#2f6f8f", titre: `${d.nom}${bloque ? " : BLOQUÉ" : " : ouvert"}` } }; }) : []);
+    [...(options.maritime ? DETROITS.map(d => { const bloque = e.blocages.some(b => b.detroit === d.id); return { id: d.id, position: d.position, marqueur: { symbole: "≋", couleur: bloque ? "#dc4b3c" : "#2f6f8f", titre: `${d.nom}${bloque ? " : BLOQUÉ" : " : ouvert"}` } }; }) : []),
+     ...HUBS.filter(h => h.type === "port" ? options.maritime : options.aerien).map(h => {
+       const conc = e.concessions.find(c => c.hub === h.id);
+       return { id: h.id, position: h.position, taille: h.rang === "majeur" ? 1 : 0.62, marqueur: { symbole: h.type === "port" ? "⚓" : "✈", couleur: conc ? (conc.camp === "OCC" ? "#3d78d6" : "#d4402f") : h.type === "port" ? "#14506b" : "#4b4f6b",
+         titre: `${h.type === "port" ? "Port" : "Aéroport"} ${h.rang} : ${h.nom}, ${nombre(h.volume)} ${h.type === "port" ? "M EVP" : "M passagers"} (estimation 2000)${conc ? ` · concession ${conc.camp === "OCC" ? "bloc USA" : "bloc Chine"} jusqu'en ${libelle(conc.fin)}` : ""}` } };
+     })]);
   carteMonde.annoter(annotations(), marqueursHorsJeu());
   document.querySelectorAll<HTMLButtonElement>("[data-option]").forEach(b => b.classList.toggle("actif", options[b.dataset.option as keyof OptionsCarte]));
   carteMonde.choisir(paysChoisi);
@@ -550,7 +615,7 @@ function aide() {
     <p>Routes maritimes, terrestres (routes, rail, oléoducs) et aériennes, régionales ou mondiales. Plus un pays partage de routes avec un leader, plus l'influence économique de ce leader y monte. Un <strong>détroit bloqué</strong> (Ormuz, Malacca, Suez…) coupe les routes qui le traversent et freine la croissance des pays qui en dépendent.</p>
     <h3>La carte</h3>
     <ul class="conseillers">
-      <li><strong>Boutons</strong> : Noms, Influence (totaux USA · Chine), Catégories (barres par canal), Sigles (OTAN, UE, G7, OCS, BRIC, OPEP, ASEAN, ☢ nucléaire), routes maritimes, terrestres, aériennes, Légende, Panneau, Plein écran. Molette : zoom ; glisser : déplacer.</li>
+      <li><strong>Boutons</strong> : Noms, Influence (totaux USA · Chine), Catégories (une pastille par canal : É économique, P politique, M militaire, C culturel), Sigles (OTAN, UE, G7, OCS, BRIC, OPEP, ASEAN, ☢ nucléaire), routes maritimes, terrestres, aériennes, Légende, Panneau, Plein écran. Molette : zoom ; glisser : déplacer.</li>
       <li><strong>Symboles</strong> : ★ événement historique, ! événement, ⚔ conflit en cours, ◆ action de l'adversaire, ✓ ton action, ↯ pays instable, ⚓ détroit (rouge = bloqué).</li>
     </ul>
     <h3>Tes ressources</h3>

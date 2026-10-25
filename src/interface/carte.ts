@@ -1,10 +1,13 @@
-import { geoNaturalEarth1, geoPath } from "d3-geo";
+import { geoMercator, geoPath, geoGraticule } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Feature, FeatureCollection, Geometry, MultiPolygon, Polygon } from "geojson";
 import monde from "world-atlas/countries-50m.json";
 
 const NS = "http://www.w3.org/2000/svg";
-const LARGEUR = 1000, HAUTEUR = 520, ZOOM_MAX = 24;
+const LARGEUR = 1000, ZOOM_MAX = 24;
+// Carte rectangulaire (Mercator) cadrée sur les 50 pays du jeu : longitudes 128° O à 180°, latitudes 54° S à 78° N.
+// Sans l'Antarctique ni le Pacifique vide, elle remplit l'écran ; le Groenland reste borné.
+const LON_OUEST = -128, LON_EST = 180, CENTRE = 26, LAT_SUD = -54, LAT_NORD = 78, SANS = new Set(["010", "260"]); // Antarctique, Terres australes
 
 export interface Marqueur { symbole: string; couleur: string; titre: string }
 export interface Annotation {
@@ -15,7 +18,7 @@ export interface Annotation {
 }
 export interface OptionsCarte { noms: boolean; influence: boolean; categories: boolean; sigles: boolean; legende: boolean; maritime: boolean; terrestre: boolean; aerien: boolean }
 export interface TraceFlux { id: string; mode: "maritime" | "terrestre" | "aerien"; portee: "local" | "mondial"; volume: number; trace: [number, number][]; titre: string; actif: boolean }
-export interface PointCarte { id: string; position: [number, number]; marqueur: Marqueur }
+export interface PointCarte { id: string; position: [number, number]; marqueur: Marqueur; taille?: number }
 
 const el = <K extends keyof SVGElementTagNameMap>(nom: K, attrs: Record<string, string | number> = {}) => {
   const x = document.createElementNS(NS, nom);
@@ -25,13 +28,36 @@ const el = <K extends keyof SVGElementTagNameMap>(nom: K, attrs: Record<string, 
 
 // Dessine la carte une fois ; colorer() et annoter() mettent à jour sans redessiner. Molette : zoom ; glisser : déplacer.
 export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string>, surClic: (iso3: string) => void) {
-  const pays = feature(monde as any, (monde as any).objects.countries) as unknown as FeatureCollection<Geometry, { name: string }>;
-  const projection = geoNaturalEarth1().fitSize([LARGEUR, HAUTEUR], pays);
+  const tous = feature(monde as any, (monde as any).objects.countries) as unknown as FeatureCollection<Geometry, { name: string }>;
+  const pays = { ...tous, features: tous.features.filter(f => !SANS.has(String(f.id))) };
+  const cadre = { type: "Feature", properties: {}, geometry: { type: "MultiPoint", coordinates: [[LON_OUEST, LAT_SUD], [LON_EST - 0.01, LAT_NORD]] } } as Feature;
+  const projection = geoMercator().rotate([-CENTRE, 0]).fitWidth(LARGEUR, cadre);
   const chemin = geoPath(projection);
+  const HAUTEUR = Math.round((projection([0, LAT_SUD])![1]) - (projection([0, LAT_NORD])![1]));
+  projection.translate([projection.translate()[0], projection.translate()[1] - projection([0, LAT_NORD])![1]]);
+  let hauteurVue = HAUTEUR; // hauteur du viewBox, ajustée aux proportions de l'écran
   const svg = el("svg", { viewBox: `0 0 ${LARGEUR} ${HAUTEUR}`, preserveAspectRatio: "xMidYMid meet" });
+  const fond = el("g", { class: "fond" });
+  fond.append(el("rect", { x: 0, y: 0, width: LARGEUR, height: HAUTEUR, class: "ocean" }), el("path", { d: chemin(geoGraticule().extent([[-180, -84], [180, 86]]).step([10, 10])()) ?? "", class: "graticule" }));
+  // Texture : grain de papier (bruit généré une fois) posé sur les terres, relief doux et halo des côtes.
+  const defs = el("defs");
+  const grain = document.createElement("canvas"); grain.width = grain.height = 96;
+  const g2d = grain.getContext("2d");
+  if (g2d) { const img = g2d.createImageData(96, 96); for (let i = 0; i < img.data.length; i += 4) { const v = 110 + Math.random() * 145; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 46; } g2d.putImageData(img, 0, 0); }
+  const motif = el("pattern", { id: "grain", width: 24, height: 24, patternUnits: "userSpaceOnUse" });
+  motif.appendChild(el("image", { href: grain.toDataURL(), width: 24, height: 24 }));
+  const halo = el("filter", { id: "halo", x: "-5%", y: "-5%", width: "110%", height: "110%" });
+  halo.innerHTML = `<feMorphology in="SourceAlpha" operator="dilate" radius="1.2" result="d"/><feGaussianBlur in="d" stdDeviation="1.6" result="b"/><feFlood flood-color="#9fd3ff" flood-opacity=".28"/><feComposite in2="b" operator="in" result="h"/><feMerge><feMergeNode in="h"/><feMergeNode in="SourceGraphic"/></feMerge>`;
+  const degrade = el("radialGradient", { id: "vignette", cx: "50%", cy: "45%", r: "75%" });
+  degrade.innerHTML = `<stop offset="0" stop-color="#1e3a50" stop-opacity="0"/><stop offset="1" stop-color="#050b11" stop-opacity=".55"/>`;
+  defs.append(motif, halo, degrade);
   const zoom = el("g"), couchePays = el("g"), coucheFlux = el("g", { class: "flux" }), coucheNoms = el("g", { class: "noms" }), coucheMarques = el("g", { class: "marques" });
-  zoom.append(couchePays, coucheFlux, coucheNoms, coucheMarques);
-  svg.appendChild(zoom);
+  const coucheGrain = el("g", { class: "grain" });
+  couchePays.setAttribute("filter", "url(#halo)");
+  zoom.append(fond, couchePays, coucheGrain, coucheFlux, coucheNoms, coucheMarques);
+  svg.append(defs, zoom);
+  const vignette = el("rect", { x: 0, y: 0, width: LARGEUR, height: 4000, fill: "url(#vignette)", class: "vignette" });
+  svg.appendChild(vignette);
   const parIso = new Map<string, SVGPathElement[]>();
   // centre du plus grand polygone de chaque pays : clé iso3 pour les pays du jeu, « #id » (code ISO numérique) pour les autres
   const ancre = new Map<string, { x: number; y: number; aire: number }>();
@@ -50,6 +76,7 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
       if (aire > (ancre.get(cle)?.aire ?? -1)) { const [x, y] = chemin.centroid(g); ancre.set(cle, { x, y, aire }); }
     }
     couchePays.appendChild(p);
+    coucheGrain.appendChild(el("path", { d: p.getAttribute("d") ?? "", fill: "url(#grain)" }));
   }
   conteneur.appendChild(svg);
 
@@ -61,12 +88,20 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   conteneur.append(bulle, legende, boutons);
   let annotations: Record<string, Annotation> = {};
 
+  // Le viewBox suit les proportions de l'écran : la carte remplit toujours la largeur, l'océan quadrillé comble le reste.
+  const kMin = () => 1;
+  new ResizeObserver(() => {
+    const r = svg.getBoundingClientRect(); if (!r.width || !r.height) return;
+    hauteurVue = LARGEUR * r.height / r.width; svg.setAttribute("viewBox", `0 0 ${LARGEUR} ${hauteurVue}`);
+    if (k < kMin()) { k = kMin(); tx = (LARGEUR - LARGEUR * k) / 2; } appliquer();
+  }).observe(svg);
   // Zoom et déplacement
   let k = 1, tx = 0, ty = 0, glisse: { x: number; y: number; tx: number; ty: number; bouge: boolean } | null = null;
   const echelle = () => svg.getBoundingClientRect().width / LARGEUR || 1;
   function appliquer() {
-    k = Math.min(ZOOM_MAX, Math.max(1, k));
-    tx = Math.min(0, Math.max(LARGEUR * (1 - k), tx)); ty = Math.min(0, Math.max(HAUTEUR * (1 - k), ty));
+    k = Math.min(ZOOM_MAX, Math.max(kMin(), k));
+    tx = Math.min(0, Math.max(LARGEUR * (1 - k), tx));
+    ty = HAUTEUR * k >= hauteurVue ? Math.min(0, Math.max(hauteurVue - HAUTEUR * k, ty)) : (hauteurVue - HAUTEUR * k) / 2;
     zoom.setAttribute("transform", `translate(${tx},${ty}) scale(${k})`);
     svg.style.setProperty("--k", String(k));
     // Grands pays d'abord ; un nom qui chevauche un nom déjà posé est masqué (visible en zoomant).
@@ -80,12 +115,12 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
       if (libre) poses.push({ x: a.x, y: a.y, l });
     }
     for (const g of coucheMarques.children as unknown as SVGGElement[]) {
-      const a = ancre.get((g as SVGGElement).dataset.cle!)!;
-      g.setAttribute("transform", `translate(${a.x},${a.y}) scale(${1 / k})`);
+      const a = ancre.get((g as SVGGElement).dataset.cle!)!, t = Number((g as SVGGElement).dataset.taille ?? 1);
+      g.setAttribute("transform", `translate(${a.x},${a.y}) scale(${t / k})`);
     }
   }
-  function zoomer(f: number, cx = LARGEUR / 2, cy = HAUTEUR / 2) {
-    const k2 = Math.min(ZOOM_MAX, Math.max(1, k * f));
+  function zoomer(f: number, cx = LARGEUR / 2, cy = hauteurVue / 2) {
+    const k2 = Math.min(ZOOM_MAX, Math.max(kMin(), k * f));
     tx = cx - (cx - tx) * (k2 / k); ty = cy - (cy - ty) * (k2 / k); k = k2; appliquer();
   }
   svg.addEventListener("wheel", ev => {
@@ -106,7 +141,7 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   });
   boutons.addEventListener("click", ev => {
     const z = Number((ev.target as HTMLElement).dataset.z);
-    if (z === 0) { k = 1; tx = 0; ty = 0; appliquer(); } else if (z) zoomer(z);
+    if (z === 0) { k = kMin(); tx = 0; ty = 0; appliquer(); } else if (z) zoomer(z);
   });
   svg.addEventListener("pointermove", ev => {
     const iso = (ev.target as Element).closest?.("[data-iso]") as SVGElement | null;
@@ -137,26 +172,27 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
         const t = el("title"); t.textContent = f.titre; p.appendChild(t);
         coucheFlux.appendChild(p);
       }
-      for (const pt of points) { const [x, y] = projection(pt.position) ?? [0, 0]; ancre.set(`@${pt.id}`, { x, y: y + 20, aire: 0 }); }
+      for (const pt of points) { const [x, y] = projection(pt.position) ?? [0, 0]; ancre.set(`@${pt.id}`, { x, y, aire: 0 }); }
       pointsFlux = points;
     },
     regler(o: OptionsCarte) {
       svg.classList.toggle("sans-maritime", !o.maritime); svg.classList.toggle("sans-terrestre", !o.terrestre); svg.classList.toggle("sans-aerien", !o.aerien);
       svg.classList.toggle("sans-noms", !o.noms); svg.classList.toggle("avec-sigles", o.sigles); svg.classList.toggle("avec-barres", o.categories);
       legende.hidden = !o.legende;
-      hauteurNom = 13 + (o.sigles ? 6 : 0) + (o.categories ? 12 : 0);
+      hauteurNom = 13 + (o.sigles ? 6 : 0) + (o.categories ? 16 : 0);
       appliquer();
     },
     // a : pays du jeu (clé iso3) ; hors : marqueurs sur des pays hors jeu (clé = code ISO numérique de la carte, ex. "004")
     annoter(a: Record<string, Annotation>, hors: Record<string, Marqueur[]> = {}) {
       annotations = a;
       coucheNoms.replaceChildren(); coucheMarques.replaceChildren();
-      const poserMarques = (cle: string, marqueurs: Marqueur[]) => {
+      const poserMarques = (cle: string, marqueurs: Marqueur[], taille = 1) => {
         if (!marqueurs.length || !ancre.has(cle)) return;
-        const m = el("g", { class: "marque" }); m.dataset.cle = cle;
+        const m = el("g", { class: `marque${cle.startsWith("@") ? " point-flux" : ""}` }); m.dataset.cle = cle;
+        if (taille !== 1) m.dataset.taille = String(taille);
         const n = Math.min(5, marqueurs.length);
         marqueurs.slice(0, n).forEach((q, i) => {
-          const c = el("g", { transform: `translate(${(i - (n - 1) / 2) * 15},-20)` });
+          const c = el("g", { class: q.symbole === "⚔" ? "m-conflit" : q.couleur === "#dc4b3c" ? "m-alerte" : "", transform: `translate(${(i - (n - 1) / 2) * 15},${cle.startsWith("@") ? 0 : -20})` });
           const titre = el("title"); titre.textContent = q.titre;
           const rond = el("circle", { r: 7, fill: q.couleur });
           const s = el("text", { y: 3.2 }); s.textContent = q.symbole;
@@ -179,10 +215,15 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
         } else if (x.valeur) { const v = el("text", { y, class: "valeur" }); v.textContent = x.valeur; g.appendChild(v); y += 10; }
         if (x.sigles) { const s = el("text", { y: y - 1, class: "sigles" }); s.textContent = x.sigles; g.appendChild(s); y += 7; }
         if (x.barres) {
-          const b = el("g", { class: "barres", transform: `translate(-19,${y + 12})` });
+          // une pastille par canal (bordure et lettre à la couleur du canal), remplie en bleu (part USA) et rouge (part Chine)
+          const b = el("g", { class: "barres", transform: `translate(-29,${y + 1})` });
           x.barres.o.forEach((v, i) => {
-            b.appendChild(el("rect", { x: i * 10, y: -Math.max(0.5, v * 0.12), width: 4, height: Math.max(0.5, v * 0.12), class: "b-o" }));
-            b.appendChild(el("rect", { x: i * 10 + 4.5, y: -Math.max(0.5, x.barres!.c[i] * 0.12), width: 4, height: Math.max(0.5, x.barres!.c[i] * 0.12), class: "b-c" }));
+            const c = x.barres!.c[i], part = v + c > 0 ? v / (v + c) : 0.5, g2 = el("g", { transform: `translate(${i * 15},0)` });
+            const t = el("title"); t.textContent = `${CANAUX_CARTE[i].nom} : USA ${Math.round(v)} · Chine ${Math.round(c)}`;
+            g2.append(t, el("rect", { width: 13 * part, height: 13, class: "b-o" }), el("rect", { x: 13 * part, width: 13 * (1 - part), height: 13, class: "b-c" }),
+              el("rect", { width: 13, height: 13, rx: 2, class: "b-cadre", stroke: CANAUX_CARTE[i].couleur }));
+            const l = el("text", { x: 6.5, y: 9.7, class: "b-lettre" }); l.textContent = CANAUX_CARTE[i].lettre; g2.appendChild(l);
+            b.appendChild(g2);
           });
           g.appendChild(b);
         }
@@ -190,11 +231,17 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
         poserMarques(iso, x.marqueurs);
       }
       for (const [id, m] of Object.entries(hors)) poserMarques(`#${id}`, m);
-      for (const pt of pointsFlux) poserMarques(`@${pt.id}`, [pt.marqueur]);
+      for (const pt of pointsFlux) poserMarques(`@${pt.id}`, [pt.marqueur], pt.taille);
       appliquer();
     },
   };
 }
+
+// Canaux d'influence (bouton Catégories) : lettre et couleur propres à chaque canal.
+export const CANAUX_CARTE = [
+  { lettre: "É", nom: "Économique", couleur: "#3fbf7f" }, { lettre: "P", nom: "Politique", couleur: "#b07cf0" },
+  { lettre: "M", nom: "Militaire", couleur: "#e0a03a" }, { lettre: "C", nom: "Culturelle", couleur: "#ef6fb0" },
+];
 
 // Échelle logarithmique bleu clair -> or, lisible sur fond sombre.
 export function couleurLog(v: number, min: number, max: number): string {
