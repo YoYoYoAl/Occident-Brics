@@ -1,10 +1,16 @@
 import donnees from "../data/pays2000.json";
-import { dessinerCarte, couleurLog, couleurAlignement, type Annotation, type Marqueur } from "./carte";
+import { dessinerCarte, couleurLog, couleurAlignement, type Annotation, type Marqueur, type OptionsCarte } from "./carte";
+import { image, imageEvenement, portrait, imageBriefing, imageCarte } from "./images";
+import { organisations, SIGLES } from "../data/organisations";
+import { FLUX, DETROITS } from "../data/flux";
+import { jouer as son, basculerSon, sonActif } from "./sons";
 import { ficheHtml } from "./fiche";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, KOMI, SEUIL_EGALITE, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
-  decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, type EtatPartie, type TypeAction, type EntreeJournal,
+  decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, reagir, peutReagir, REACTIONS, MAX_REACTIONS, fluxActif, lienFlux,
+  peutJouerCarte, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
+  type EtatPartie, type TypeAction, type EntreeJournal, type TypeReaction,
 } from "../moteur/partie";
 import { CANAUX, adversaire, type Camp } from "../moteur/types";
 import type { EtatJeu } from "../moteur/etat";
@@ -23,6 +29,16 @@ let onglet = "main";
 let carteOuverte: string | null = null;
 let journalVu = 0;
 let briefingVuAuRound = -1;
+// Photo avant la fin du trimestre, pour le récap des deux blocs (puissance, alignements).
+let avantTour: { puissance: Record<Camp, number>; alignements: Record<string, number> } | null = null;
+let debutRapport = 0, titreRapport = "";
+const CLE_OPTIONS = "occident-brics-options-carte";
+const options: OptionsCarte = (() => {
+  const defaut: OptionsCarte = { noms: true, influence: false, categories: false, sigles: false, legende: true, maritime: true, terrestre: true, aerien: false };
+  try { return { ...defaut, ...JSON.parse(localStorage.getItem(CLE_OPTIONS) ?? "{}") }; } catch { return defaut; }
+})();
+// Pays hors jeu où se déroulent des conflits historiques : code ISO numérique de la carte.
+const IDS_HORS_JEU: Record<string, string> = { AFG: "004", GEO: "268", LBN: "422" };
 
 const joueur = (): Camp => etat!.joueur ?? "OCC";
 const idsJeu = new Map(donnees.pays.map(p => [p.idCarte, p.iso3]));
@@ -35,8 +51,8 @@ function message(texte: string) {
   setTimeout(() => m.classList.remove("visible"), 3000);
 }
 // Exécute une action du moteur : une règle refusée devient un message, jamais un plantage.
-function tenter(f: () => EtatPartie) {
-  try { etat = f(); afficher(); } catch (err) { message((err as Error).message); }
+function tenter(f: () => EtatPartie, s: "action" | "carte" | "clic" = "action") {
+  try { etat = f(); son(s); afficher(); } catch (err) { son("erreur"); message((err as Error).message); }
 }
 
 // ---------- Fenêtres ----------
@@ -45,11 +61,12 @@ function ouvrir(html: string, liaisons: (b: HTMLElement) => void = () => {}) {
   $("fenetre").hidden = false;
   liaisons($("boite"));
 }
-const fermer = () => { $("fenetre").hidden = true; };
+const fermer = () => { if (!$("fenetre").hidden) son("fermer", 0.3); $("fenetre").hidden = true; };
 const fenetreOuverte = () => !$("fenetre").hidden;
 
 function choisirCamp() {
-  ouvrir(`<h2>Nouvelle partie</h2><p class="note">Première partie ? Le bouton <strong>Aide</strong> (ou la touche ?) explique tout en 2 minutes.</p>
+  const titre = image("ecran_titre");
+  ouvrir(`${titre ? `<div class="bandeau titre-jeu" style="background-image:url(${titre})"><h2>Occident vs BRICS</h2><span>2000-2008 · la naissance des blocs</span></div>` : `<h2>Nouvelle partie</h2>`}<p class="note">Première partie ? Le bouton <strong>Règles</strong> (ou la touche ?) explique tout en 2 minutes.</p>
     <p>De 2000 à 2008, 36 trimestres. Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le score compte, pour 5 familles (économie, population, ressources, armée, environnement), la part du monde que contrôle chaque camp ; un décompte a lieu chaque fin d'année.</p>
     <div class="choix-camp">
       <button data-camp="OCC" class="occ"><strong>Bloc USA</strong><span>Les États-Unis et leurs alliés. Riche et influent partout, mais l'essor chinois grignote ta position.</span></button>
@@ -61,10 +78,36 @@ function choisirCamp() {
   }));
 }
 
-function ligneJournal(j: EntreeJournal) {
+function ligneJournal(j: EntreeJournal, avecReactions = false) {
   const classe = j.camp ? (j.camp === "OCC" ? "occ" : "chn") : "";
   const effets = j.effets?.length ? `<small class="effets">Ce que ça change : ${j.effets.map(esc).join(" · ")}</small>` : "";
-  return `<li class="j-${j.type} ${classe}"><strong>${esc(j.titre)}</strong>${j.texte ? `<br><span>${esc(j.texte)}</span>` : ""}${effets}</li>`;
+  const img = j.type === "historique" || j.type === "generique" ? imageEvenement(j.source, j.famille) : undefined;
+  const corps = `<strong>${esc(j.titre)}</strong>${j.texte ? `<br><span>${esc(j.texte)}</span>` : ""}${effets}${avecReactions ? boutonsReaction(j) : ""}`;
+  return `<li class="j-${j.type} ${classe} ${img ? "avec-image" : ""}">${img ? `<img src="${img}" alt="" loading="lazy"><div>${corps}</div>` : corps}</li>`;
+}
+// Boutons « aider » / « exploiter » sous un événement de ce trimestre qui frappe un pays.
+function boutonsReaction(j: EntreeJournal): string {
+  const index = etat!.journal.indexOf(j);
+  if (!j.reactif || index < 0 || j.round !== etat!.round) return "";
+  const fait = etat!.camps[joueur()].reactions.includes(index);
+  if (fait) return `<div class="reactions"><span class="note">Tu as réagi.</span></div>`;
+  const b = (["aider", "exploiter"] as TypeReaction[]).map(t => ({ t, err: peutReagir(etat!, joueur(), index, t) }))
+    .filter(x => !/leader adverse refuse|n'exploite que/.test(x.err ?? ""));
+  return b.length ? `<div class="reactions">${b.map(x => `<button data-reagir="${x.t}" data-index="${index}" ${x.err ? `disabled title="${esc(x.err)}"` : `title="${esc(REACTIONS[x.t].texte)}"`}>${REACTIONS[x.t].nom} (${REACTIONS[x.t].budget} budget)</button>`).join("")}</div>` : "";
+}
+function lierReactions(zone: HTMLElement, apres: () => void) {
+  zone.querySelectorAll<HTMLButtonElement>("[data-reagir]").forEach(b => b.onclick = () => {
+    try { etat = reagir(etat!, joueur(), Number(b.dataset.index), b.dataset.reagir as TypeReaction); son("reaction"); message("Réaction envoyée."); apres(); }
+    catch (err) { son("erreur"); message((err as Error).message); }
+  });
+}
+// Camp concerné par un événement localisé : ton camp (ton leader, tes alliés), l'adversaire, ou personne.
+function campTouche(j: EntreeJournal): Camp | null {
+  if (!j.pays?.length) return null;
+  const iso = j.pays[0];
+  if (iso === "USA") return "OCC"; if (iso === "CHN") return "CHN";
+  const a = alignement(etat!, iso);
+  return a >= 0.3 ? "OCC" : a <= -0.3 ? "CHN" : null;
 }
 const visibles = (debut = 0) => etat!.journal.slice(debut).filter(j => j.visiblePour.includes(joueur()) && j.type !== "action");
 
@@ -78,29 +121,56 @@ function importance(j: EntreeJournal): number {
 }
 const MAX_MONDE = 3;
 
-function rapport(titre: string) {
-  const tout = etat!.journal.slice(journalVu);
+function rapport(titre: string, debut = journalVu) {
+  if (debut === journalVu) son(etat!.journal.slice(debut).some(j => j.type === "historique") ? "evenement" : "ouvrir", 0.45);
+  debutRapport = debut; titreRapport = titre;
+  const tout = etat!.journal.slice(debut);
   journalVu = etat!.journal.length;
   const moi = joueur(), adv = adversaire(moi), vu = (j: EntreeJournal) => j.visiblePour.includes(moi);
   const histoire = tout.filter(j => vu(j) && (j.type === "historique" || j.type === "politique" || j.type === "bilan"));
-  const cartesAdv = tout.filter(j => vu(j) && j.type === "carte" && (j.joueParCamp ?? j.camp) === adv);
-  const actionsAdv = tout.filter(j => j.type === "action" && j.camp === adv);
   const consequences = tout.filter(j => vu(j) && j.type === "cache");
-  const monde = tout.filter(j => vu(j) && j.type === "generique").map(j => ({ j, n: importance(j) })).sort((a, b) => b.n - a.n);
+  const generiques = tout.filter(j => vu(j) && j.type === "generique");
+  const chezMoi = generiques.filter(j => campTouche(j) === moi), chezAdv = generiques.filter(j => campTouche(j) === adv);
+  const monde = generiques.filter(j => !campTouche(j)).map(j => ({ j, n: importance(j) })).sort((a, b) => b.n - a.n);
   const retenus = monde.filter(x => x.n >= 3).slice(0, MAX_MONDE).map(x => x.j), autres = monde.map(x => x.j).filter(j => !retenus.includes(j));
-  const section = (t: string, l: EntreeJournal[]) => l.length ? `<h3>${t}</h3><ul class="journal">${l.map(ligneJournal).join("")}</ul>` : "";
-  const parType = new Map<string, string[]>();
-  for (const a of actionsAdv) { const [nom, pays] = a.titre.split(" : "); parType.set(nom, [...(parType.get(nom) ?? []), pays]); }
-  const actionsTxt = [...parType].map(([nom, pays]) => `${nom} (${pays.join(", ")})`).join(" ; ");
+  const liste = (l: EntreeJournal[], r = false) => `<ul class="journal">${l.map(j => ligneJournal(j, r)).join("")}</ul>`;
+  const section = (t: string, l: EntreeJournal[], r = false, note = "") => l.length ? `<h3>${t}</h3>${note}${liste(l, r)}` : "";
+  const reste = etat!.camps[moi].reactions.length;
+  const noteReaction = `<p class="note">Tu peux réagir à ${MAX_REACTIONS} événements par trimestre (${MAX_REACTIONS - reste} restant${MAX_REACTIONS - reste > 1 ? "s" : ""}, budget ${nombre(etat!.camps[moi].budget, 0)}). Aussi depuis l'onglet Main.</p>`;
   ouvrir(`<h2>${titre} : ${libelle(etat!.round)}</h2>
+    ${recapBlocs(tout)}
     ${section("Histoire et politique", histoire)}
-    ${cartesAdv.length || actionsTxt ? `<h3>Ce qu'a fait le ${NOM_CAMP[adv]}</h3><ul class="journal">${cartesAdv.map(ligneJournal).join("")}${actionsTxt ? `<li class="${adv === "OCC" ? "occ" : "chn"}"><strong>Actions sur la carte</strong><br><span>${esc(actionsTxt)}</span></li>` : ""}</ul>` : ""}
+    ${section(`Ton camp (${NOM_CAMP[moi]}) est touché`, chezMoi, true, noteReaction)}
+    ${section(`Chez l'adversaire (${NOM_CAMP[adv]})`, chezAdv, true)}
     ${section("Conséquences de tes choix passés", consequences)}
-    ${section("Dans le monde", retenus)}
-    ${autres.length ? `<details><summary>${autres.length} autre${autres.length > 1 ? "s" : ""} événement${autres.length > 1 ? "s" : ""} mineur${autres.length > 1 ? "s" : ""}, loin de ton jeu</summary><ul class="journal">${autres.map(ligneJournal).join("")}</ul></details>` : ""}
-    ${!histoire.length && !cartesAdv.length && !actionsTxt && !consequences.length && !retenus.length ? `<p class="note">Trimestre calme.</p>` : ""}
+    ${section("Dans le monde", retenus, true)}
+    ${autres.length ? `<details><summary>${autres.length} autre${autres.length > 1 ? "s" : ""} événement${autres.length > 1 ? "s" : ""} mineur${autres.length > 1 ? "s" : ""}, loin de ton jeu</summary>${liste(autres, true)}</details>` : ""}
+    ${!histoire.length && !chezMoi.length && !chezAdv.length && !consequences.length && !retenus.length ? `<p class="note">Trimestre calme.</p>` : ""}
     <div class="actions-fenetre"><button id="okRapport" class="principal">Continuer</button></div>`,
-  b => { b.querySelector<HTMLButtonElement>("#okRapport")!.onclick = () => { fermer(); if (etat!.termine) finDePartie(); else proposerBriefing(); }; });
+  b => {
+    lierReactions(b, () => { const y = b.scrollTop; rapport(titreRapport, debutRapport); $("boite").scrollTop = y; afficher(); });
+    b.querySelector<HTMLButtonElement>("#okRapport")!.onclick = () => { fermer(); if (etat!.termine) finDePartie(); else proposerBriefing(); };
+  });
+}
+
+// Récap des deux blocs : carte jouée, actions, réactions, évolution de la puissance et basculements.
+function recapBlocs(tout: EntreeJournal[]): string {
+  if (!avantTour || !tout.some(j => j.type === "carte" || j.type === "action")) return "";
+  const e = etat!, colonne = (camp: Camp) => {
+    const cartes = tout.filter(j => j.type === "carte" && (j.joueParCamp ?? j.camp) === camp && j.visiblePour.includes(joueur()));
+    const actions = tout.filter(j => j.type === "action" && j.camp === camp);
+    const parType = new Map<string, string[]>();
+    for (const a of actions) { const [nom, pays] = a.titre.split(" : "); parType.set(nom, [...(parType.get(nom) ?? []), pays]); }
+    const p0 = avantTour!.puissance[camp], p1 = puissance(e, camp);
+    return `<div class="bloc ${camp === "OCC" ? "occ" : "chn"}"><h4>${NOM_CAMP[camp]}${camp === joueur() ? " (toi)" : ""}</h4>
+      <p><strong>Carte :</strong> ${cartes.length ? cartes.map(c => esc(c.titre)).join(" ; ") : "aucune"}</p>
+      <p><strong>Actions :</strong> ${parType.size ? [...parType].map(([n, ps]) => `${esc(n)} (${esc(ps.join(", "))})`).join(" ; ") : "aucune"}</p>
+      <p><strong>Puissance :</strong> ${nombre(100 * p0)} % → ${nombre(100 * p1)} % <span class="${p1 >= p0 ? "hausse" : "baisse"}">(${signe(100 * (p1 - p0), 2)})</span></p></div>`;
+  };
+  const bascules = Object.keys(e.pays).filter(i => i !== "USA" && i !== "CHN").map(i => ({ i, d: alignement(e, i) - (avantTour!.alignements[i] ?? 0) }))
+    .filter(x => Math.abs(x.d) >= 0.03).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 6);
+  return `<h3>Le trimestre des deux blocs</h3><div class="recap">${colonne("OCC")}${colonne("CHN")}</div>
+    ${bascules.length ? `<p class="note">Alignements qui ont le plus bougé : ${bascules.map(x => `${esc(nomPays(x.i))} <span class="${x.d > 0 ? "occ-t" : "chn-t"}">${signe(x.d, 2)}</span>`).join(", ")} (positif = vers le bloc USA).</p>` : ""}`;
 }
 
 function proposerBriefing(forcer = false) {
@@ -108,10 +178,12 @@ function proposerBriefing(forcer = false) {
   if (!id || (!forcer && briefingVuAuRound === etat!.round)) return;
   briefingVuAuRound = etat!.round;
   const b = briefingDe(id), c = etat!.camps[joueur()];
-  ouvrir(`<h2>Briefing : ${esc(b.titre)}</h2>
+  const fond = imageBriefing(b.conseillers.map(x => x.role));
+  son("briefing");
+  ouvrir(`${fond ? `<div class="bandeau" style="background-image:url(${fond})"><h2>Briefing : ${esc(b.titre)}</h2></div>` : `<h2>Briefing : ${esc(b.titre)}</h2>`}
     <p>${esc(b.dossier)}</p>
     <h3>Avis des conseillers</h3>
-    <ul class="conseillers">${b.conseillers.map(x => `<li><strong>${esc(x.role)}</strong> : ${esc(x.avis)}</li>`).join("")}</ul>
+    <ul class="conseillers portraits">${b.conseillers.map(x => { const im = portrait(x.role); return `<li>${im ? `<img src="${im}" alt="">` : ""}<div><strong>${esc(x.role)}</strong> : ${esc(x.avis)}</div></li>`; }).join("")}</ul>
     <h3>Décision ${b.maxChoix > 1 ? `(jusqu'à ${b.maxChoix} options)` : "(une option)"}</h3>
     <form id="formBriefing" class="options">${b.options.map((o, i) => `
       <label class="option"><input type="${b.maxChoix > 1 ? "checkbox" : "radio"}" name="o" value="${i}">
@@ -135,6 +207,7 @@ function proposerBriefing(forcer = false) {
 function finDePartie() {
   const b = bilan(etat!), fin = etat!.journal.filter(j => j.type === "bilan").pop();
   const gagne = (b > 0 && joueur() === "OCC") || (b < 0 && joueur() === "CHN");
+  son(gagne && Math.abs(b) >= SEUIL_EGALITE ? "victoire" : "defaite", 0.6);
   ouvrir(`<h2>${esc(etat!.resultat ?? "")}</h2>
     <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : bilan ${signe(b)} points (positif = bloc USA).</p>
     <p>${esc(fin?.texte ?? "")}</p>
@@ -148,23 +221,31 @@ const cout = (c: { budget?: number; cp?: number }) => [c.budget ? `${c.budget} b
 
 function panneauMain(): string {
   const e = etat!, c = e.camps[joueur()];
-  let h = `<p class="note">${c.carteJouee ? "Carte jouée ce trimestre." : "Une carte par trimestre : son événement, ou ses points d'action."} Les cartes ciblées s'appliquent au pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : " (aucun choisi)"}.</p>`;
+  const manque = typesManquants(e, joueur()), oblig = carteObligatoire(e, joueur());
+  const suivi = (["camp", "adverse", "neutre"] as const).map(t => `<span class="${c.typesJoues.includes(t) ? "fait" : manque.includes(t) ? "manque" : ""}">${c.typesJoues.includes(t) ? "✓" : "○"} carte ${NOMS_TYPES[t]}</span>`).join("");
+  let h = `<div class="suivi-cartes" title="Chaque année : 6 cartes (2 de ton camp, 2 adverses, 2 neutres). Tu en joues une par trimestre, au moins une de chaque type. Les 2 restantes sont défaussées.">Cette année : ${suivi}</div>
+    ${oblig ? `<p class="alerte">Obligatoire ce trimestre : une carte ${manque.map(t => NOMS_TYPES[t]).join(" ou ")}.</p>` : ""}
+    <p class="note">${c.carteJouee ? "Carte jouée ce trimestre." : "Une carte par trimestre : son événement, ou ses points d'action."} Les cartes ciblées s'appliquent au pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : " (aucun choisi)"}.</p>`;
+  const aReagir = e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (campTouche(j) !== null || importance(j) >= 3));
+  if (aReagir.length) h += `<details class="a-reagir" ${c.reactions.length < MAX_REACTIONS ? "open" : ""}><summary>Réagir aux événements du trimestre (${c.reactions.length}/${MAX_REACTIONS})</summary><ul class="journal">${aReagir.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
   if (!c.main.length) h += `<p class="note">Main vide : nouvelle main au premier trimestre.</p>`;
   for (const id of c.main) {
-    const k = carteDe(id), adverse = k.camp === adversaire(joueur()), ouverte = carteOuverte === id;
-    h += `<article class="carte-jeu ${k.camp === "OCC" ? "occ" : k.camp === "CHN" ? "chn" : "neutre"} ${ouverte ? "ouverte" : ""}" data-carte="${id}">
-      <header><strong>${esc(k.titre)}</strong><span class="valeur" title="Points d'action">${k.valeur}</span></header>
+    const k = carteDe(id), adverse = k.camp === adversaire(joueur()), ouverte = carteOuverte === id, img = imageCarte(id);
+    const errCarte = peutJouerCarte(e, joueur(), id), t = typeCarte(joueur(), id);
+    h += `<article class="carte-jeu ${k.camp === "OCC" ? "occ" : k.camp === "CHN" ? "chn" : "neutre"} ${ouverte ? "ouverte" : ""} ${errCarte && !c.carteJouee ? "bloquee" : ""}" data-carte="${id}">
+      <header>${img ? `<img src="${img}" alt="">` : ""}<div><strong>${esc(k.titre)}</strong><small class="type-carte">carte ${NOMS_TYPES[t]}</small></div><span class="valeur" title="Points d'action">${k.valeur}</span></header>
       <p>${esc(k.texte)}</p>`;
+    if (ouverte && errCarte && !c.carteJouee) h += `<p class="alerte">${esc(errCarte)}</p>`;
     if (ouverte) {
       if (adverse) h += `<p class="alerte">Carte adverse : tu peux la jouer pour ses points, mais son événement se déclenche alors au profit de l'adversaire.</p>`;
       else k.modes.forEach((m, i) => {
         const pays = m.cible === "pays" ? paysChoisi ?? undefined : undefined;
-        const err = c.carteJouee ? "Carte déjà jouée ce trimestre." : peutJouerMode(e, joueur(), id, i, pays);
+        const err = c.carteJouee ? "Carte déjà jouée ce trimestre." : errCarte ?? peutJouerMode(e, joueur(), id, i, pays);
         h += `<div class="mode"><div><strong>${esc(m.nom)}</strong> <em>${cout(m.cout)}${m.cible === "pays" ? " · cible un pays" : ""}</em></div>
           <small>${m.effets.map(ef => esc(decrireEffet(e, ef, joueur(), pays, 0.3))).join("<br>")}${m.caches?.length ? "<br><i>Conséquences incertaines possibles.</i>" : ""}</small>
           <button data-jouer="${i}" ${err ? `disabled title="${esc(err)}"` : ""}>Jouer l'événement</button>${err ? `<small class="erreur">${esc(err)}</small>` : ""}</div>`;
       });
-      h += `<button data-points ${c.carteJouee ? "disabled" : ""}>Jouer pour ${k.valeur} point${k.valeur > 1 ? "s" : ""} d'action</button>`;
+      h += `<button data-points ${c.carteJouee || errCarte ? "disabled" : ""}>Jouer pour ${k.valeur} point${k.valeur > 1 ? "s" : ""} d'action</button>`;
     }
     h += `</article>`;
   }
@@ -231,14 +312,15 @@ function lierPanneau(zone: HTMLElement) {
     art.querySelector("header")!.addEventListener("click", () => { carteOuverte = carteOuverte === id ? null : id; afficher(); });
     art.querySelectorAll<HTMLButtonElement>("[data-jouer]").forEach(b => b.onclick = () => {
       const mode = Number(b.dataset.jouer), m = carteDe(id).modes[mode];
-      tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "evenement", mode, pays: m.cible === "pays" ? paysChoisi ?? undefined : undefined }));
+      tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "evenement", mode, pays: m.cible === "pays" ? paysChoisi ?? undefined : undefined }), "carte");
       carteOuverte = null; afficher();
     });
     art.querySelector<HTMLButtonElement>("[data-points]")?.addEventListener("click", () => {
-      tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "points" })); carteOuverte = null; afficher();
+      tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "points" }), "carte"); carteOuverte = null; afficher();
     });
   });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
+  lierReactions(zone, afficher);
   zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, paysChoisi!)));
 }
 
@@ -269,7 +351,7 @@ function valeurVue(iso: string): string {
 function annotations(): Record<string, Annotation> {
   const e = etat!, moi = joueur(), adv = adversaire(moi), coul = (c: Camp) => c === "OCC" ? "#4f8be0" : "#dc4b3c";
   const recents = e.journal.filter(j => j.round >= e.round - 1 && j.visiblePour.includes(moi));
-  const out: Record<string, Annotation> = {};
+  const out: Record<string, Annotation> = {}, orgs = organisations(e);
   for (const iso of Object.keys(e.pays)) {
     const p = e.pays[iso], m: Marqueur[] = [], a = alignement(e, iso);
     for (const j of recents.filter(j => j.pays?.includes(iso))) {
@@ -278,23 +360,40 @@ function annotations(): Record<string, Annotation> {
       else if ((j.type === "action" || j.type === "carte") && (j.joueParCamp ?? j.camp) === adv) m.push({ symbole: "◆", couleur: coul(adv), titre: `${NOM_CAMP[adv]} : ${j.titre}` });
       else if ((j.type === "action" || j.type === "carte") && j.camp === moi) m.push({ symbole: "✓", couleur: coul(moi), titre: `Toi : ${j.titre}` });
     }
+    for (const c of e.conflits.filter(c => c.iso === iso)) m.unshift({ symbole: "⚔", couleur: "#b03a2e", titre: `Conflit en cours : ${c.titre}` });
     if (p.stabilite < 30) m.push({ symbole: "↯", couleur: "#9b59b6", titre: `Pays instable (stabilité ${nombre(p.stabilite, 0)})` });
     const vus = new Set<string>(), uniques = m.filter(x => { const k = x.symbole + x.couleur; if (vus.has(k)) return false; vus.add(k); return true; });
     const io = influenceTotale(p, "OCC"), ic = influenceTotale(p, "CHN"), leader = iso === "USA" || iso === "CHN";
     const pente = leader ? "leader de bloc" : Math.abs(a) < 0.1 ? "neutre" : a > 0 ? (a >= 0.4 ? "allié du bloc USA" : "penche vers le bloc USA") : (a <= -0.4 ? "allié du bloc Chine" : "penche vers le bloc Chine");
+    const sig = orgs[iso] ?? [];
     out[iso] = { nom: court(iso), valeur: valeurVue(iso), marqueurs: uniques,
+      valeurs: options.influence && !leader ? [nombre(io, 0), nombre(ic, 0)] : undefined,
+      barres: options.categories && !leader ? { o: CANAUX.map(k => p.influence.OCC[k]), c: CANAUX.map(k => p.influence.CHN[k]) } : undefined,
+      sigles: options.sigles && sig.length ? sig.join(" ") : undefined,
       info: `<strong>${esc(nomPays(iso))}</strong><div class="note">${pente}${leader ? "" : ` · alignement ${signe(a, 2)}`}</div>
         ${leader ? "" : `<div class="barres"><span class="b-occ" style="width:${Math.min(100, io)}%"></span></div><div class="barres"><span class="b-chn" style="width:${Math.min(100, ic)}%"></span></div>
         <div class="note">Influence USA ${nombre(io, 0)} · Chine ${nombre(ic, 0)}</div>`}
+        ${leader ? "" : `<table class="mini"><tr><td></td>${CANAUX.map(k => `<td>${NOM_CANAL[k].slice(0, 4)}.</td>`).join("")}</tr><tr><td class="occ-t">USA</td>${CANAUX.map(k => `<td>${nombre(p.influence.OCC[k], 0)}</td>`).join("")}</tr><tr><td class="chn-t">Chine</td>${CANAUX.map(k => `<td>${nombre(p.influence.CHN[k], 0)}</td>`).join("")}</tr></table>`}
         <div class="note">PIB ${nombre(p.pib / 1e9, 0)} Md · ${nombre(p.population / 1e6, 0)} M hab. · stabilité ${nombre(p.stabilite, 0)}</div>
+        ${leader ? "" : `<div class="note">Flux vers le bloc USA ${lienFlux(e, iso, "OCC")} · vers le bloc Chine ${lienFlux(e, iso, "CHN")} (volume des routes partagées avec chaque leader)</div>`}
+        ${sig.length ? `<div class="note">${sig.map(x => `<abbr title="${esc(SIGLES[x] ?? x)}">${esc(x)}</abbr>`).join(" · ")}</div>` : ""}
         ${m.length ? `<ul>${m.map(x => `<li><span class="pastille" style="background:${x.couleur}">${x.symbole}</span> ${esc(x.titre)}</li>`).join("")}</ul>` : ""}
         <div class="note">Clic : fiche et actions</div>` };
   }
   return out;
 }
+function marqueursHorsJeu(): Record<string, Marqueur[]> {
+  const out: Record<string, Marqueur[]> = {};
+  for (const c of etat!.conflits) { const id = IDS_HORS_JEU[c.iso]; if (id) (out[id] ??= []).push({ symbole: "⚔", couleur: "#b03a2e", titre: `Conflit en cours : ${c.titre}` }); }
+  return out;
+}
 function legende(): string {
   const vue = $<HTMLSelectElement>("vue").value;
-  const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#9b59b6">↯</i>instable</span></div>`;
+  const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:#b03a2e">⚔</i>conflit</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#9b59b6">↯</i>instable</span></div>`
+    + (options.influence ? `<div class="note">Chiffres : influence totale <span class="occ-t">bloc USA</span> · <span class="chn-t">bloc Chine</span> (0-100).</div>` : "")
+    + (options.categories ? `<div class="note">Barres : influence économique, politique, militaire, culturelle ; <span class="occ-t">bleu USA</span>, <span class="chn-t">rouge Chine</span>.</div>` : "")
+    + (options.maritime || options.terrestre || options.aerien ? `<div class="lignes">${options.maritime ? `<span><b class="l-maritime"></b>maritime</span>` : ""}${options.terrestre ? `<span><b class="l-terrestre"></b>terrestre</span>` : ""}${options.aerien ? `<span><b class="l-aerien"></b>aérien</span>` : ""}<span class="note">épais = mondial, fin = régional ; ⚓ détroit</span></div>` : "")
+    + (options.sigles ? `<div class="note">Sigles : ${Object.entries(SIGLES).map(([k, v]) => `<abbr title="${esc(v)}">${esc(k)}</abbr>`).join(" · ")}</div>` : "");
   if (vue === "militaire") return `<div class="degrade"><span>Présence militaire chinoise</span><b style="background:linear-gradient(90deg,${couleurAlignement(-1)},${couleurAlignement(0)},${couleurAlignement(1)})"></b><span>américaine</span></div><div class="note">Valeurs : influence militaire USA / Chine (bases, traités, armes).</div>${symboles}`;
   if (vue === "alignement") return `<div class="degrade"><span>Bloc Chine</span><b style="background:linear-gradient(90deg,${couleurAlignement(-1)},${couleurAlignement(0)},${couleurAlignement(1)})"></b><span>Bloc USA</span></div>${symboles}`;
   const nom = { population: "Population", pib: "PIB", stabilite: "Stabilité", environnement: "Environnement local" }[vue] ?? vue;
@@ -318,8 +417,13 @@ function afficher() {
     c.briefing ? `<button id="btnBriefing" class="alerte-btn">Briefing en attente</button>` : "",
   ].join("");
   $("btnBriefing")?.addEventListener("click", () => proposerBriefing(true));
+  carteMonde.regler(options);
   carteMonde.colorer(couleurs(), legende());
-  carteMonde.annoter(annotations());
+  carteMonde.tracerFlux(FLUX.filter(f => !f.depuis || f.depuis <= Math.floor(e.round / 4) + 2000).map(f => ({ id: f.id, mode: f.mode, portee: f.portee, volume: f.volume, trace: f.trace, actif: fluxActif(e, f),
+    titre: `${f.nom} (${f.mode}, ${f.portee === "mondial" ? "mondial" : "régional"}, volume ${f.volume}/5 estimé)${fluxActif(e, f) ? "" : " : COUPÉ par un blocage"}` })),
+    options.maritime ? DETROITS.map(d => { const bloque = e.blocages.some(b => b.detroit === d.id); return { id: d.id, position: d.position, marqueur: { symbole: "⚓", couleur: bloque ? "#dc4b3c" : "#2f6f8f", titre: `${d.nom}${bloque ? " : BLOQUÉ" : " : ouvert"}` } }; }) : []);
+  carteMonde.annoter(annotations(), marqueursHorsJeu());
+  document.querySelectorAll<HTMLButtonElement>("[data-option]").forEach(b => b.classList.toggle("actif", options[b.dataset.option as keyof OptionsCarte]));
   carteMonde.choisir(paysChoisi);
   document.querySelectorAll<HTMLButtonElement>("[data-onglet]").forEach(x => x.classList.toggle("actif", x.dataset.onglet === onglet));
   const zone = $("contenu");
@@ -332,6 +436,12 @@ function afficher() {
 function finTrimestre() {
   if (!etat || etat.termine || fenetreOuverte()) return;
   const c = etat.camps[joueur()];
+  if (carteObligatoire(etat, joueur())) {
+    son("erreur");
+    ouvrir(`<h2>Carte obligatoire</h2><p>Chaque année, tu dois jouer au moins une carte de chaque type présent dans ta main. Il te reste : ${typesManquants(etat, joueur()).map(t => `carte ${NOMS_TYPES[t]}`).join(", ")}, et plus assez de trimestres pour attendre.</p>
+      <div class="actions-fenetre"><button id="revenir" class="principal">Choisir une carte</button></div>`, b => { b.querySelector<HTMLButtonElement>("#revenir")!.onclick = () => { fermer(); onglet = "main"; afficher(); }; });
+    return;
+  }
   if (!c.carteJouee && c.main.length) {
     ouvrir(`<h2>Aucune carte jouée</h2><p>Tu n'as pas joué de carte ce trimestre. Terminer quand même ?</p>
       <div class="actions-fenetre"><button id="revenir">Revenir</button><button id="terminer" class="principal">Terminer le trimestre</button></div>`,
@@ -341,6 +451,8 @@ function finTrimestre() {
   terminer();
 }
 function terminer() {
+  son("fin", 0.45);
+  avantTour = { puissance: { OCC: puissance(etat!, "OCC"), CHN: puissance(etat!, "CHN") }, alignements: Object.fromEntries(Object.keys(etat!.pays).map(i => [i, alignement(etat!, i)])) };
   etat = finRound(etat!);
   carteOuverte = null;
   afficher();
@@ -385,34 +497,65 @@ $<HTMLInputElement>("fichier").onchange = async ev => {
 };
 $("btnNouvelle").onclick = choisirCamp;
 $("btnAide").onclick = aide;
+// Barre d'outils de la carte : options d'affichage (mémorisées dans ce navigateur), plein écran, panneau.
+document.querySelectorAll<HTMLButtonElement>("[data-option]").forEach(b => b.onclick = () => {
+  const k = b.dataset.option as keyof OptionsCarte; options[k] = !options[k];
+  try { localStorage.setItem(CLE_OPTIONS, JSON.stringify(options)); } catch { /* stockage indisponible */ }
+  afficher();
+});
+$("btnPleinEcran").onclick = () => {
+  const plein = document.body.classList.toggle("plein-ecran");
+  try { if (plein && !document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => {}); else if (!plein && document.fullscreenElement) void document.exitFullscreen(); } catch { /* bloqué dans une page intégrée */ }
+  window.dispatchEvent(new Event("resize"));
+};
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) document.body.classList.remove("plein-ecran"); });
+$("btnPanneau").onclick = () => document.body.classList.toggle("sans-panneau");
+const majBoutonSon = () => { $("btnSon").textContent = sonActif() ? "🔊 Son" : "🔇 Son"; };
+$("btnSon").onclick = () => { basculerSon(); majBoutonSon(); son("clic"); };
+majBoutonSon();
+// petit clic sur les boutons d'interface (les actions de jeu ont leur propre son)
+document.addEventListener("click", ev => { const b = (ev.target as HTMLElement).closest("button"); if (b && !b.disabled && (b.dataset.option || b.dataset.onglet || b.closest(".zoom-boutons"))) son("clic", 0.3); });
 document.addEventListener("keydown", ev => { if (ev.key === "?" && !fenetreOuverte()) aide(); });
 
 function aide() {
-  ouvrir(`<h2>Comment jouer</h2>
+  ouvrir(`<h2>Règles du jeu</h2>
     <h3>Le but</h3>
-    <p>Deux blocs s'affrontent pour attirer le reste du monde : le bloc USA et le bloc Chine. Tu ne gouvernes pas les autres pays : tu gagnes leur <strong>influence</strong>, qui décide de leur <strong>alignement</strong>. Le score compte la part du monde que contrôle chaque bloc dans 5 familles (économie, population, matières premières, puissance militaire, environnement local), avec un décompte chaque fin d'année.</p>
-    <h3>Un trimestre en 5 étapes</h3>
+    <p>Deux blocs s'affrontent pour attirer le reste du monde : le bloc USA et le bloc Chine. Tu ne gouvernes pas les autres pays : tu gagnes leur <strong>influence</strong>, qui décide de leur <strong>alignement</strong>. Le score compte la part du monde que contrôle chaque bloc dans 5 familles (économie, population, matières premières, puissance militaire, environnement local), avec un décompte à chaque fin d'année. De 2000 à 2006, c'est le prologue ; le bloc BRIC naît en 2006.</p>
+    <h3>Un trimestre</h3>
     <ol class="conseillers">
-      <li><strong>Rapport</strong> : ce qui s'est passé, dont la carte et les actions de l'adversaire.</li>
+      <li><strong>Rapport</strong> : le trimestre des deux blocs (cartes, actions, puissance), l'histoire, ce qui frappe ton camp, ce qui frappe l'adversaire, le reste du monde.</li>
+      <li><strong>Réactions</strong> (2 par trimestre, 2 budget chacune) : <em>aider</em> un pays frappé par une crise (stabilité et influence politique), ou <em>exploiter</em> la crise d'un pays qui penche vers l'adversaire.</li>
       <li><strong>Briefing</strong> (parfois) : une crise, l'avis des conseillers, 2 à 5 options. Les effets affichés sont des fourchettes ; certaines conséquences arrivent plus tard.</li>
-      <li><strong>Une carte</strong> de ta main (onglet Main) : soit son <em>événement</em>, soit ses <em>points d'action</em> (le chiffre rond). Une carte du camp adverse ne se joue que pour ses points, et son événement profite alors à l'adversaire.</li>
-      <li><strong>Points d'action</strong> : clique un pays sur la carte (onglet Pays) et agis : influence politique, culturelle, économique, présence militaire, contre-influence, développement. 2 points au plus par pays et par trimestre. Le budget peut acheter 2 points de plus.</li>
+      <li><strong>Une carte</strong> (onglet Main) : son <em>événement</em> ou ses <em>points d'action</em> (le chiffre rond).</li>
+      <li><strong>Points d'action</strong> : clique un pays (onglet Pays) et agis : influence politique, culturelle, économique, présence militaire, contre-influence, développement. 2 points au plus par pays et par trimestre ; le budget peut acheter 2 points de plus.</li>
       <li><strong>Fin du trimestre</strong> : l'adversaire joue, l'économie avance, les événements tombent.</li>
     </ol>
+    <h3>Les cartes</h3>
+    <p>Chaque année, tu reçois <strong>6 cartes</strong> : 2 de ton camp, 2 du camp adverse, 2 neutres. Tu en joues une par trimestre, donc 4 par an, avec <strong>au moins une de chaque type</strong>. Les 2 restantes sont défaussées en fin d'année. Une carte adverse se joue pour ses points d'action, mais son événement se déclenche alors au profit de l'adversaire : choisis bien le moment.</p>
     <h3>Influence et alignement</h3>
-    <p>Chaque pays porte, pour chaque bloc, 4 influences de 0 à 100 : <strong>économique</strong> (commerce, investissements ; elle glisse vers le poids économique de chaque leader), <strong>politique</strong> (relations entre gouvernements), <strong>militaire</strong> (bases, traités, armes), <strong>culturelle</strong> (langue, médias, universités, diaspora). Elles pèsent 35, 30, 20 et 15 % et s'usent lentement vers leur niveau de départ. L'<strong>alignement</strong> va de −1 (bloc Chine) à +1 (bloc USA) : c'est l'écart d'influence totale divisé par 70. Sur la carte, bleu = bloc USA, rouge = bloc Chine, sable = neutre.</p>
+    <p>Chaque pays porte, pour chaque bloc, 4 influences de 0 à 100 : <strong>économique</strong> (35 %), <strong>politique</strong> (30 %), <strong>militaire</strong> (20 %), <strong>culturelle</strong> (15 %). L'influence économique suit le poids de chaque leader et les <strong>flux d'échanges</strong> qui le relient au pays. L'<strong>alignement</strong> va de −1 (bloc Chine) à +1 (bloc USA).</p>
+    <h3>Flux et détroits</h3>
+    <p>Routes maritimes, terrestres (routes, rail, oléoducs) et aériennes, régionales ou mondiales. Plus un pays partage de routes avec un leader, plus l'influence économique de ce leader y monte. Un <strong>détroit bloqué</strong> (Ormuz, Malacca, Suez…) coupe les routes qui le traversent et freine la croissance des pays qui en dépendent.</p>
+    <h3>La carte</h3>
+    <ul class="conseillers">
+      <li><strong>Boutons</strong> : Noms, Influence (totaux USA · Chine), Catégories (barres par canal), Sigles (OTAN, UE, G7, OCS, BRIC, OPEP, ASEAN, ☢ nucléaire), routes maritimes, terrestres, aériennes, Légende, Panneau, Plein écran. Molette : zoom ; glisser : déplacer.</li>
+      <li><strong>Symboles</strong> : ★ événement historique, ! événement, ⚔ conflit en cours, ◆ action de l'adversaire, ✓ ton action, ↯ pays instable, ⚓ détroit (rouge = bloqué).</li>
+    </ul>
     <h3>Tes ressources</h3>
     <ul class="conseillers">
-      <li><strong>Budget</strong> : versé chaque année, proportionnel au PIB de ton leader ; paie les cartes et certaines actions.</li>
-      <li><strong>Capital politique (CP)</strong> : ta marge de manœuvre intérieure (+1 par trimestre). Il paie les cartes risquées et décide des élections : sous 50, l'alternance menace.</li>
-      <li><strong>Tension</strong> (crans 1 à 5) : monte avec les bases, les embargos, les guerres ; elle ouvre certaines cartes et rend le monde plus dangereux.</li>
+      <li><strong>Budget</strong> : versé chaque année selon le PIB de ton leader ; paie cartes, actions, réactions.</li>
+      <li><strong>Capital politique (CP)</strong> : ta marge de manœuvre intérieure ; sous 50, l'alternance menace aux élections.</li>
+      <li><strong>Tension</strong> (crans 1 à 5) : monte avec les bases, embargos, guerres ; elle ouvre certaines cartes.</li>
     </ul>
     <h3>Événements</h3>
-    <p><strong>Historiques</strong> : datés et réels. Certains peuvent ne pas avoir lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles. Seuls ceux qui touchent ton jeu sont détaillés dans le rapport. Chaque événement indique « ce que ça change ».</p>
+    <p><strong>Historiques</strong> : 53 événements réels datés de 2000 à 2008 ; certains n'ont pas lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles, avec leur ville et leur cause. Les événements mondiaux (récession, pétrole, climat) touchent tous les pays ; un bulletin climatique annuel pèse sur tous, davantage sur les pays exposés.</p>
     <h3>Fin de partie</h3>
     <p>Bilan = moyenne des décomptes annuels (onglet Score). Défaite immédiate en cas de banqueroute (PIB du leader à moins de 80 % de son sommet), d'effondrement démographique, ou pour les deux blocs si le réchauffement atteint 3 °C.</p>
+    <p class="note">Sons : packs Kenney (CC0). Illustrations générées pour le jeu.</p>
     <div class="actions-fenetre"><button id="okAide" class="principal">Compris</button></div>`,
   b => { b.querySelector<HTMLButtonElement>("#okAide")!.onclick = () => { fermer(); if (etat && !etat.journal.length) rapport("Début de partie"); }; });
 }
 
+const fondPanneau = image("fond_panneau");
+if (fondPanneau) document.documentElement.style.setProperty("--fond-panneau", `url(${fondPanneau})`);
 choisirCamp();

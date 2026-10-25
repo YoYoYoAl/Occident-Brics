@@ -108,3 +108,74 @@ button.principal { background: var(--accent); color: #1a1406; border-color: var(
 .symboles i { display: inline-flex; width: 14px; height: 14px; border-radius: 50%; align-items: center; justify-content: center; font-style: normal; font-size: 9px; color: #fff; margin-right: 3px; }
 .zoom-boutons { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; }
 .zoom-boutons button { width: 30px; height: 30px; padding: 0; font-size: 16px; background: rgba(23,32,41,.9); }
+
+/* ---------- Carte agrandie, outils, plein écran ---------- */
+.zone-carte { flex: 1; min-width: 0; position: relative; display: flex; }
+.zone-carte .carte { flex: 1; }
+.outils-carte { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100% - 70px); z-index: 2; }
+.outils-carte button { background: rgba(23, 32, 41, .88); font-size: .82em; padding: 4px 8px; }
+.outils-carte button.actif { border-color: var(--accent); color: var(--accent); }
+body.sans-panneau .panneau { display: none; }
+body.plein-ecran .barre .version, body.plein-ecran .jauges { display: none; }
+body.plein-ecran .panneau { position: absolute; right: 10px; top: 60px; bottom: 10px; width: 360px; border: 1px solid var(--bord); border-radius: 8px; opacity: .97; z-index: 3; }
+body.plein-ecran.sans-panneau .panneau { display: none; }
+body.plein-ecran main { position: relative; }
+.carte svg.sans-noms .nom-texte { display: none; }
+.carte .sigles { display: none; font-size: 7.5px; fill: #f4e3b5; }
+.carte svg.avec-sigles .sigles { display: inline; }
+.carte .barres { display: none; }
+.carte svg.avec-barres .barres { display: inline; }
+.carte .barres .b-o { fill: #4f8be0; } .carte .barres .b-c { fill: #dc4b3c; }
+.carte .v-occ { fill: #9cc3ff; } .carte .v-chn { fill: #ffa595; }
+.bulle table.mini { font-size: .78em; border-collapse: collapse; margin: 4px 0; }
+.bulle table.mini td { padding: 0 4px; text-align: right; }
+/* ---------- Images, rapport, réactions ---------- */
+.journal li.avec-image { display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: start; }
+.journal li.avec-image img { width: 84px; border-radius: 4px; border: 1px solid var(--bord); }
+.reactions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.reactions button { font-size: .8em; padding: 3px 8px; }
+.recap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.recap .bloc { border: 1px solid var(--bord); border-top: 3px solid var(--doux); border-radius: 6px; padding: 6px 10px; font-size: .86em; }
+.recap .bloc.occ { border-top-color: var(--occ); } .recap .bloc.chn { border-top-color: var(--chn); }
+.recap .bloc h4 { margin: 2px 0 4px; } .recap .bloc p { margin: 3px 0; }
+.hausse { color: #7bd389; } .baisse { color: #f0806e; }
+.bandeau { background-size: cover; background-position: center; border-radius: 8px; min-height: 120px; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px 14px; margin-bottom: 10px; box-shadow: inset 0 -60px 60px -20px rgba(0,0,0,.85); }
+.bandeau h2 { margin: 0; text-shadow: 0 1px 4px #000; }
+.bandeau.titre-jeu { min-height: 170px; } .bandeau.titre-jeu span { color: var(--accent); text-shadow: 0 1px 4px #000; }
+.conseillers.portraits { list-style: none; padding: 0; }
+.conseillers.portraits li { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: start; margin-bottom: 8px; }
+.conseillers.portraits img { width: 56px; height: 56px; object-fit: cover; object-position: top; border-radius: 50%; border: 1px solid var(--bord); }
+.a-reagir { border: 1px solid var(--chn); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; }
+.a-reagir summary { cursor: pointer; color: var(--chn); font-weight: 600; }
+@media (max-width: 760px) { .recap { grid-template-columns: 1fr; } .zone-carte { min-height: 45vh; } }
+/* ---------- Flux ---------- */
+.carte .flux path { fill: none; vector-effect: non-scaling-stroke; pointer-events: stroke; stroke-linecap: round; opacity: .9; }
+.carte .flux path:hover { opacity: 1; }
+.carte .flux .flux-maritime { stroke: #9fd6ff; stroke-dasharray: 6 4; }
+.carte .flux .flux-terrestre { stroke: #e0a050; }
+.carte .flux .flux-aerien { stroke: #f4f4f4; stroke-dasharray: 1 5; opacity: .75; }
+.carte .flux .local { opacity: .65; }
+.carte .flux .coupe { stroke: #dc4b3c !important; stroke-dasharray: 2 6; opacity: .9; }
+.carte svg.sans-maritime .flux-maritime, .carte svg.sans-terrestre .flux-terrestre, .carte svg.sans-aerien .flux-aerien { display: none; }
+.legende .lignes { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 4px; font-size: .85em; }
+.legende .lignes b { display: inline-block; width: 22px; height: 0; margin-right: 4px; vertical-align: middle; border-top: 3px dashed #9fd6ff; }
+.legende .lignes b.l-terrestre { border-top: 3px solid #e0a050; } .legende .lignes b.l-aerien { border-top: 3px dotted #f4f4f4; }
+/* ---------- Habillage ---------- */
+.barre { background: linear-gradient(90deg, #121b24, #1a2733 55%, #22161a); box-shadow: 0 2px 10px rgba(0,0,0,.4); position: relative; z-index: 4; }
+.titre { font-size: 1.15em; background: linear-gradient(90deg, var(--occ), #f2e6c9 50%, var(--chn)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.carte { background: radial-gradient(ellipse at 50% 40%, #2f6d93 0%, #24506e 55%, #173449 100%); }
+.panneau { background: linear-gradient(180deg, rgba(23,32,41,.94), rgba(23,32,41,.98)), var(--fond-panneau, none) center / cover; }
+.carte-jeu header { align-items: center; }
+.carte-jeu header img { width: 46px; height: 46px; object-fit: cover; border-radius: 6px; border: 1px solid var(--bord); flex: none; }
+.carte-jeu header > div { flex: 1; display: flex; flex-direction: column; }
+.carte-jeu .type-carte { color: var(--doux); font-size: .75em; }
+.carte-jeu { transition: transform .12s, box-shadow .12s; }
+.carte-jeu:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.carte-jeu.bloquee { opacity: .55; }
+.suivi-cartes { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .82em; color: var(--doux); margin-bottom: 6px; }
+.suivi-cartes .fait { color: #7bd389; } .suivi-cartes .manque { color: var(--accent); }
+.alerte { color: var(--chn); font-size: .86em; }
+.boite { box-shadow: 0 12px 40px rgba(0,0,0,.6); animation: apparition .18s ease-out; }
+@keyframes apparition { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+.journal li { border-radius: 6px; }
+.journal li.j-historique { background: rgba(217,164,65,.07); }

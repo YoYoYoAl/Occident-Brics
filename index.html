@@ -25,12 +25,27 @@
       <button id="btnCharger">Charger</button>
       <button id="btnExporter" title="Télécharger la sauvegarde">Exporter</button>
       <label class="bouton" title="Charger un fichier de sauvegarde">Importer<input id="fichier" type="file" accept=".json" hidden></label>
-      <button id="btnAide" title="Règles et explications (touche ?)">Aide</button>
+      <button id="btnSon" title="Couper ou remettre le son">🔊 Son</button>
+      <button id="btnAide" title="Règles du jeu, symboles et sigles (touche ?)">Règles</button>
       <button id="btnNouvelle">Nouvelle partie</button>
     </div>
   </header>
   <main>
-    <div id="carte" class="carte" aria-label="Carte du monde"></div>
+    <div class="zone-carte">
+      <div id="carte" class="carte" aria-label="Carte du monde"></div>
+      <div class="outils-carte" role="toolbar" aria-label="Affichage de la carte">
+        <button data-option="noms" title="Afficher ou masquer le nom des pays">Noms</button>
+        <button data-option="influence" title="Influence totale bloc USA · bloc Chine sur chaque pays">Influence</button>
+        <button data-option="categories" title="Influence par catégorie : économique, politique, militaire, culturelle">Catégories</button>
+        <button data-option="sigles" title="Organisations (OTAN, UE, OCS, BRIC…) et puissances nucléaires">Sigles</button>
+        <button data-option="maritime" title="Routes maritimes mondiales et régionales, détroits">⚓ Maritime</button>
+        <button data-option="terrestre" title="Routes, rail et oléoducs">🛤 Terrestre</button>
+        <button data-option="aerien" title="Grandes lignes aériennes">✈ Aérien</button>
+        <button data-option="legende" title="Afficher ou masquer la légende">Légende</button>
+        <button id="btnPanneau" title="Masquer ou afficher le panneau de droite">◧ Panneau</button>
+        <button id="btnPleinEcran" title="Plein écran">⛶ Plein écran</button>
+      </div>
+    </div>
     <aside class="panneau">
       <nav class="onglets">
         <button data-onglet="main" class="actif">Main</button>

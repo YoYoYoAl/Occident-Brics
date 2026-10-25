@@ -41,6 +41,7 @@ export interface EvenementHistorique {
   effets: Effet[];
   // Effet déjà contenu dans la trajectoire réelle de croissance : appliqué à l'envers si l'événement n'a pas lieu.
   compensationSiAbsent?: Effet[];
+  conflit?: { pays: string[]; duree: number }; // conflit armé ouvert (symbole sur la carte), durée en trimestres
 }
 
 export interface Fourchette { min: number; max: number }

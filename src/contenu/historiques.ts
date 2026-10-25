@@ -29,7 +29,7 @@ export const HISTORIQUES_ERE1: EvenementHistorique[] = [
 
   { id: "h_afghanistan", annee: 2001, trimestre: 4, titre: "Intervention en Afghanistan",
     texte: "Le 7 octobre 2001, les États-Unis et leurs alliés lancent l'opération Enduring Freedom contre les talibans et Al-Qaïda. Le Pakistan devient un partenaire clé.",
-    pays: ["USA", "PAK"], famille: "guerre_interetatique", deviable: false, conditions: [],
+    pays: ["USA", "PAK"], conflit: { pays: ["AFG"], duree: 29 }, famille: "guerre_interetatique", deviable: false, conditions: [],
     effets: [{ type: "influence", pays: "PAK", camp: "OCC", canal: "m", valeur: 12 },
              { type: "influence", pays: "PAK", camp: "OCC", canal: "p", valeur: 6 },
              { type: "budget", camp: "OCC", valeur: -1 }, { type: "tension", valeur: 3 }] },
@@ -56,7 +56,7 @@ export const HISTORIQUES_ERE1: EvenementHistorique[] = [
 
   { id: "h_irak", annee: 2003, trimestre: 1, titre: "Invasion de l'Irak",
     texte: "Le 20 mars 2003, une coalition menée par les États-Unis et le Royaume-Uni envahit l'Irak, sans mandat du Conseil de sécurité. La France, l'Allemagne, la Russie et la Chine s'y étaient opposées.",
-    pays: ["IRQ", "USA", "GBR"], famille: "guerre_interetatique", deviable: true,
+    pays: ["IRQ", "USA", "GBR"], conflit: { pays: ["IRQ"], duree: 24 }, famille: "guerre_interetatique", deviable: true,
     conditions: [{ type: "alignement", pays: "IRQ", max: 0.1 }, { type: "cran", min: 2 }, { type: "drapeau", id: "irak_renonce", present: false }],
     effets: [{ type: "tension", valeur: 10 }, { type: "stabilite", pays: "IRQ", valeur: -35 },
              { type: "influence", pays: ["FRA", "DEU"], camp: "OCC", canal: "p", valeur: -6 },
@@ -137,7 +137,7 @@ export const HISTORIQUES_ERE1: EvenementHistorique[] = [
 
   { id: "h_georgie", annee: 2008, trimestre: 3, titre: "Guerre de Géorgie",
     texte: "Du 7 au 12 août 2008, la Russie et la Géorgie s'affrontent autour de l'Ossétie du Sud. La Russie reconnaît ensuite l'indépendance de l'Ossétie du Sud et de l'Abkhazie.",
-    pays: ["RUS"], famille: "guerre_interetatique", deviable: true,
+    pays: ["RUS"], conflit: { pays: ["GEO"], duree: 1 }, famille: "guerre_interetatique", deviable: true,
     conditions: [{ type: "alignement", pays: "RUS", max: 0.2 }],
     effets: [{ type: "tension", valeur: 8 }, { type: "influence", pays: "RUS", camp: "OCC", canal: "p", valeur: -8 },
              { type: "influence", pays: ["POL", "UKR"], camp: "OCC", canal: "m", valeur: 4 }] },
@@ -147,4 +147,162 @@ export const HISTORIQUES_ERE1: EvenementHistorique[] = [
     pays: ["USA"], famille: "crise_bancaire", deviable: false, conditions: [],
     effets: [{ type: "cp", camp: "OCC", valeur: -15 }, { type: "stabilite", pays: ["USA", "GBR", "ESP"], valeur: -4 },
              { type: "influence", pays: "tous", camp: "OCC", canal: "c", valeur: -3 }] },
+
+  // ---------- Lot 2 (2026-10-25) : événements réels supplémentaires 2000-2008, effets de jeu à régler par les tests ----------
+  { id: "h_poutine", annee: 2000, trimestre: 1, titre: "Vladimir Poutine élu président de la Russie",
+    texte: "Le 26 mars 2000, Vladimir Poutine, président par intérim depuis la démission de Boris Eltsine le 31 décembre 1999, est élu dès le premier tour avec 53 % des voix.",
+    pays: ["RUS"], famille: "election_rupture", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "RUS", valeur: 5 }, { type: "influence", pays: "RUS", camp: "OCC", canal: "p", valeur: -2 }] },
+
+  { id: "h_sommet_coree", annee: 2000, trimestre: 2, titre: "Premier sommet intercoréen",
+    texte: "Du 13 au 15 juin 2000, Kim Dae-jung se rend à Pyongyang pour le premier sommet entre les deux Corées depuis la guerre. Il reçoit le prix Nobel de la paix en octobre.",
+    pays: ["KOR", "PRK"], famille: "reconciliation", deviable: true, conditions: [],
+    effets: [{ type: "tension", valeur: -3 }, { type: "stabilite", pays: ["KOR", "PRK"], valeur: 3 }] },
+
+  { id: "h_hainan", annee: 2001, trimestre: 2, titre: "Incident de l'île de Hainan",
+    texte: "Le 1er avril 2001, un avion espion américain EP-3 entre en collision avec un chasseur chinois et doit se poser sur l'île de Hainan. Le pilote chinois meurt ; l'équipage américain est retenu onze jours.",
+    pays: ["CHN", "USA"], famille: "incident_militaire", deviable: true, conditions: [],
+    effets: [{ type: "tension", valeur: 4 }, { type: "cp", camp: "CHN", valeur: 2 }] },
+
+  { id: "h_venezuela_coup", annee: 2002, trimestre: 2, titre: "Coup d'État manqué au Venezuela",
+    texte: "Le 11 avril 2002, Hugo Chávez est renversé par des militaires et des dirigeants patronaux. Les manifestations de ses partisans le ramènent au pouvoir 48 heures plus tard.",
+    pays: ["VEN"], famille: "coup_etat", deviable: true, conditions: [{ type: "alignement", pays: "VEN", max: 0.3 }],
+    effets: [{ type: "stabilite", pays: "VEN", valeur: -8 }, { type: "influence", pays: "VEN", camp: "OCC", canal: "p", valeur: -6 }] },
+
+  { id: "h_iran_nucleaire", annee: 2002, trimestre: 3, titre: "Révélation des sites nucléaires iraniens",
+    texte: "En août 2002, un groupe d'opposition iranien révèle l'existence des sites de Natanz (enrichissement) et d'Arak (eau lourde), non déclarés à l'AIEA.",
+    pays: ["IRN"], famille: "proliferation_nucleaire", deviable: false, conditions: [],
+    effets: [{ type: "tension", valeur: 3 }, { type: "influence", pays: "IRN", camp: "OCC", canal: "p", valeur: -3 }] },
+
+  { id: "h_bali", annee: 2002, trimestre: 4, titre: "Attentats de Bali",
+    texte: "Le 12 octobre 2002, deux bombes de la Jemaah Islamiyah détruisent des boîtes de nuit de Kuta, à Bali : 202 morts, dont 88 Australiens.",
+    pays: ["IDN", "AUS"], famille: "attentat", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "IDN", valeur: -4 }, { type: "influence", pays: "IDN", camp: "OCC", canal: "m", valeur: 3 }] },
+
+  { id: "h_lula", annee: 2002, trimestre: 4, titre: "Lula élu président du Brésil",
+    texte: "Le 27 octobre 2002, l'ancien syndicaliste Luiz Inácio Lula da Silva remporte l'élection présidentielle avec 61 % des voix au second tour.",
+    pays: ["BRA"], famille: "election_rupture", deviable: true, conditions: [],
+    effets: [{ type: "influence", pays: "BRA", camp: "OCC", canal: "p", valeur: -4 }, { type: "influence", pays: "BRA", camp: "CHN", canal: "p", valeur: 3 },
+             { type: "stabilite", pays: "BRA", valeur: 3 }] },
+
+  { id: "h_coree_tnp", annee: 2003, trimestre: 1, titre: "La Corée du Nord quitte le TNP",
+    texte: "Le 10 janvier 2003, la Corée du Nord annonce son retrait du traité de non-prolifération nucléaire. La Chine organise en août les premiers pourparlers à six.",
+    pays: ["PRK"], famille: "sortie_organisation", deviable: true, conditions: [{ type: "alignement", pays: "PRK", max: -0.2 }],
+    effets: [{ type: "tension", valeur: 3 }, { type: "influence", pays: ["KOR", "JPN"], camp: "CHN", canal: "p", valeur: 2 }] },
+
+  { id: "h_canicule_2003", annee: 2003, trimestre: 3, titre: "Canicule européenne",
+    texte: "En août 2003, une vague de chaleur exceptionnelle fait environ 70 000 morts en Europe, dont près de 15 000 en France.",
+    pays: ["FRA", "ITA", "ESP", "DEU"], famille: "canicule", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: ["FRA", "ITA", "ESP", "DEU"], valeur: -2 }] },
+
+  { id: "h_blackout_2003", annee: 2003, trimestre: 3, titre: "Black-out géant en Amérique du Nord",
+    texte: "Le 14 août 2003, une panne en cascade prive d'électricité environ 50 millions d'habitants du nord-est des États-Unis et de l'Ontario, jusqu'à quatre jours.",
+    pays: ["USA", "CAN"], famille: "panne_infrastructure", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: ["USA", "CAN"], valeur: -1 }] },
+
+  { id: "h_shenzhou", annee: 2003, trimestre: 4, titre: "Premier Chinois dans l'espace",
+    texte: "Le 15 octobre 2003, Yang Liwei fait quatorze fois le tour de la Terre à bord de Shenzhou 5. La Chine devient le troisième pays à envoyer seul un homme dans l'espace.",
+    pays: ["CHN"], famille: "exploit_spatial", deviable: false, conditions: [],
+    effets: [{ type: "influence", pays: "tous", camp: "CHN", canal: "c", valeur: 2 }, { type: "cp", camp: "CHN", valeur: 4 }] },
+
+  { id: "h_madrid", annee: 2004, trimestre: 1, titre: "Attentats de Madrid",
+    texte: "Le 11 mars 2004, dix bombes explosent dans des trains de banlieue de Madrid : 193 morts. Trois jours plus tard, l'opposition socialiste gagne les élections et retire les troupes espagnoles d'Irak.",
+    pays: ["ESP"], famille: "attentat", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "ESP", valeur: -4 }, { type: "influence", pays: "ESP", camp: "OCC", canal: "m", valeur: -4 }] },
+
+  { id: "h_manifs_antijaponaises", annee: 2005, trimestre: 2, titre: "Manifestations antijaponaises en Chine",
+    texte: "En avril 2005, des dizaines de milliers de manifestants défilent dans plusieurs villes chinoises contre des manuels d'histoire japonais et la candidature du Japon au Conseil de sécurité.",
+    pays: ["CHN", "JPN"], famille: "manifestations", deviable: true, conditions: [],
+    effets: [{ type: "influence", pays: "JPN", camp: "CHN", canal: "p", valeur: -5 }, { type: "influence", pays: "JPN", camp: "CHN", canal: "c", valeur: -3 }, { type: "tension", valeur: 2 }] },
+
+  { id: "h_ahmadinejad", annee: 2005, trimestre: 2, titre: "Mahmoud Ahmadinejad élu en Iran",
+    texte: "Le 24 juin 2005, le maire conservateur de Téhéran remporte l'élection présidentielle. L'Iran reprend la conversion d'uranium en août.",
+    pays: ["IRN"], famille: "election_rupture", deviable: true, conditions: [{ type: "alignement", pays: "IRN", max: 0 }],
+    effets: [{ type: "tension", valeur: 3 }, { type: "influence", pays: "IRN", camp: "OCC", canal: "p", valeur: -4 }, { type: "influence", pays: "IRN", camp: "CHN", canal: "p", valeur: 2 }] },
+
+  { id: "h_londres", annee: 2005, trimestre: 3, titre: "Attentats de Londres",
+    texte: "Le 7 juillet 2005, quatre kamikazes frappent le métro et un bus à Londres : 52 morts et plus de 700 blessés.",
+    pays: ["GBR"], famille: "attentat", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "GBR", valeur: -3 }, { type: "influence", pays: "GBR", camp: "OCC", canal: "p", valeur: 2 }] },
+
+  { id: "h_yuan", annee: 2005, trimestre: 3, titre: "Fin de l'ancrage du yuan au dollar",
+    texte: "Le 21 juillet 2005, la Chine réévalue le yuan de 2,1 % et le rattache à un panier de devises. Washington réclamait une monnaie plus forte depuis des mois.",
+    pays: ["CHN", "USA"], famille: "crise_change", deviable: true, conditions: [],
+    effets: [{ type: "tension", valeur: -1 }, { type: "influence", pays: "USA", camp: "CHN", canal: "e", valeur: 2 }] },
+
+  { id: "h_cachemire", annee: 2005, trimestre: 4, titre: "Séisme du Cachemire",
+    texte: "Le 8 octobre 2005, un séisme de magnitude 7,6 frappe le Cachemire pakistanais : plus de 85 000 morts et environ 3 millions de sans-abri.",
+    pays: ["PAK", "IND"], famille: "seisme", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "PAK", valeur: -5 }] },
+
+  { id: "h_banlieues", annee: 2005, trimestre: 4, titre: "Émeutes dans les banlieues françaises",
+    texte: "Après la mort de deux adolescents à Clichy-sous-Bois le 27 octobre 2005, trois semaines d'émeutes touchent près de 300 communes. L'état d'urgence est déclaré le 8 novembre.",
+    pays: ["FRA"], famille: "manifestations", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "FRA", valeur: -4 }] },
+
+  { id: "h_gaz_ukraine", annee: 2006, trimestre: 1, titre: "Guerre du gaz entre la Russie et l'Ukraine",
+    texte: "Le 1er janvier 2006, Gazprom coupe les livraisons de gaz à l'Ukraine, qui refuse de quadrupler le prix payé. Plusieurs pays européens voient leur approvisionnement baisser.",
+    pays: ["RUS", "UKR"], famille: "sanctions_embargo", deviable: true, conditions: [{ type: "alignement", pays: "UKR", min: 0 }],
+    effets: [{ type: "stabilite", pays: "UKR", valeur: -4 }, { type: "influence", pays: ["DEU", "ITA", "POL"], camp: "OCC", canal: "e", valeur: 1 }, { type: "tension", valeur: 2 }] },
+
+  { id: "h_liban", annee: 2006, trimestre: 3, titre: "Guerre entre Israël et le Hezbollah",
+    texte: "Du 12 juillet au 14 août 2006, Israël et le Hezbollah s'affrontent au Liban après l'enlèvement de deux soldats israéliens : environ 1 200 morts libanais et 165 israéliens.",
+    pays: ["ISR", "IRN"], conflit: { pays: ["LBN", "ISR"], duree: 1 }, famille: "guerre_interetatique", deviable: true, conditions: [],
+    effets: [{ type: "tension", valeur: 4 }, { type: "stabilite", pays: "ISR", valeur: -4 }, { type: "influence", pays: MONDE_ARABE, camp: "OCC", canal: "c", valeur: -2 }] },
+
+  { id: "h_thailande_coup", annee: 2006, trimestre: 3, titre: "Coup d'État en Thaïlande",
+    texte: "Le 19 septembre 2006, l'armée thaïlandaise renverse le Premier ministre Thaksin Shinawatra, alors en voyage à New York, sans effusion de sang.",
+    pays: ["THA"], famille: "coup_etat", deviable: true, conditions: [],
+    effets: [{ type: "stabilite", pays: "THA", valeur: -8 }, { type: "influence", pays: "THA", camp: "OCC", canal: "p", valeur: -3 }, { type: "influence", pays: "THA", camp: "CHN", canal: "p", valeur: 2 }] },
+
+  { id: "h_focac", annee: 2006, trimestre: 4, titre: "Sommet Chine-Afrique de Pékin",
+    texte: "Les 4 et 5 novembre 2006, 48 pays africains participent au sommet du Forum sur la coopération sino-africaine. Pékin promet de doubler son aide et 5 milliards de dollars de prêts.",
+    pays: ["CHN", "NGA", "ETH", "KEN", "COD", "ZAF", "EGY", "DZA"], famille: "accord_commercial", deviable: true, conditions: [],
+    effets: [{ type: "influence", pays: ["NGA", "ETH", "KEN", "COD", "ZAF", "EGY", "DZA"], camp: "CHN", canal: "e", valeur: 5 },
+             { type: "influence", pays: ["NGA", "ETH", "KEN", "COD", "ZAF", "EGY", "DZA"], camp: "CHN", canal: "p", valeur: 4 }] },
+
+  { id: "h_asat", annee: 2007, trimestre: 1, titre: "Tir antisatellite chinois",
+    texte: "Le 11 janvier 2007, un missile chinois détruit le satellite météorologique Fengyun-1C à 865 km d'altitude, créant plus de 3 000 débris suivis.",
+    pays: ["CHN"], famille: "incident_militaire", deviable: true, conditions: [],
+    effets: [{ type: "tension", valeur: 4 }, { type: "influence", pays: ["JPN", "KOR", "AUS"], camp: "OCC", canal: "m", valeur: 2 }] },
+
+  { id: "h_orenoque", annee: 2007, trimestre: 2, titre: "Le Venezuela prend le contrôle de l'Orénoque",
+    texte: "Le 1er mai 2007, l'État vénézuélien prend la majorité des projets pétroliers de la ceinture de l'Orénoque. ExxonMobil et ConocoPhillips quittent le pays.",
+    pays: ["VEN"], famille: "nationalisation", deviable: true, conditions: [{ type: "alignement", pays: "VEN", max: 0.2 }],
+    effets: [{ type: "influence", pays: "VEN", camp: "OCC", canal: "e", valeur: -8 }, { type: "influence", pays: "VEN", camp: "CHN", canal: "e", valeur: 3 }] },
+
+  { id: "h_bhutto", annee: 2007, trimestre: 4, titre: "Assassinat de Benazir Bhutto",
+    texte: "Le 27 décembre 2007, l'ancienne Première ministre Benazir Bhutto est tuée lors d'un meeting à Rawalpindi, deux mois après son retour d'exil.",
+    pays: ["PAK"], famille: "assassinat_dirigeant", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "PAK", valeur: -8 }, { type: "tension", valeur: 1 }] },
+
+  { id: "h_kenya", annee: 2007, trimestre: 4, titre: "Violences post-électorales au Kenya",
+    texte: "Après l'élection contestée du 27 décembre 2007, des violences font environ 1 100 morts et 600 000 déplacés jusqu'à l'accord de partage du pouvoir de février 2008.",
+    pays: ["KEN"], conflit: { pays: ["KEN"], duree: 1 }, famille: "guerre_civile", deviable: true, conditions: [],
+    effets: [{ type: "stabilite", pays: "KEN", valeur: -10 }] },
+
+  { id: "h_kosovo", annee: 2008, trimestre: 1, titre: "Indépendance du Kosovo",
+    texte: "Le 17 février 2008, le Kosovo proclame son indépendance de la Serbie. Les États-Unis et la plupart des pays de l'UE la reconnaissent ; la Russie et la Chine s'y opposent.",
+    pays: ["RUS"], famille: "secession", deviable: true, conditions: [],
+    effets: [{ type: "tension", valeur: 2 }, { type: "influence", pays: "RUS", camp: "OCC", canal: "p", valeur: -3 }] },
+
+  { id: "h_tibet", annee: 2008, trimestre: 1, titre: "Troubles au Tibet",
+    texte: "À partir du 10 mars 2008, des manifestations à Lhassa dégénèrent en émeutes, puis en répression. Le relais de la flamme olympique est perturbé à Londres, Paris et San Francisco.",
+    pays: ["CHN"], famille: "repression", deviable: true, conditions: [],
+    effets: [{ type: "influence", pays: ["FRA", "GBR", "DEU", "USA"], camp: "CHN", canal: "c", valeur: -3 }, { type: "cp", camp: "CHN", valeur: 2 }] },
+
+  { id: "h_emeutes_faim", annee: 2008, trimestre: 2, titre: "Émeutes de la faim",
+    texte: "Au printemps 2008, les prix du blé et du riz ont plus que doublé depuis 2007. Des émeutes éclatent dans une trentaine de pays, dont l'Égypte, le Bangladesh et Haïti.",
+    pays: ["EGY", "BGD"], famille: "flambee_alimentaire", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: ["EGY", "BGD", "ETH", "NGA", "PAK", "PHL"], valeur: -3 }] },
+
+  { id: "h_bucarest", annee: 2008, trimestre: 2, titre: "Sommet de l'OTAN à Bucarest",
+    texte: "Le 3 avril 2008, l'OTAN déclare que l'Ukraine et la Géorgie « deviendront membres », sans leur accorder de plan d'adhésion : la France et l'Allemagne s'y opposent.",
+    pays: ["UKR", "RUS"], famille: "adhesion_alliance", deviable: true, conditions: [{ type: "alignement", pays: "UKR", min: 0 }],
+    effets: [{ type: "influence", pays: "UKR", camp: "OCC", canal: "p", valeur: 4 }, { type: "influence", pays: "RUS", camp: "OCC", canal: "p", valeur: -4 }, { type: "tension", valeur: 3 }] },
+
+  { id: "h_mumbai", annee: 2008, trimestre: 4, titre: "Attentats de Mumbai",
+    texte: "Du 26 au 29 novembre 2008, dix hommes armés venus du Pakistan attaquent des hôtels, une gare et un centre juif à Mumbai : 166 morts.",
+    pays: ["IND", "PAK"], famille: "attentat", deviable: false, conditions: [],
+    effets: [{ type: "stabilite", pays: "IND", valeur: -3 }, { type: "tension", valeur: 3 }, { type: "influence", pays: "IND", camp: "OCC", canal: "m", valeur: 2 }] },
 ];
