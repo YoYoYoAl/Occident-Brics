@@ -29,7 +29,7 @@ describe("M1b Catalogue des indicateurs", () => {
       expect(aIndicateur !== aRaison, a).toBe(true);
     }
     expect(n).toBe(30);
-    expect(Object.keys(DONNEES.sansSource).sort()).toEqual(["Aérien", "Cyber", "Naval"]);
+    expect(Object.keys(DONNEES.sansSource)).toEqual([]);
   });
   it("cite une source connue pour chaque indicateur et chaque valeur complétée", () => {
     for (const k of CLES) expect(DONNEES.sources[DONNEES.indicateurs[k].source], k).toBeDefined();
@@ -144,6 +144,26 @@ describe("M1b Religion (estimation 2000 demandée)", () => {
   });
 });
 
+describe("M1b Estimations naval, aérien, cyber (demandées)", () => {
+  it("marque comme estimation toutes les valeurs naval, aérien et cyber", () => {
+    for (const k of ["naviresImportes", "avionsImportes", "indiceCyber"]) {
+      expect(DONNEES.indicateurs[k].note, k).toMatch(/^ESTIMATION/);
+      for (const iso of ISO) { const val = valeur(iso, k); if (val) expect(val.e, `${iso}.${k}`).toBe(1); }
+    }
+  });
+  it("retrouve les grands importateurs d'armes connus des années 1990 (Inde, Taïwan, Turquie, Arabie saoudite, Japon)", () => {
+    const top = (k: string) => ISO.filter(iso => v(iso, k) !== null).sort((a, b) => v(b, k)! - v(a, k)!).slice(0, 5);
+    expect(top("naviresImportes")).toEqual(expect.arrayContaining(["IND", "TWN", "TUR"]));
+    expect(top("avionsImportes")).toEqual(expect.arrayContaining(["JPN", "IND", "SAU"]));
+  });
+  it("place les États-Unis en tête de l'indice cyber, le Royaume-Uni et Israël dans les 6 premiers", () => {
+    const tri = ISO.filter(iso => v(iso, "indiceCyber") !== null).sort((a, b) => v(b, "indiceCyber")! - v(a, "indiceCyber")!);
+    expect(tri[0]).toBe("USA");
+    expect(tri.slice(0, 6)).toEqual(expect.arrayContaining(["GBR", "ISR"]));
+    expect(tri.length).toBeGreaterThanOrEqual(45);
+  });
+});
+
 describe("M1b Fiche pays", () => {
   it("affiche, pour chaque pays, les 30 attributs avec valeurs ou raison d'absence", () => {
     const e = creerEtat(1);
@@ -152,7 +172,7 @@ describe("M1b Fiche pays", () => {
       for (const fam of Object.values(FAMILLES)) for (const a of fam.attributs) expect(html, `${iso} ${a}`).toContain(`<td colspan="2">${a}</td>`);
       expect(html).not.toContain("undefined");
     }
-    expect(ficheHtml("CHN", e)).toContain("Non sourcé");
+    expect(ficheHtml("CHN", e)).toContain("(estimation)");
   });
   it("formate les valeurs en français", () => {
     expect(formater("partieCiac", 1)).toBe("oui");

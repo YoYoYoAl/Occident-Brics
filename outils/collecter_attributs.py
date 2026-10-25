@@ -9,8 +9,8 @@ Règles :
 - année visée 2000 ; à défaut, l'année la plus proche dans [2000 - FENETRE, 2000 + FENETRE]
   (à égalité, la plus ancienne), et l'année réelle est enregistrée avec la valeur ;
 - les pages Wikipedia sont lues à une révision fixe (oldid), pour que la collecte soit reproductible ;
-- seule exception, demandée le 25/10/2026 : la religion de 2000 est estimée par la composition 2020 (Pew),
-  marquée "e": 1 et hors fenêtre (année réelle 2020).
+- exceptions demandées le 25/10/2026, marquées "e": 1 et "ESTIMATION" : religion (composition Pew 2020),
+  naval et aérien (importations SIPRI 1981-2000), cyber (indice calculé).
 """
 import csv, json, os, re, sys, time, urllib.error, urllib.request
 
@@ -45,6 +45,8 @@ SOURCES = {
     "owid_energie": {"nom": "Our World in Data, energy-data (Energy Institute Statistical Review, EIA)", "url": "https://github.com/owid/energy-data"},
     "owid_grapher": {"nom": "Our World in Data, graphiques (source d'origine indiquée par indicateur)", "url": "https://ourworldindata.org/grapher/"},
     "usgs": {"nom": "U.S. Geological Survey, Minerals Yearbook 2000, Rare earths (J. B. Hedrick)", "url": "https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/mineral-pubs/rare-earth/740400.pdf"},
+    "sipri_at": {"nom": "SIPRI Arms Transfers Database (registre des transferts)", "url": "https://atbackend.sipri.org/api/p/trades/trade-register-csv/"},
+    "calcul": {"nom": "Calcul du projet à partir des indicateurs sourcés ci-dessus (formule dans outils/collecter_attributs.py)", "url": "https://github.com/YoYoYoAl/Occident-Brics"},
     "wikipedia": {"nom": "Wikipedia (en), révision fixe indiquée par indicateur", "url": "https://en.wikipedia.org/"},
 }
 
@@ -115,6 +117,17 @@ ind("rail", "Réseau ferré", "km", "economie", "Infrastructure", "bm_wdi", "IS.
 ind("depensesMil", "Dépenses militaires", "millions de $ constants 2024", "militaire", "Ensemble", "sipri", "Constant (2024) US$")
 ind("depensesMilPib", "Dépenses militaires", "% du PIB", "militaire", "Ensemble", "sipri", "Share of GDP", "Part publiée par le SIPRI (0,031) convertie en pourcentage (3,1)")
 ind("effectifsArmes", "Effectifs des forces armées", "personnes", "militaire", "Terrestre", "bm_wdi", "MS.MIL.TOTL.P1", "IISS Military Balance via la Banque mondiale ; toutes armées confondues (indicateur indirect de la force terrestre)")
+ind("naviresImportes", "Navires de guerre importés 1981-2000", "millions de TIV SIPRI", "militaire", "Naval", "sipri_at", "Ships, livraisons 1981-2000",
+    "ESTIMATION de la flotte de 2000 : valeur militaire (TIV) des navires livrés par l'étranger en 20 ans ; ignore la production nationale, "
+    "donc sous-estime fortement les pays producteurs (États-Unis, Russie, Chine, France, Royaume-Uni, Allemagne, Italie, Japon...)")
+ind("avionsImportes", "Aéronefs militaires importés 1981-2000", "millions de TIV SIPRI", "militaire", "Aérien", "sipri_at", "Aircraft, livraisons 1981-2000",
+    "ESTIMATION de la flotte aérienne de 2000 : valeur militaire (TIV) des aéronefs livrés par l'étranger en 20 ans ; ignore la production nationale, "
+    "donc sous-estime fortement les pays producteurs (États-Unis, Russie, Chine, France, Royaume-Uni...)")
+ind("indiceCyber", "Indice cyber estimé", "0 à 100", "militaire", "Cyber", "calcul", "40 % internet + 30 % supérieur + 30 % dépenses militaires (+25 agences)",
+    "ESTIMATION : moyenne pondérée des valeurs 2000 normalisées (min-max sur les 50 pays) des utilisateurs d'Internet (40 %), de la scolarisation "
+    "dans le supérieur (30 %) et des dépenses militaires en valeur (30 %), pondération recalculée si une valeur manque ; +25 points (plafond 100) "
+    "pour les États dotés d'une agence de renseignement électronique connue en 2000 : NSA (États-Unis), GCHQ (Royaume-Uni), unité 8200 (Israël), "
+    "FAPSI (Russie), 3e département de l'APL (Chine)")
 ind("objetsSpatiaux", "Objets lancés dans l'espace (cumul)", "objets", "militaire", "Spatial", "owid_grapher", "cumulative-number-of-objects-launched-into-outer-space", "Registre de l'ONU (UNOOSA) via Our World in Data ; 0 si le pays n'apparaît pas")
 ind("lanceurOrbital", "Lancement orbital autonome réussi avant 2001", "1 = oui, 0 = non", "militaire", "Spatial", "wikipedia", "Timeline_of_first_orbital_launches_by_country@1380598983", "Russie : premier lancement de l'Union soviétique (1957), dont elle a repris le programme ; Ukraine : 1991 selon la page")
 ind("partieCiac", "Partie à la Convention sur les armes chimiques fin 2000", "1 = oui, 0 = non", "militaire", "Chimique", "wikipedia", "List_of_parties_to_the_Chemical_Weapons_Convention@1357135945", "Date d'entrée en vigueur pour l'État ; Taïwan non éligible (null)")
@@ -145,9 +158,6 @@ COMPLEMENTS = {
 
 # Attributs sans indicateur sourcé : raison affichée dans le jeu.
 SANS_SOURCE = {
-    "Naval": "Inventaires de flottes 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
-    "Aérien": "Inventaires aériens 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
-    "Cyber": "Aucun indice de capacité cyber avant 2015 (Global Cybersecurity Index de l'UIT).",
 }
 
 
@@ -328,6 +338,60 @@ def terres_rares(cache):
     return {iso: None if iso in inconnus else {"v": prod.get(iso, 0.0), "a": ANNEE} for iso in PAYS}
 
 
+def transferts_sipri(cache, categorie, entite, debut=1981, fin=2000):
+    """Somme, par pays destinataire, des TIV livrés entre debut et fin (registre SIPRI des transferts)."""
+    chemin = os.path.join(cache, f"sipri_at_{categorie}_{debut}_{fin}.csv")
+    if not os.path.exists(chemin):
+        filtre = lambda champ, v1="", v2="", liste=(): {"field": champ, "oldField": "", "condition": "contains", "value1": v1, "value2": v2, "listData": list(liste)}
+        corps = {"filters": [filtre("Weapon category", liste=[entite]), filtre("Delivery year", debut, fin), filtre("Order year", 0, fin),
+                             {**filtre("opendeals"), "condition": ""}], "logic": "AND"}
+        req = urllib.request.Request(SOURCES["sipri_at"]["url"] + "?output=csv", data=json.dumps(corps).encode(),
+                                     headers={"User-Agent": UA, "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=600) as r:
+            import base64
+            texte = base64.b64decode(json.load(r)["bytes"]).decode("latin-1")  # export SIPRI en Latin-1
+        with open(chemin, "w", encoding="utf-8") as f:
+            f.write(texte)
+    texte = open(chemin, encoding="utf-8").read()
+    lignes = list(csv.reader(texte[texte.index("Recipient,Supplier"):].splitlines()))
+    col = lignes[0].index("SIPRI TIV of delivered weapons")
+    noms = {"United States": "USA", "China": "CHN", "Russia": "RUS", "India": "IND", "Brazil": "BRA", "South Africa": "ZAF",
+            "Japan": "JPN", "Germany": "DEU", "United Kingdom": "GBR", "France": "FRA", "Italy": "ITA", "Canada": "CAN",
+            "Australia": "AUS", "South Korea": "KOR", "Mexico": "MEX", "Indonesia": "IDN", "Turkiye": "TUR", "Saudi Arabia": "SAU",
+            "Argentina": "ARG", "Poland": "POL", "Ukraine": "UKR", "Spain": "ESP", "Netherlands": "NLD", "Norway": "NOR", "Iran": "IRN",
+            "Iraq": "IRQ", "Israel": "ISR", "Egypt": "EGY", "United Arab Emirates": "ARE", "Qatar": "QAT", "Pakistan": "PAK",
+            "Viet Nam": "VNM", "Thailand": "THA", "Malaysia": "MYS", "Singapore": "SGP", "Philippines": "PHL", "North Korea": "PRK",
+            "Taiwan": "TWN", "Kazakhstan": "KAZ", "Bangladesh": "BGD", "Nigeria": "NGA", "Ethiopia": "ETH", "Kenya": "KEN",
+            "Algeria": "DZA", "DR Congo": "COD", "Venezuela": "VEN", "Colombia": "COL", "Chile": "CHL", "Cuba": "CUB", "Panama": "PAN",
+            "Soviet Union": "RUS", "West Germany": "DEU", "East Germany": "DEU"}  # États prédécesseurs rattachés au successeur
+    total = {}
+    for l in lignes[1:]:
+        if len(l) > col and l[0] in noms and l[col].strip():
+            total[noms[l[0]]] = total.get(noms[l[0]], 0.0) + float(l[col])
+    if total.get("IND", 0) <= 0 or total.get("TWN", 0) <= 0:
+        raise SystemExit(f"Transferts SIPRI {categorie} : lecture douteuse")
+    return {iso: {"v": round(total.get(iso, 0.0), 1), "a": ANNEE, "e": 1} for iso in PAYS}
+
+
+def indice_cyber(valeurs):
+    poids = {"internet": 0.4, "scolSuperieur": 0.3, "depensesMil": 0.3}
+    agences = {"USA", "GBR", "ISR", "RUS", "CHN"}
+    norme = {}
+    for cle in poids:
+        x = {iso: v["v"] for iso, v in valeurs[cle].items() if v}
+        lo, hi = min(x.values()), max(x.values())
+        norme[cle] = {iso: (val - lo) / (hi - lo) for iso, val in x.items()}
+    sortie = {}
+    for iso in PAYS:
+        dispo = [c for c in poids if iso in norme[c]]
+        if len(dispo) < 2:
+            sortie[iso] = None
+            continue
+        score = 100 * sum(poids[c] * norme[c][iso] for c in dispo) / sum(poids[c] for c in dispo)
+        sortie[iso] = {"v": round(min(100.0, score + (25 if iso in agences else 0)), 1), "a": ANNEE, "e": 1}
+    return sortie
+
+
 def premier_lancement(cache):
     texte = wikitexte(I["lanceurOrbital"]["code"], cache)
     table = texte[texte.index('{| class="wikitable'):]
@@ -393,6 +457,9 @@ def main(cache):
     valeurs["lanceurOrbital"] = premier_lancement(cache)
     valeurs.update(religions(cache))
     valeurs["terresRares"] = terres_rares(cache)
+    valeurs["naviresImportes"] = transferts_sipri(cache, "Ships", 1150374)
+    valeurs["avionsImportes"] = transferts_sipri(cache, "Aircraft", 1150363)
+    valeurs["indiceCyber"] = indice_cyber(valeurs)
     for cle, (src, code) in COMPLEMENTS.items():
         s = serie_owid(src, code, co2, energie, cache)
         for iso in PAYS:

@@ -31,6 +31,14 @@
    "nom": "U.S. Geological Survey, Minerals Yearbook 2000, Rare earths (J. B. Hedrick)",
    "url": "https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/mineral-pubs/rare-earth/740400.pdf"
   },
+  "sipri_at": {
+   "nom": "SIPRI Arms Transfers Database (registre des transferts)",
+   "url": "https://atbackend.sipri.org/api/p/trades/trade-register-csv/"
+  },
+  "calcul": {
+   "nom": "Calcul du projet à partir des indicateurs sourcés ci-dessus (formule dans outils/collecter_attributs.py)",
+   "url": "https://github.com/YoYoYoAl/Occident-Brics"
+  },
   "wikipedia": {
    "nom": "Wikipedia (en), révision fixe indiquée par indicateur",
    "url": "https://en.wikipedia.org/"
@@ -489,6 +497,33 @@
    "code": "MS.MIL.TOTL.P1",
    "note": "IISS Military Balance via la Banque mondiale ; toutes armées confondues (indicateur indirect de la force terrestre)"
   },
+  "naviresImportes": {
+   "nom": "Navires de guerre importés 1981-2000",
+   "unite": "millions de TIV SIPRI",
+   "famille": "militaire",
+   "attribut": "Naval",
+   "source": "sipri_at",
+   "code": "Ships, livraisons 1981-2000",
+   "note": "ESTIMATION de la flotte de 2000 : valeur militaire (TIV) des navires livrés par l'étranger en 20 ans ; ignore la production nationale, donc sous-estime fortement les pays producteurs (États-Unis, Russie, Chine, France, Royaume-Uni, Allemagne, Italie, Japon...)"
+  },
+  "avionsImportes": {
+   "nom": "Aéronefs militaires importés 1981-2000",
+   "unite": "millions de TIV SIPRI",
+   "famille": "militaire",
+   "attribut": "Aérien",
+   "source": "sipri_at",
+   "code": "Aircraft, livraisons 1981-2000",
+   "note": "ESTIMATION de la flotte aérienne de 2000 : valeur militaire (TIV) des aéronefs livrés par l'étranger en 20 ans ; ignore la production nationale, donc sous-estime fortement les pays producteurs (États-Unis, Russie, Chine, France, Royaume-Uni...)"
+  },
+  "indiceCyber": {
+   "nom": "Indice cyber estimé",
+   "unite": "0 à 100",
+   "famille": "militaire",
+   "attribut": "Cyber",
+   "source": "calcul",
+   "code": "40 % internet + 30 % supérieur + 30 % dépenses militaires (+25 agences)",
+   "note": "ESTIMATION : moyenne pondérée des valeurs 2000 normalisées (min-max sur les 50 pays) des utilisateurs d'Internet (40 %), de la scolarisation dans le supérieur (30 %) et des dépenses militaires en valeur (30 %), pondération recalculée si une valeur manque ; +25 points (plafond 100) pour les États dotés d'une agence de renseignement électronique connue en 2000 : NSA (États-Unis), GCHQ (Royaume-Uni), unité 8200 (Israël), FAPSI (Russie), 3e département de l'APL (Chine)"
+  },
   "objetsSpatiaux": {
    "nom": "Objets lancés dans l'espace (cumul)",
    "unite": "objets",
@@ -642,11 +677,7 @@
    "code": "AG.LND.FRST.K2"
   }
  },
- "sansSource": {
-  "Naval": "Inventaires de flottes 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
-  "Aérien": "Inventaires aériens 2000 publiés par l'IISS (Military Balance 2000-2001), payant.",
-  "Cyber": "Aucun indice de capacité cyber avant 2015 (Global Cybersecurity Index de l'UIT)."
- },
+ "sansSource": {},
  "pays": {
   "USA": {
    "nom": "États-Unis",
@@ -877,6 +908,21 @@
     "effectifsArmes": {
      "v": 1454800,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 1915.9,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 3887.3,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 100.0,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 1716.0,
@@ -1176,6 +1222,21 @@
      "v": 3910000,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 2040.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 5910.8,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 31.1,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 78.0,
      "a": 2000
@@ -1473,6 +1534,21 @@
     "effectifsArmes": {
      "v": 1427100,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 1681.6,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 7808.6,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 49.8,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 3119.0,
@@ -1772,6 +1848,21 @@
      "v": 2372000,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 6773.6,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 18260.0,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 5.6,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 29.0,
      "a": 2000
@@ -2063,6 +2154,21 @@
     "effectifsArmes": {
      "v": 673200,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 1665.9,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1210.9,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 4.4,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 13.0,
@@ -2362,6 +2468,21 @@
      "v": 71600,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 391.1,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 994.0,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 6.1,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 1.0,
      "a": 2000
@@ -2647,6 +2768,21 @@
     "effectifsArmes": {
      "v": 248700,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 122.3,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 24662.7,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 35.6,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 84.0,
@@ -2945,6 +3081,21 @@
     "effectifsArmes": {
      "v": 221100,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 0.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 335.0,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 36.8,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 37.0,
@@ -3250,6 +3401,21 @@
      "v": 212500,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 405.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 4726.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 71.7,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 36.0,
      "a": 2000
@@ -3550,6 +3716,21 @@
     "effectifsArmes": {
      "v": 389400,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 66.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 2341.3,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 33.7,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 43.0,
@@ -3852,6 +4033,21 @@
      "v": 503100,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 0.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1701.6,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 41.0,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 17.0,
      "a": 2000
@@ -4153,6 +4349,21 @@
      "v": 68500,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 260.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 5640.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 63.6,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 23.0,
      "a": 2000
@@ -4447,6 +4658,21 @@
     "effectifsArmes": {
      "v": 51600,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 3364.5,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 4653.1,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 52.6,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 9.0,
@@ -4745,6 +4971,21 @@
     "effectifsArmes": {
      "v": 687500,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 1914.8,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 10199.1,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 65.4,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 7.0,
@@ -5047,6 +5288,21 @@
      "v": 207800,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 724.2,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1352.4,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 12.0,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 6.0,
      "a": 2000
@@ -5347,6 +5603,21 @@
     "effectifsArmes": {
      "v": 492000,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 2473.8,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1489.5,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 6.4,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 11.0,
@@ -5652,6 +5923,21 @@
      "v": 827700,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 5684.8,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 12525.7,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 12.2,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 2.0,
      "a": 2000
@@ -5934,6 +6220,21 @@
     "effectifsArmes": {
      "v": 217000,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 2242.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 16969.8,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 14.6,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 2.0,
@@ -6229,6 +6530,21 @@
     "effectifsArmes": {
      "v": 102300,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 2608.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1117.4,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 27.2,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 8.0,
@@ -6531,6 +6847,21 @@
      "v": 238800,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 1012.7,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 3235.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 28.5,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -6822,6 +7153,21 @@
     "effectifsArmes": {
      "v": 420400,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 0.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 0.0,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 20.8,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 1.0,
@@ -7127,6 +7473,21 @@
      "v": 241800,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 3187.3,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 4758.3,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 36.0,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 6.0,
      "a": 2000
@@ -7427,6 +7788,21 @@
     "effectifsArmes": {
      "v": 57100,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 19.2,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 5287.4,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 55.6,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 1.0,
@@ -7729,6 +8105,21 @@
      "v": 27000,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 600.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1758.1,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 68.3,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 2.0,
      "a": 2000
@@ -8027,6 +8418,21 @@
      "v": 753000,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 1686.1,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1905.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 8.1,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -8312,6 +8718,21 @@
     "effectifsArmes": {
      "v": 479000,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 195.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 12492.0,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 6.5,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -8611,6 +9032,21 @@
      "v": 180500,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 1334.5,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 9761.6,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 62.1,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 6.0,
      "a": 2000
@@ -8906,6 +9342,21 @@
      "v": 678500,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 1927.6,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 10032.0,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 11.8,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 2.0,
      "a": 2000
@@ -9179,6 +9630,21 @@
     "effectifsArmes": {
      "v": 66000,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 890.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 2216.0,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 26.9,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 1.0,
@@ -9462,6 +9928,21 @@
     "effectifsArmes": {
      "v": 12300,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 298.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 759.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 11.4,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -9767,6 +10248,21 @@
      "v": 900000,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 2446.4,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 4223.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 0.8,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 1.0,
      "a": 2000
@@ -10058,6 +10554,21 @@
     "effectifsArmes": {
      "v": 524000,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 740.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 2831.7,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 3.6,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -10363,6 +10874,21 @@
      "v": 416600,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 2042.5,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 2640.1,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 16.9,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 4.0,
      "a": 2000
@@ -10661,6 +11187,21 @@
      "v": 116100,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 1308.2,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1788.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 27.3,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 3.0,
      "a": 2000
@@ -10943,6 +11484,21 @@
     "effectifsArmes": {
      "v": 168500,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 873.8,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 3325.8,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 40.2,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 1.0,
@@ -11248,6 +11804,21 @@
      "v": 148500,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 155.7,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 414.8,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 12.4,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 1.0,
      "a": 2000
@@ -11480,6 +12051,17 @@
      "v": 1244000,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 534.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 3981.4,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": null,
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -11676,6 +12258,17 @@
      "a": 2000
     },
     "effectifsArmes": null,
+    "naviresImportes": {
+     "v": 6478.3,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 10498.1,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": null,
     "objetsSpatiaux": {
      "v": 1.0,
      "a": 2000
@@ -11934,6 +12527,21 @@
     "effectifsArmes": {
      "v": 98500,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 3.4,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 322.9,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 12.6,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -12239,6 +12847,21 @@
      "v": 137000,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 691.1,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 987.6,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 1.8,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -12528,6 +13151,21 @@
      "v": 106500,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 649.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 873.5,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 2.0,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -12816,6 +13454,21 @@
     "effectifsArmes": {
      "v": 352500,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 277.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1840.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 0.1,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -13118,6 +13771,21 @@
      "v": 27200,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 196.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 274.9,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 0.9,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -13413,6 +14081,21 @@
      "v": 305200,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 1165.2,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 3899.9,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 5.6,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -13702,6 +14385,21 @@
      "v": 92900,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 18.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 242.9,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 0.1,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 0.0,
      "a": 2000
@@ -13981,6 +14679,21 @@
     "effectifsArmes": {
      "v": 79000,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 1351.6,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1590.3,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 19.2,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -14279,6 +14992,21 @@
     "effectifsArmes": {
      "v": 247000,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 720.2,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 1007.4,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 11.9,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -14581,6 +15309,21 @@
      "v": 116500,
      "a": 2000
     },
+    "naviresImportes": {
+     "v": 1412.7,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 986.9,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 26.9,
+     "a": 2000,
+     "e": 1
+    },
     "objetsSpatiaux": {
      "v": 2.0,
      "a": 2000
@@ -14857,6 +15600,21 @@
     "effectifsArmes": {
      "v": 84500,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 953.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 2481.8,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 13.3,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
@@ -15158,6 +15916,21 @@
     "effectifsArmes": {
      "v": 11800,
      "a": 2000
+    },
+    "naviresImportes": {
+     "v": 0.0,
+     "a": 2000,
+     "e": 1
+    },
+    "avionsImportes": {
+     "v": 47.2,
+     "a": 2000,
+     "e": 1
+    },
+    "indiceCyber": {
+     "v": 21.9,
+     "a": 2000,
+     "e": 1
     },
     "objetsSpatiaux": {
      "v": 0.0,
