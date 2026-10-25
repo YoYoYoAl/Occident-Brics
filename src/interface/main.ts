@@ -1,5 +1,5 @@
 import donnees from "../data/pays2000.json";
-import { dessinerCarte, couleurLog, couleurAlignement } from "./carte";
+import { dessinerCarte, couleurLog, couleurAlignement, type Annotation, type Marqueur } from "./carte";
 import { ficheHtml } from "./fiche";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, acheterPA, peutAcheterPA, PRIX_PA,
@@ -251,6 +251,54 @@ function couleurs(): Record<string, string> {
   return Object.fromEntries(isos.map(i => [i, couleurLog(val(i), min, max)]));
 }
 
+// ---------- Annotations de la carte ----------
+const NOMS_COURTS: Record<string, string> = { USA: "États-Unis", GBR: "R.-U.", ARE: "Émirats", COD: "RD Congo", PRK: "Corée N.", KOR: "Corée S.", SAU: "Arabie s.", ZAF: "Afr. du Sud", NLD: "Pays-Bas", BGD: "Bangladesh", KAZ: "Kazakhstan", PHL: "Philippines" };
+const court = (iso: string) => NOMS_COURTS[iso] ?? nomPays(iso);
+function valeurVue(iso: string): string {
+  const e = etat!, p = e.pays[iso];
+  switch ($<HTMLSelectElement>("vue").value) {
+    case "population": return `${nombre(p.population / 1e6, 0)} M`;
+    case "pib": return `${nombre(p.pib / 1e9, 0)} Md`;
+    case "stabilite": return `${nombre(p.stabilite, 0)}`;
+    case "environnement": return `${nombre(p.environnement, 0)}`;
+    default: return iso === "USA" || iso === "CHN" ? "leader" : signe(alignement(e, iso), 2);
+  }
+}
+function annotations(): Record<string, Annotation> {
+  const e = etat!, moi = joueur(), adv = adversaire(moi), coul = (c: Camp) => c === "OCC" ? "#4f8be0" : "#dc4b3c";
+  const recents = e.journal.filter(j => j.round >= e.round - 1 && j.visiblePour.includes(moi));
+  const out: Record<string, Annotation> = {};
+  for (const iso of Object.keys(e.pays)) {
+    const p = e.pays[iso], m: Marqueur[] = [], a = alignement(e, iso);
+    for (const j of recents.filter(j => j.pays?.includes(iso))) {
+      if (j.type === "historique") m.push({ symbole: "★", couleur: "#d9a441", titre: j.titre });
+      else if (j.type === "generique") m.push({ symbole: "!", couleur: (j.intensite ?? 1) >= 2 ? "#e07b2a" : "#8a6d3b", titre: j.titre });
+      else if ((j.type === "action" || j.type === "carte") && (j.joueParCamp ?? j.camp) === adv) m.push({ symbole: "◆", couleur: coul(adv), titre: `${NOM_CAMP[adv]} : ${j.titre}` });
+      else if ((j.type === "action" || j.type === "carte") && j.camp === moi) m.push({ symbole: "✓", couleur: coul(moi), titre: `Toi : ${j.titre}` });
+    }
+    for (const c of ["OCC", "CHN"] as Camp[]) if (iso !== "USA" && iso !== "CHN" && p.influence[c].m >= 40) m.push({ symbole: "▲", couleur: coul(c), titre: `Présence militaire forte du ${NOM_CAMP[c]} (${nombre(p.influence[c].m, 0)})` });
+    if (p.stabilite < 30) m.push({ symbole: "↯", couleur: "#9b59b6", titre: `Pays instable (stabilité ${nombre(p.stabilite, 0)})` });
+    const vus = new Set<string>(), uniques = m.filter(x => { const k = x.symbole + x.couleur; if (vus.has(k)) return false; vus.add(k); return true; });
+    const io = influenceTotale(p, "OCC"), ic = influenceTotale(p, "CHN"), leader = iso === "USA" || iso === "CHN";
+    const pente = leader ? "leader de bloc" : Math.abs(a) < 0.1 ? "neutre" : a > 0 ? (a >= 0.4 ? "allié du bloc USA" : "penche vers le bloc USA") : (a <= -0.4 ? "allié du bloc Chine" : "penche vers le bloc Chine");
+    out[iso] = { nom: court(iso), valeur: valeurVue(iso), marqueurs: uniques,
+      info: `<strong>${esc(nomPays(iso))}</strong><div class="note">${pente}${leader ? "" : ` · alignement ${signe(a, 2)}`}</div>
+        ${leader ? "" : `<div class="barres"><span class="b-occ" style="width:${Math.min(100, io)}%"></span></div><div class="barres"><span class="b-chn" style="width:${Math.min(100, ic)}%"></span></div>
+        <div class="note">Influence USA ${nombre(io, 0)} · Chine ${nombre(ic, 0)}</div>`}
+        <div class="note">PIB ${nombre(p.pib / 1e9, 0)} Md · ${nombre(p.population / 1e6, 0)} M hab. · stabilité ${nombre(p.stabilite, 0)}</div>
+        ${m.length ? `<ul>${m.map(x => `<li><span class="pastille" style="background:${x.couleur}">${x.symbole}</span> ${esc(x.titre)}</li>`).join("")}</ul>` : ""}
+        <div class="note">Clic : fiche et actions</div>` };
+  }
+  return out;
+}
+function legende(): string {
+  const vue = $<HTMLSelectElement>("vue").value;
+  const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#777">▲</i>bases</span><span><i style="background:#9b59b6">↯</i>instable</span></div>`;
+  if (vue === "alignement") return `<div class="degrade"><span>Bloc Chine</span><b style="background:linear-gradient(90deg,${couleurAlignement(-1)},${couleurAlignement(0)},${couleurAlignement(1)})"></b><span>Bloc USA</span></div>${symboles}`;
+  const nom = { population: "Population", pib: "PIB", stabilite: "Stabilité", environnement: "Environnement local" }[vue] ?? vue;
+  return `<div class="degrade"><span>${nom} faible</span><b style="background:linear-gradient(90deg,${couleurLog(1, 1, 100)},${couleurLog(100, 1, 100)})"></b><span>fort</span></div>${symboles}`;
+}
+
 function afficher() {
   if (!etat) return;
   const e = etat, c = e.camps[joueur()], b = bilan(e), monCamp = joueur();
@@ -268,8 +316,8 @@ function afficher() {
     c.briefing ? `<button id="btnBriefing" class="alerte-btn">Briefing en attente</button>` : "",
   ].join("");
   $("btnBriefing")?.addEventListener("click", () => proposerBriefing(true));
-  const noms = Object.fromEntries(Object.keys(e.pays).map(i => [i, `${nomPays(i)} · alignement ${signe(alignement(e, i), 2)}`]));
-  carteMonde.colorer(couleurs(), noms);
+  carteMonde.colorer(couleurs(), legende());
+  carteMonde.annoter(annotations());
   carteMonde.choisir(paysChoisi);
   document.querySelectorAll<HTMLButtonElement>("[data-onglet]").forEach(x => x.classList.toggle("actif", x.dataset.onglet === onglet));
   const zone = $("contenu");

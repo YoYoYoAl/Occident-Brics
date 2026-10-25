@@ -90,3 +90,21 @@ button.principal { background: var(--accent); color: #1a1406; border-color: var(
 .fiche tr.attribut td { padding-top: 8px; font-weight: 600; border-bottom: 0; }
 .fiche td.score { color: var(--accent); }
 .journal small.effets { display: block; color: var(--accent); font-size: .85em; margin-top: 2px; }
+.carte { position: relative; overflow: hidden; touch-action: none; }
+.carte .noms text { font-size: 8px; fill: #10161c; text-anchor: middle; font-weight: 600; paint-order: stroke; stroke: rgba(255,255,255,.55); stroke-width: 2px; pointer-events: none; }
+.carte .noms text.valeur { font-size: 7px; font-weight: 700; fill: #1d2731; }
+.carte .marque { pointer-events: auto; cursor: help; }
+.carte .marque circle { stroke: #10161c; stroke-width: 1; }
+.carte .marque text { font-size: 7.5px; fill: #fff; text-anchor: middle; font-weight: 700; pointer-events: none; }
+.carte path { vector-effect: non-scaling-stroke; }
+.bulle { position: absolute; z-index: 5; max-width: 280px; background: rgba(23,32,41,.96); border: 1px solid var(--bord); border-radius: 8px; padding: 8px 10px; font-size: .85em; pointer-events: none; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+.bulle ul { list-style: none; padding: 0; margin: 6px 0 0; } .bulle li { margin: 2px 0; }
+.pastille { display: inline-flex; width: 16px; height: 16px; border-radius: 50%; align-items: center; justify-content: center; font-size: 10px; color: #fff; }
+.barres { height: 5px; background: #2a3742; border-radius: 3px; margin: 4px 0 2px; overflow: hidden; }
+.barres span { display: block; height: 100%; } .b-occ { background: var(--occ); } .b-chn { background: var(--chn); }
+.legende { position: absolute; left: 10px; bottom: 10px; background: rgba(15,20,25,.82); border: 1px solid var(--bord); border-radius: 8px; padding: 6px 10px; font-size: .78em; max-width: calc(100% - 20px); }
+.degrade { display: flex; align-items: center; gap: 6px; } .degrade b { display: inline-block; width: 120px; height: 10px; border-radius: 5px; }
+.symboles { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 5px; color: var(--doux); }
+.symboles i { display: inline-flex; width: 14px; height: 14px; border-radius: 50%; align-items: center; justify-content: center; font-style: normal; font-size: 9px; color: #fff; margin-right: 3px; }
+.zoom-boutons { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.zoom-boutons button { width: 30px; height: 30px; padding: 0; font-size: 16px; background: rgba(23,32,41,.9); }
