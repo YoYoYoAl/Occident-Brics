@@ -1,0 +1,3214 @@
+{
+ "sources": {
+  "owid_co2": "Our World in Data, co2-data (github.com/owid/co2-data) : population (UN WPP et autres, 2024), PIB (Maddison Project Database 2023, $ internationaux 2011), CO2 (Global Carbon Budget 2025)",
+  "owid_energie": "Our World in Data, energy-data (github.com/owid/energy-data) : production et consommation d'énergie (Energy Institute Statistical Review 2025, EIA 2025)",
+  "estimation": "Estimation du projet (outils/completer_estimations.py) : PIB Banque mondiale ramené à l'échelle Maddison, CO2 par habitant du voisin"
+ },
+ "annee": 2000,
+ "pays": [
+  {
+   "iso3": "USA",
+   "idCarte": "840",
+   "nom": "États-Unis",
+   "indicateurs": {
+    "population": 281484126.0,
+    "pib": 12947417795437.0,
+    "co2": 6023.158,
+    "co2ParHab": 21.398,
+    "prodPetrole": 4042.373,
+    "prodGaz": 5186.003,
+    "prodCharbon": 6329.958,
+    "consoEnergie": 26546.236
+   },
+   "croissancePop9500": 0.009711144874237965
+  },
+  {
+   "iso3": "CHN",
+   "idCarte": "156",
+   "nom": "Chine",
+   "indicateurs": {
+    "population": 1269581174.0,
+    "pib": 5952682232028.0,
+    "co2": 3643.81,
+    "co2ParHab": 2.87,
+    "prodPetrole": 1891.271,
+    "prodGaz": 274.14,
+    "prodCharbon": 8226.111,
+    "consoEnergie": 11800.284
+   },
+   "croissancePop9500": 0.007976933795305063
+  },
+  {
+   "iso3": "RUS",
+   "idCarte": "643",
+   "nom": "Russie",
+   "indicateurs": {
+    "population": 146717784.0,
+    "pib": 1547057523527.0,
+    "co2": 1480.576,
+    "co2ParHab": 10.091,
+    "prodPetrole": 3798.947,
+    "prodGaz": 5370.56,
+    "prodCharbon": 1413.278,
+    "consoEnergie": 7214.09
+   },
+   "croissancePop9500": -0.0021314038397285406
+  },
+  {
+   "iso3": "IND",
+   "idCarte": "356",
+   "nom": "Inde",
+   "indicateurs": {
+    "population": 1057922731.0,
+    "pib": 2804478499774.0,
+    "co2": 987.065,
+    "co2ParHab": 0.933,
+    "prodPetrole": 397.327,
+    "prodGaz": 253.627,
+    "prodCharbon": 1771.192,
+    "consoEnergie": 3725.401
+   },
+   "croissancePop9500": 0.019551832008720238
+  },
+  {
+   "iso3": "BRA",
+   "idCarte": "076",
+   "nom": "Brésil",
+   "indicateurs": {
+    "population": 174018278.0,
+    "pib": 1739728033832.0,
+    "co2": 340.183,
+    "co2ParHab": 1.955,
+    "prodPetrole": 780.245,
+    "prodGaz": 77.097,
+    "prodCharbon": 31.227,
+    "consoEnergie": 2364.255
+   },
+   "croissancePop9500": 0.014747823193003384
+  },
+  {
+   "iso3": "ZAF",
+   "idCarte": "710",
+   "nom": "Afrique du Sud",
+   "indicateurs": {
+    "population": 47159715.0,
+    "pib": 356072104365.0,
+    "co2": 378.333,
+    "co2ParHab": 8.022,
+    "prodPetrole": 19.634,
+    "prodGaz": 17.896,
+    "prodCharbon": 1472.752,
+    "consoEnergie": 1185.383
+   },
+   "croissancePop9500": 0.011488979910284858
+  },
+  {
+   "iso3": "JPN",
+   "idCarte": "392",
+   "nom": "Japon",
+   "indicateurs": {
+    "population": 127027794.0,
+    "pib": 4209651870326.0,
+    "co2": 1260.203,
+    "co2ParHab": 9.921,
+    "prodPetrole": 8.15,
+    "prodGaz": 31.184,
+    "prodCharbon": 18.878,
+    "consoEnergie": 6253.324
+   },
+   "croissancePop9500": 0.002147368483339296
+  },
+  {
+   "iso3": "DEU",
+   "idCarte": "276",
+   "nom": "Allemagne",
+   "indicateurs": {
+    "population": 81797255.0,
+    "pib": 2718560455818.0,
+    "co2": 898.976,
+    "co2ParHab": 10.99,
+    "prodPetrole": 40.602,
+    "prodGaz": 176.654,
+    "prodCharbon": 706.087,
+    "consoEnergie": 3988.179
+   },
+   "croissancePop9500": -0.0005434709138106841
+  },
+  {
+   "iso3": "GBR",
+   "idCarte": "826",
+   "nom": "Royaume-Uni",
+   "indicateurs": {
+    "population": 59057333.0,
+    "pib": 1889565292321.0,
+    "co2": 569.034,
+    "co2ParHab": 9.635,
+    "prodPetrole": 1468.229,
+    "prodGaz": 1134.59,
+    "prodCharbon": 227.384,
+    "consoEnergie": 2664.116
+   },
+   "croissancePop9500": 0.003085387234218473
+  },
+  {
+   "iso3": "FRA",
+   "idCarte": "250",
+   "nom": "France",
+   "indicateurs": {
+    "population": 59483716.0,
+    "pib": 2031676031476.0,
+    "co2": 407.445,
+    "co2ParHab": 6.85,
+    "prodPetrole": 21.568,
+    "prodGaz": 19.454,
+    "prodCharbon": 25.497,
+    "consoEnergie": 3117.909
+   },
+   "croissancePop9500": 0.004399880976028392
+  },
+  {
+   "iso3": "ITA",
+   "idCarte": "380",
+   "nom": "Italie",
+   "indicateurs": {
+    "population": 57272200.0,
+    "pib": 1863751547560.0,
+    "co2": 469.598,
+    "co2ParHab": 8.199,
+    "prodPetrole": 53.335,
+    "prodGaz": 159.587,
+    "prodCharbon": 0.109,
+    "consoEnergie": 2100.08
+   },
+   "croissancePop9500": -0.00045733227800281995
+  },
+  {
+   "iso3": "CAN",
+   "idCarte": "124",
+   "nom": "Canada",
+   "indicateurs": {
+    "population": 30891800.0,
+    "pib": 1137681278760.0,
+    "co2": 566.68,
+    "co2ParHab": 18.344,
+    "prodPetrole": 1454.749,
+    "prodGaz": 1763.047,
+    "prodCharbon": 454.524,
+    "consoEnergie": 3647.49
+   },
+   "croissancePop9500": 0.009542567892675269
+  },
+  {
+   "iso3": "AUS",
+   "idCarte": "036",
+   "nom": "Australie",
+   "indicateurs": {
+    "population": 19132472.0,
+    "pib": 692059312020.0,
+    "co2": 349.898,
+    "co2ParHab": 18.288,
+    "prodPetrole": 431.377,
+    "prodGaz": 311.923,
+    "prodCharbon": 1996.82,
+    "consoEnergie": 1305.26
+   },
+   "croissancePop9500": 0.011208863734717411
+  },
+  {
+   "iso3": "KOR",
+   "idCarte": "410",
+   "nom": "Corée du Sud",
+   "indicateurs": {
+    "population": 46766660.0,
+    "pib": 1086261690312.0,
+    "co2": 439.981,
+    "co2ParHab": 9.408,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 21.719,
+    "consoEnergie": 2260.798
+   },
+   "croissancePop9500": 0.006089300345391013
+  },
+  {
+   "iso3": "MEX",
+   "idCarte": "484",
+   "nom": "Mexique",
+   "indicateurs": {
+    "population": 98625553.0,
+    "pib": 1241194674661.0,
+    "co2": 391.435,
+    "co2ParHab": 3.969,
+    "prodPetrole": 1980.843,
+    "prodGaz": 333.787,
+    "prodCharbon": 62.973,
+    "consoEnergie": 1696.177
+   },
+   "croissancePop9500": 0.016531878406157663
+  },
+  {
+   "iso3": "IDN",
+   "idCarte": "360",
+   "nom": "Indonésie",
+   "indicateurs": {
+    "population": 216077789.0,
+    "pib": 1138300071768.0,
+    "co2": 281.054,
+    "co2ParHab": 1.301,
+    "prodPetrole": 835.153,
+    "prodGaz": 706.844,
+    "prodCharbon": 527.964,
+    "consoEnergie": 1164.199
+   },
+   "croissancePop9500": 0.015698139737104766
+  },
+  {
+   "iso3": "TUR",
+   "idCarte": "792",
+   "nom": "Turquie",
+   "indicateurs": {
+    "population": 65425957.0,
+    "pib": 785054993224.0,
+    "co2": 232.934,
+    "co2ParHab": 3.56,
+    "prodPetrole": 33.796,
+    "prodGaz": 6.805,
+    "prodCharbon": 145.238,
+    "consoEnergie": 863.54
+   },
+   "croissancePop9500": 0.014026183974094053
+  },
+  {
+   "iso3": "SAU",
+   "idCarte": "682",
+   "nom": "Arabie saoudite",
+   "indicateurs": {
+    "population": 16177733.0,
+    "pib": 488272422255.0,
+    "co2": 309.639,
+    "co2ParHab": 19.14,
+    "prodPetrole": 5099.946,
+    "prodGaz": 473.195,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1334.88
+   },
+   "croissancePop9500": 0.04012004124587332
+  },
+  {
+   "iso3": "ARG",
+   "idCarte": "032",
+   "nom": "Argentine",
+   "indicateurs": {
+    "population": 37213986.0,
+    "pib": 536480965694.0,
+    "co2": 143.355,
+    "co2ParHab": 3.852,
+    "prodPetrole": 480.871,
+    "prodGaz": 363.812,
+    "prodCharbon": 1.702,
+    "consoEnergie": 703.635
+   },
+   "croissancePop9500": 0.011938327290882622
+  },
+  {
+   "iso3": "POL",
+   "idCarte": "616",
+   "nom": "Pologne",
+   "indicateurs": {
+    "population": 38258077.0,
+    "pib": 488207682001.0,
+    "co2": 317.306,
+    "co2ParHab": 8.294,
+    "prodPetrole": 8.128,
+    "prodGaz": 38.534,
+    "prodCharbon": 836.138,
+    "consoEnergie": 1017.525
+   },
+   "croissancePop9500": -0.0005562913109734557
+  },
+  {
+   "iso3": "UKR",
+   "idCarte": "804",
+   "nom": "Ukraine",
+   "indicateurs": {
+    "population": 49556654.0,
+    "pib": 253196030608.0,
+    "co2": 285.663,
+    "co2ParHab": 5.764,
+    "prodPetrole": 46.192,
+    "prodGaz": 157.88,
+    "prodCharbon": 422.696,
+    "consoEnergie": 1585.457
+   },
+   "croissancePop9500": -0.008300238102717628
+  },
+  {
+   "iso3": "ESP",
+   "idCarte": "724",
+   "nom": "Espagne",
+   "indicateurs": {
+    "population": 41019772.0,
+    "pib": 1094998702299.0,
+    "co2": 309.26,
+    "co2ParHab": 7.539,
+    "prodPetrole": 2.948,
+    "prodGaz": 1.814,
+    "prodCharbon": 97.006,
+    "consoEnergie": 1525.348
+   },
+   "croissancePop9500": 0.004782858221850317
+  },
+  {
+   "iso3": "NLD",
+   "idCarte": "528",
+   "nom": "Pays-Bas",
+   "indicateurs": {
+    "population": 16058757.0,
+    "pib": 603803040978.0,
+    "co2": 172.154,
+    "co2ParHab": 10.72,
+    "prodPetrole": 31.068,
+    "prodGaz": 613.611,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1006.819
+   },
+   "croissancePop9500": 0.0062650075720718235
+  },
+  {
+   "iso3": "NOR",
+   "idCarte": "578",
+   "nom": "Norvège",
+   "indicateurs": {
+    "population": 4490864.0,
+    "pib": 242751277829.0,
+    "co2": 42.131,
+    "co2ParHab": 9.381,
+    "prodPetrole": 1813.767,
+    "prodGaz": 498.733,
+    "prodCharbon": 5.197,
+    "consoEnergie": 583.177
+   },
+   "croissancePop9500": 0.005978701980375867
+  },
+  {
+   "iso3": "IRN",
+   "idCarte": "364",
+   "nom": "Iran",
+   "indicateurs": {
+    "population": 66418661.0,
+    "pib": 595554549032.0,
+    "co2": 367.213,
+    "co2ParHab": 5.529,
+    "prodPetrole": 2229.067,
+    "prodGaz": 563.366,
+    "prodCharbon": 9.184,
+    "consoEnergie": 1396.568
+   },
+   "croissancePop9500": 0.013192968168622698
+  },
+  {
+   "iso3": "IRQ",
+   "idCarte": "368",
+   "nom": "Irak",
+   "indicateurs": {
+    "population": 24424060.0,
+    "pib": 83019213791.0,
+    "co2": 83.722,
+    "co2ParHab": 3.428,
+    "prodPetrole": 1497.892,
+    "prodGaz": 29.925,
+    "prodCharbon": 0.0,
+    "consoEnergie": 322.613
+   },
+   "croissancePop9500": 0.032388092783414146
+  },
+  {
+   "iso3": "ISR",
+   "idCarte": "376",
+   "nom": "Israël",
+   "indicateurs": {
+    "population": 6111194.0,
+    "pib": 158656383479.0,
+    "co2": 59.519,
+    "co2ParHab": 9.739,
+    "prodPetrole": 0.051,
+    "prodGaz": 0.091,
+    "prodCharbon": 0.0,
+    "consoEnergie": 227.371
+   },
+   "croissancePop9500": 0.026780550929408342
+  },
+  {
+   "iso3": "EGY",
+   "idCarte": "818",
+   "nom": "Égypte",
+   "indicateurs": {
+    "population": 73083287.0,
+    "pib": 444250275939.0,
+    "co2": 142.837,
+    "co2ParHab": 1.954,
+    "prodPetrole": 452.605,
+    "prodGaz": 202.125,
+    "prodCharbon": 0.438,
+    "consoEnergie": 568.533
+   },
+   "croissancePop9500": 0.02167602133750779
+  },
+  {
+   "iso3": "ARE",
+   "idCarte": "784",
+   "nom": "Émirats arabes unis",
+   "indicateurs": {
+    "population": 3493583.0,
+    "pib": 160530689682.0,
+    "co2": 112.277,
+    "co2ParHab": 32.138,
+    "prodPetrole": 1413.317,
+    "prodGaz": 374.205,
+    "prodCharbon": 0.0,
+    "consoEnergie": 535.782
+   },
+   "croissancePop9500": 0.07489563497247254
+  },
+  {
+   "iso3": "QAT",
+   "idCarte": "634",
+   "nom": "Qatar",
+   "indicateurs": {
+    "population": 644993.0,
+    "pib": 30159719266.0,
+    "co2": 40.406,
+    "co2ParHab": 62.646,
+    "prodPetrole": 467.284,
+    "prodGaz": 257.715,
+    "prodCharbon": 0.0,
+    "consoEnergie": 134.844
+   },
+   "croissancePop9500": 0.04631380018719944
+  },
+  {
+   "iso3": "PAK",
+   "idCarte": "586",
+   "nom": "Pakistan",
+   "indicateurs": {
+    "population": 154879124.0,
+    "pib": 459798536606.0,
+    "co2": 103.94,
+    "co2ParHab": 0.671,
+    "prodPetrole": 35.442,
+    "prodGaz": 179.525,
+    "prodCharbon": 16.807,
+    "consoEnergie": 483.754
+   },
+   "croissancePop9500": 0.02849223352003105
+  },
+  {
+   "iso3": "VNM",
+   "idCarte": "704",
+   "nom": "Viêt Nam",
+   "indicateurs": {
+    "population": 77154016.0,
+    "pib": 220383060780.0,
+    "co2": 53.935,
+    "co2ParHab": 0.699,
+    "prodPetrole": 192.453,
+    "prodGaz": 15.44,
+    "prodCharbon": 75.608,
+    "consoEnergie": 214.149
+   },
+   "croissancePop9500": 0.013782935360548088
+  },
+  {
+   "iso3": "THA",
+   "idCarte": "764",
+   "nom": "Thaïlande",
+   "indicateurs": {
+    "population": 63007815.0,
+    "pib": 579217712636.0,
+    "co2": 167.352,
+    "co2ParHab": 2.656,
+    "prodPetrole": 82.929,
+    "prodGaz": 208.95,
+    "prodCharbon": 60.29,
+    "consoEnergie": 741.691
+   },
+   "croissancePop9500": 0.012893974502361738
+  },
+  {
+   "iso3": "MYS",
+   "idCarte": "458",
+   "nom": "Malaisie",
+   "indicateurs": {
+    "population": 22967817.0,
+    "pib": 305803211129.0,
+    "co2": 122.881,
+    "co2ParHab": 5.35,
+    "prodPetrole": 390.204,
+    "prodGaz": 496.822,
+    "prodCharbon": 2.418,
+    "consoEnergie": 612.311
+   },
+   "croissancePop9500": 0.024693298985744683
+  },
+  {
+   "iso3": "SGP",
+   "idCarte": "702",
+   "nom": "Singapour",
+   "indicateurs": {
+    "population": 4035251.0,
+    "pib": 152153574500.0,
+    "co2": 37.369,
+    "co2ParHab": 9.261,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 443.014
+   },
+   "croissancePop9500": 0.02690446828974591
+  },
+  {
+   "iso3": "PHL",
+   "idCarte": "608",
+   "nom": "Philippines",
+   "indicateurs": {
+    "population": 79625401.0,
+    "pib": 327247671365.0,
+    "co2": 71.467,
+    "co2ParHab": 0.898,
+    "prodPetrole": 0.725,
+    "prodGaz": 0.101,
+    "prodCharbon": 8.75,
+    "consoEnergie": 307.714
+   },
+   "croissancePop9500": 0.024508453037526357
+  },
+  {
+   "iso3": "PRK",
+   "idCarte": "408",
+   "nom": "Corée du Nord",
+   "indicateurs": {
+    "population": 23665909.0,
+    "pib": 37758035363.0,
+    "co2": 69.165,
+    "co2ParHab": 2.923,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 167.155,
+    "consoEnergie": 304.331
+   },
+   "croissancePop9500": 0.008641862903652875
+  },
+  {
+   "iso3": "TWN",
+   "idCarte": "158",
+   "nom": "Taïwan",
+   "indicateurs": {
+    "population": 22332873.0,
+    "pib": 591153923509.0,
+    "co2": 226.934,
+    "co2ParHab": 10.161,
+    "prodPetrole": 0.624,
+    "prodGaz": 9.219,
+    "prodCharbon": 0.63,
+    "consoEnergie": 1021.106
+   },
+   "croissancePop9500": 0.007307280353467727
+  },
+  {
+   "iso3": "KAZ",
+   "idCarte": "398",
+   "nom": "Kazakhstan",
+   "indicateurs": {
+    "population": 15501108.0,
+    "pib": 142758090799.0,
+    "co2": 142.197,
+    "co2ParHab": 9.173,
+    "prodPetrole": 410.737,
+    "prodGaz": 81.823,
+    "prodCharbon": 377.232,
+    "consoEnergie": 369.747
+   },
+   "croissancePop9500": -0.015148951725370341
+  },
+  {
+   "iso3": "BGD",
+   "idCarte": "050",
+   "nom": "Bangladesh",
+   "indicateurs": {
+    "population": 134544303.0,
+    "pib": 200824294390.0,
+    "co2": 26.539,
+    "co2ParHab": 0.197,
+    "prodPetrole": 1.642,
+    "prodGaz": 90.582,
+    "prodCharbon": 0.0,
+    "consoEnergie": 136.255
+   },
+   "croissancePop9500": 0.01876661585008832
+  },
+  {
+   "iso3": "NGA",
+   "idCarte": "566",
+   "nom": "Nigeria",
+   "indicateurs": {
+    "population": 126382490.0,
+    "pib": 268133056679.0,
+    "co2": 96.831,
+    "co2ParHab": 0.766,
+    "prodPetrole": 1239.156,
+    "prodGaz": 112.045,
+    "prodCharbon": 0.023,
+    "consoEnergie": 215.365
+   },
+   "croissancePop9500": 0.026630586558293423
+  },
+  {
+   "iso3": "ETH",
+   "idCarte": "231",
+   "nom": "Éthiopie",
+   "indicateurs": {
+    "population": 67411496.0,
+    "pib": 50326965912.0,
+    "co2": 3.463,
+    "co2ParHab": 0.051,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 16.043
+   },
+   "croissancePop9500": 0.03218332084908826
+  },
+  {
+   "iso3": "KEN",
+   "idCarte": "404",
+   "nom": "Kenya",
+   "indicateurs": {
+    "population": 30642893.0,
+    "pib": 59408907766.0,
+    "co2": 10.385,
+    "co2ParHab": 0.339,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 41.393
+   },
+   "croissancePop9500": 0.028688539899209387
+  },
+  {
+   "iso3": "DZA",
+   "idCarte": "012",
+   "nom": "Algérie",
+   "indicateurs": {
+    "population": 30903894.0,
+    "pib": 208554150552.0,
+    "co2": 84.552,
+    "co2ParHab": 2.736,
+    "prodPetrole": 776.733,
+    "prodGaz": 918.886,
+    "prodCharbon": 0.0,
+    "consoEnergie": 299.946
+   },
+   "croissancePop9500": 0.016540195134611357
+  },
+  {
+   "iso3": "COD",
+   "idCarte": "180",
+   "nom": "RD Congo",
+   "indicateurs": {
+    "population": 50507445.0,
+    "pib": 21854113779.0,
+    "co2": 1.705,
+    "co2ParHab": 0.034,
+    "prodPetrole": 16.41,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.008,
+    "consoEnergie": 9.467
+   },
+   "croissancePop9500": 0.025955559110016013
+  },
+  {
+   "iso3": "VEN",
+   "idCarte": "862",
+   "nom": "Venezuela",
+   "indicateurs": {
+    "population": 24526707.0,
+    "pib": 330236189305.0,
+    "co2": 142.902,
+    "co2ParHab": 5.826,
+    "prodPetrole": 1864.142,
+    "prodGaz": 309.956,
+    "prodCharbon": 66.9,
+    "consoEnergie": 772.012
+   },
+   "croissancePop9500": 0.020190861310051877
+  },
+  {
+   "iso3": "COL",
+   "idCarte": "170",
+   "nom": "Colombie",
+   "indicateurs": {
+    "population": 39089939.0,
+    "pib": 330615619673.0,
+    "co2": 56.213,
+    "co2ParHab": 1.438,
+    "prodPetrole": 421.973,
+    "prodGaz": 57.358,
+    "prodCharbon": 306.881,
+    "consoEnergie": 314.184
+   },
+   "croissancePop9500": 0.017712393910398472
+  },
+  {
+   "iso3": "CHL",
+   "idCarte": "152",
+   "nom": "Chili",
+   "indicateurs": {
+    "population": 15503638.0,
+    "pib": 233340518904.0,
+    "co2": 58.503,
+    "co2ParHab": 3.773,
+    "prodPetrole": 6.018,
+    "prodGaz": 12.4,
+    "prodCharbon": 1.876,
+    "consoEnergie": 307.391
+   },
+   "croissancePop9500": 0.013092855292903272
+  },
+  {
+   "iso3": "CUB",
+   "idCarte": "192",
+   "nom": "Cuba",
+   "indicateurs": {
+    "population": 11109112.0,
+    "pib": 44692111238.0,
+    "co2": 25.299,
+    "co2ParHab": 2.277,
+    "prodPetrole": 28.607,
+    "prodGaz": 6.508,
+    "prodCharbon": 0.0,
+    "consoEnergie": 109.592
+   },
+   "croissancePop9500": 0.0033413292409274487
+  },
+  {
+   "iso3": "PAN",
+   "idCarte": "591",
+   "nom": "Panama",
+   "indicateurs": {
+    "population": 3010376.0,
+    "pib": 28706485449.0,
+    "co2": 5.636,
+    "co2ParHab": 1.872,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 60.304
+   },
+   "croissancePop9500": 0.02015234621245976
+  },
+  {
+   "iso3": "ALB",
+   "idCarte": "008",
+   "nom": "Albanie",
+   "indicateurs": {
+    "population": 3166147.0,
+    "pib": 14736835655.0,
+    "co2": 3.025,
+    "co2ParHab": 0.955,
+    "prodPetrole": 3.829,
+    "prodGaz": 0.324,
+    "prodCharbon": 0.082,
+    "consoEnergie": 19.683
+   },
+   "croissancePop9500": -0.005738268537478053
+  },
+  {
+   "iso3": "AND",
+   "idCarte": "020",
+   "nom": "Andorre",
+   "indicateurs": {
+    "population": 65703.0,
+    "pib": 2434673200.0,
+    "co2": 0.524,
+    "co2ParHab": 7.975,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.005467292093516374,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "AUT",
+   "idCarte": "040",
+   "nom": "Autriche",
+   "indicateurs": {
+    "population": 8012929.0,
+    "pib": 280410163017.0,
+    "co2": 66.204,
+    "co2ParHab": 8.262,
+    "prodPetrole": 12.737,
+    "prodGaz": 18.791,
+    "prodCharbon": 3.573,
+    "consoEnergie": 395.171
+   },
+   "croissancePop9500": 0.001570017421760328
+  },
+  {
+   "iso3": "BLR",
+   "idCarte": "112",
+   "nom": "Biélorussie",
+   "indicateurs": {
+    "population": 9991310.0,
+    "pib": 91419114455.0,
+    "co2": 55.014,
+    "co2ParHab": 5.506,
+    "prodPetrole": 23.357,
+    "prodGaz": 2.159,
+    "prodCharbon": 0.0,
+    "consoEnergie": 254.999
+   },
+   "croissancePop9500": -0.004076377496906258
+  },
+  {
+   "iso3": "BEL",
+   "idCarte": "056",
+   "nom": "Belgique",
+   "indicateurs": {
+    "population": 10251719.0,
+    "pib": 345706865981.0,
+    "co2": 126.776,
+    "co2ParHab": 12.366,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.018,
+    "prodCharbon": 0.0,
+    "consoEnergie": 743.348
+   },
+   "croissancePop9500": 0.0022479748293569024
+  },
+  {
+   "iso3": "BIH",
+   "idCarte": "070",
+   "nom": "Bosnie-Herzégovine",
+   "indicateurs": {
+    "population": 4159785.0,
+    "pib": 27629709487.0,
+    "co2": 13.702,
+    "co2ParHab": 3.294,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 31.639,
+    "consoEnergie": 54.545
+   },
+   "croissancePop9500": 0.022843534429910273
+  },
+  {
+   "iso3": "BGR",
+   "idCarte": "100",
+   "nom": "Bulgarie",
+   "indicateurs": {
+    "population": 8000519.0,
+    "pib": 67719765830.0,
+    "co2": 45.499,
+    "co2ParHab": 5.687,
+    "prodPetrole": 0.537,
+    "prodGaz": 0.203,
+    "prodCharbon": 49.948,
+    "consoEnergie": 217.377
+   },
+   "croissancePop9500": -0.008694386967387446
+  },
+  {
+   "iso3": "HRV",
+   "idCarte": "191",
+   "nom": "Croatie",
+   "indicateurs": {
+    "population": 4326105.0,
+    "pib": 57398794775.0,
+    "co2": 19.653,
+    "co2ParHab": 4.543,
+    "prodPetrole": 17.963,
+    "prodGaz": 18.004,
+    "prodCharbon": 0.0,
+    "consoEnergie": 96.55
+   },
+   "croissancePop9500": -0.01303213688676541
+  },
+  {
+   "iso3": "CYP",
+   "idCarte": "196",
+   "nom": "Chypre",
+   "indicateurs": {
+    "population": 947667.0,
+    "pib": 18447964503.0,
+    "co2": 7.107,
+    "co2ParHab": 7.499,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 30.261
+   },
+   "croissancePop9500": 0.018965296659607223
+  },
+  {
+   "iso3": "CZE",
+   "idCarte": "203",
+   "nom": "Tchéquie",
+   "indicateurs": {
+    "population": 10236809.0,
+    "pib": 174309526192.0,
+    "co2": 127.233,
+    "co2ParHab": 12.429,
+    "prodPetrole": 2.444,
+    "prodGaz": 2.189,
+    "prodCharbon": 291.315,
+    "consoEnergie": 474.504
+   },
+   "croissancePop9500": -0.0014633865293033343
+  },
+  {
+   "iso3": "DNK",
+   "idCarte": "208",
+   "nom": "Danemark",
+   "indicateurs": {
+    "population": 5339659.0,
+    "pib": 208333676429.0,
+    "co2": 54.307,
+    "co2ParHab": 10.17,
+    "prodPetrole": 206.294,
+    "prodGaz": 84.995,
+    "prodCharbon": 0.0,
+    "consoEnergie": 236.519
+   },
+   "croissancePop9500": 0.0040295990321763675
+  },
+  {
+   "iso3": "EST",
+   "idCarte": "233",
+   "nom": "Estonie",
+   "indicateurs": {
+    "population": 1397001.0,
+    "pib": 23525730943.0,
+    "co2": 15.471,
+    "co2ParHab": 11.074,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 55.496
+   },
+   "croissancePop9500": -0.007798837251817403
+  },
+  {
+   "iso3": "FIN",
+   "idCarte": "246",
+   "nom": "Finlande",
+   "indicateurs": {
+    "population": 5176197.0,
+    "pib": 169209765102.0,
+    "co2": 57.017,
+    "co2ParHab": 11.015,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 359.11
+   },
+   "croissancePop9500": 0.0026592367515128057
+  },
+  {
+   "iso3": "GRC",
+   "idCarte": "300",
+   "nom": "Grèce",
+   "indicateurs": {
+    "population": 10782638.0,
+    "pib": 223530895992.0,
+    "co2": 102.973,
+    "co2ParHab": 9.55,
+    "prodPetrole": 3.412,
+    "prodGaz": 0.547,
+    "prodCharbon": 95.617,
+    "consoEnergie": 373.052
+   },
+   "croissancePop9500": 0.004958643997947654
+  },
+  {
+   "iso3": "HUN",
+   "idCarte": "348",
+   "nom": "Hongrie",
+   "indicateurs": {
+    "population": 10190598.0,
+    "pib": 134151505450.0,
+    "co2": 58.244,
+    "co2ParHab": 5.716,
+    "prodPetrole": 24.973,
+    "prodGaz": 32.028,
+    "prodCharbon": 38.562,
+    "consoEnergie": 280.802
+   },
+   "croissancePop9500": -0.0025744275830137386
+  },
+  {
+   "iso3": "ISL",
+   "idCarte": "352",
+   "nom": "Islande",
+   "indicateurs": {
+    "population": 281293.0,
+    "pib": 9307402059.0,
+    "co2": 2.933,
+    "co2ParHab": 10.426,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 33.23
+   },
+   "croissancePop9500": 0.01009409574533282
+  },
+  {
+   "iso3": "IRL",
+   "idCarte": "372",
+   "nom": "Irlande",
+   "indicateurs": {
+    "population": 3802589.0,
+    "pib": 147722370991.0,
+    "co2": 45.25,
+    "co2ParHab": 11.9,
+    "prodPetrole": 0.0,
+    "prodGaz": 12.765,
+    "prodCharbon": 0.0,
+    "consoEnergie": 173.349
+   },
+   "croissancePop9500": 0.010410188049995606
+  },
+  {
+   "iso3": "LVA",
+   "idCarte": "428",
+   "nom": "Lettonie",
+   "indicateurs": {
+    "population": 2368320.0,
+    "pib": 26727290777.0,
+    "co2": 7.082,
+    "co2ParHab": 2.99,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 38.056
+   },
+   "croissancePop9500": -0.009647804948690775
+  },
+  {
+   "iso3": "LIE",
+   "idCarte": "438",
+   "nom": "Liechtenstein",
+   "indicateurs": {
+    "population": 33137.0,
+    "pib": 6594190192.0,
+    "co2": 0.217,
+    "co2ParHab": 6.544,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.013062712822766498,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "LTU",
+   "idCarte": "440",
+   "nom": "Lituanie",
+   "indicateurs": {
+    "population": 3500410.0,
+    "pib": 36684799266.0,
+    "co2": 11.843,
+    "co2ParHab": 3.383,
+    "prodPetrole": 3.778,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 78.499
+   },
+   "croissancePop9500": -0.007082049798224799
+  },
+  {
+   "iso3": "LUX",
+   "idCarte": "442",
+   "nom": "Luxembourg",
+   "indicateurs": {
+    "population": 436142.0,
+    "pib": 21937467256.0,
+    "co2": 8.702,
+    "co2ParHab": 19.953,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 37.204
+   },
+   "croissancePop9500": 0.013311821819875336
+  },
+  {
+   "iso3": "MLT",
+   "idCarte": "470",
+   "nom": "Malte",
+   "indicateurs": {
+    "population": 399905.0,
+    "pib": 7963752394.0,
+    "co2": 2.468,
+    "co2ParHab": 6.172,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 18.515
+   },
+   "croissancePop9500": 0.007856661997568626
+  },
+  {
+   "iso3": "MDA",
+   "idCarte": "498",
+   "nom": "Moldavie",
+   "indicateurs": {
+    "population": 4234969.0,
+    "pib": 12554043876.0,
+    "co2": 3.573,
+    "co2ParHab": 0.844,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 32.155
+   },
+   "croissancePop9500": -0.008256572460279554
+  },
+  {
+   "iso3": "MCO",
+   "idCarte": "492",
+   "nom": "Monaco",
+   "indicateurs": {
+    "population": 32477.0,
+    "pib": 6522850282.0,
+    "co2": 0.2225,
+    "co2ParHab": 6.851,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.0052610778883319664,
+   "estimations": [
+    "co2",
+    "pib",
+    "co2ParHab"
+   ]
+  },
+  {
+   "iso3": "MNE",
+   "idCarte": "499",
+   "nom": "Monténégro",
+   "indicateurs": {
+    "population": 634198.0,
+    "pib": 3766655741.0,
+    "co2": 1.516,
+    "co2ParHab": 2.39,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.0008891561833725969
+  },
+  {
+   "iso3": "MKD",
+   "idCarte": "807",
+   "nom": "Macédoine du Nord",
+   "indicateurs": {
+    "population": 2057254.0,
+    "pib": 16307994486.0,
+    "co2": 8.468,
+    "co2ParHab": 4.116,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 13.495,
+    "consoEnergie": 30.848
+   },
+   "croissancePop9500": 0.005808740315995653
+  },
+  {
+   "iso3": "PRT",
+   "idCarte": "620",
+   "nom": "Portugal",
+   "indicateurs": {
+    "population": 10283196.0,
+    "pib": 238756377443.0,
+    "co2": 65.504,
+    "co2ParHab": 6.37,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 294.029
+   },
+   "croissancePop9500": 0.004963365939359532
+  },
+  {
+   "iso3": "ROU",
+   "idCarte": "642",
+   "nom": "Roumanie",
+   "indicateurs": {
+    "population": 22046264.0,
+    "pib": 157839292272.0,
+    "co2": 93.206,
+    "co2ParHab": 4.228,
+    "prodPetrole": 73.118,
+    "prodGaz": 127.559,
+    "prodCharbon": 65.168,
+    "consoEnergie": 420.332
+   },
+   "croissancePop9500": -0.005456571843888813
+  },
+  {
+   "iso3": "SMR",
+   "idCarte": "674",
+   "nom": "Saint-Marin",
+   "indicateurs": {
+    "population": 26823.0,
+    "pib": 1398210942.0,
+    "co2": 0.2199,
+    "co2ParHab": 8.198,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.012698057227066739,
+   "estimations": [
+    "co2",
+    "pib",
+    "co2ParHab"
+   ]
+  },
+  {
+   "iso3": "SRB",
+   "idCarte": "688",
+   "nom": "Serbie",
+   "indicateurs": {
+    "population": 7694608.0,
+    "pib": 45972177454.0,
+    "co2": 39.606,
+    "co2ParHab": 5.147,
+    "prodPetrole": 10.936,
+    "prodGaz": 5.889,
+    "prodCharbon": 96.452,
+    "consoEnergie": null
+   },
+   "croissancePop9500": -0.0033113469493054604
+  },
+  {
+   "iso3": "SVK",
+   "idCarte": "703",
+   "nom": "Slovaquie",
+   "indicateurs": {
+    "population": 5380001.0,
+    "pib": 74595099937.0,
+    "co2": 41.187,
+    "co2ParHab": 7.656,
+    "prodPetrole": 0.667,
+    "prodGaz": 1.719,
+    "prodCharbon": 11.395,
+    "consoEnergie": 218.247
+   },
+   "croissancePop9500": 0.0009586615433749834
+  },
+  {
+   "iso3": "SVN",
+   "idCarte": "705",
+   "nom": "Slovénie",
+   "indicateurs": {
+    "population": 1986817.0,
+    "pib": 43078787444.0,
+    "co2": 15.06,
+    "co2ParHab": 7.58,
+    "prodPetrole": 0.012,
+    "prodGaz": 0.0,
+    "prodCharbon": 14.943,
+    "consoEnergie": 78.465
+   },
+   "croissancePop9500": -0.0001289001130387879
+  },
+  {
+   "iso3": "SWE",
+   "idCarte": "752",
+   "nom": "Suède",
+   "indicateurs": {
+    "population": 8872099.0,
+    "pib": 303452362920.0,
+    "co2": 54.892,
+    "co2ParHab": 6.187,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 651.783
+   },
+   "croissancePop9500": 0.0010356828555764253
+  },
+  {
+   "iso3": "CHE",
+   "idCarte": "756",
+   "nom": "Suisse",
+   "indicateurs": {
+    "population": 7184003.0,
+    "pib": 315545366882.0,
+    "co2": 43.621,
+    "co2ParHab": 6.072,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 364.336
+   },
+   "croissancePop9500": 0.004044207203086625
+  },
+  {
+   "iso3": "AFG",
+   "idCarte": "004",
+   "nom": "Afghanistan",
+   "indicateurs": {
+    "population": 20130334.0,
+    "pib": 11283794151.0,
+    "co2": 1.047,
+    "co2ParHab": 0.052,
+    "prodPetrole": 0.0,
+    "prodGaz": 2.495,
+    "prodCharbon": 0.006,
+    "consoEnergie": 5.288
+   },
+   "croissancePop9500": 0.03358138141815137
+  },
+  {
+   "iso3": "ARM",
+   "idCarte": "051",
+   "nom": "Arménie",
+   "indicateurs": {
+    "population": 3125630.0,
+    "pib": 15244825874.0,
+    "co2": 3.491,
+    "co2ParHab": 1.117,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 26.843
+   },
+   "croissancePop9500": -0.011252759757471864
+  },
+  {
+   "iso3": "AZE",
+   "idCarte": "031",
+   "nom": "Azerbaïdjan",
+   "indicateurs": {
+    "population": 8174784.0,
+    "pib": 34255707098.0,
+    "co2": 29.765,
+    "co2ParHab": 3.641,
+    "prodPetrole": 163.622,
+    "prodGaz": 51.53,
+    "prodCharbon": 0.0,
+    "consoEnergie": 132.055
+   },
+   "croissancePop9500": 0.01153255508732376
+  },
+  {
+   "iso3": "BTN",
+   "idCarte": "064",
+   "nom": "Bhoutan",
+   "indicateurs": {
+    "population": 596871.0,
+    "pib": 2134285897.0,
+    "co2": 0.397,
+    "co2ParHab": 0.665,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.243,
+    "consoEnergie": 1.408
+   },
+   "croissancePop9500": 0.017233786654428762,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "BRN",
+   "idCarte": "096",
+   "nom": "Brunei",
+   "indicateurs": {
+    "population": 326429.0,
+    "pib": 22146543178.0,
+    "co2": 5.886,
+    "co2ParHab": 18.032,
+    "prodPetrole": 110.308,
+    "prodGaz": 110.156,
+    "prodCharbon": 0.0,
+    "consoEnergie": 19.664
+   },
+   "croissancePop9500": 0.023098351413485263,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "KHM",
+   "idCarte": "116",
+   "nom": "Cambodge",
+   "indicateurs": {
+    "population": 12462343.0,
+    "pib": 20435399154.0,
+    "co2": 1.997,
+    "co2ParHab": 0.16,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 8.868
+   },
+   "croissancePop9500": 0.04462255701488682
+  },
+  {
+   "iso3": "GEO",
+   "idCarte": "268",
+   "nom": "Géorgie",
+   "indicateurs": {
+    "population": 4328361.0,
+    "pib": 23550477143.0,
+    "co2": 4.497,
+    "co2ParHab": 1.039,
+    "prodPetrole": 1.263,
+    "prodGaz": 0.651,
+    "prodCharbon": 0.036,
+    "consoEnergie": 28.652
+   },
+   "croissancePop9500": -0.02552576048611266
+  },
+  {
+   "iso3": "KGZ",
+   "idCarte": "417",
+   "nom": "Kirghizistan",
+   "indicateurs": {
+    "population": 5025150.0,
+    "pib": 15667564559.0,
+    "co2": 4.575,
+    "co2ParHab": 0.91,
+    "prodPetrole": 1.263,
+    "prodGaz": 0.141,
+    "prodCharbon": 1.958,
+    "consoEnergie": 42.986
+   },
+   "croissancePop9500": 0.012881188638337537
+  },
+  {
+   "iso3": "LAO",
+   "idCarte": "418",
+   "nom": "Laos",
+   "indicateurs": {
+    "population": 5431213.0,
+    "pib": 12209285510.0,
+    "co2": 0.96,
+    "co2ParHab": 0.177,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 1.117,
+    "consoEnergie": 5.037
+   },
+   "croissancePop9500": 0.019577818750420528
+  },
+  {
+   "iso3": "MDV",
+   "idCarte": "462",
+   "nom": "Maldives",
+   "indicateurs": {
+    "population": 282025.0,
+    "pib": 2620186542.0,
+    "co2": 0.451,
+    "co2ParHab": 1.598,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 2.862
+   },
+   "croissancePop9500": 0.019027451510699178,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "MNG",
+   "idCarte": "496",
+   "nom": "Mongolie",
+   "indicateurs": {
+    "population": 2455182.0,
+    "pib": 7225650413.0,
+    "co2": 7.432,
+    "co2ParHab": 3.027,
+    "prodPetrole": 0.115,
+    "prodGaz": 0.0,
+    "prodCharbon": 27.437,
+    "consoEnergie": 16.994
+   },
+   "croissancePop9500": 0.01002632665679859
+  },
+  {
+   "iso3": "MMR",
+   "idCarte": "104",
+   "nom": "Birmanie",
+   "indicateurs": {
+    "population": 45290850.0,
+    "pib": 84093543935.0,
+    "co2": 10.219,
+    "co2ParHab": 0.226,
+    "prodPetrole": 7.875,
+    "prodGaz": 33.405,
+    "prodCharbon": 3.446,
+    "consoEnergie": 44.323
+   },
+   "croissancePop9500": 0.012300103107480975
+  },
+  {
+   "iso3": "NPL",
+   "idCarte": "524",
+   "nom": "Népal",
+   "indicateurs": {
+    "population": 24546509.0,
+    "pib": 39381724035.0,
+    "co2": 3.037,
+    "co2ParHab": 0.124,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.082,
+    "consoEnergie": 11.497
+   },
+   "croissancePop9500": 0.019881550077481824
+  },
+  {
+   "iso3": "LKA",
+   "idCarte": "144",
+   "nom": "Sri Lanka",
+   "indicateurs": {
+    "population": 19293056.0,
+    "pib": 114541758869.0,
+    "co2": 9.99,
+    "co2ParHab": 0.518,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 53.547
+   },
+   "croissancePop9500": 0.018955453101429764
+  },
+  {
+   "iso3": "TJK",
+   "idCarte": "762",
+   "nom": "Tadjikistan",
+   "indicateurs": {
+    "population": 6284737.0,
+    "pib": 10735320878.0,
+    "co2": 2.236,
+    "co2ParHab": 0.356,
+    "prodPetrole": 0.24,
+    "prodGaz": 0.434,
+    "prodCharbon": 0.144,
+    "consoEnergie": 31.539
+   },
+   "croissancePop9500": 0.011054679359292052
+  },
+  {
+   "iso3": "TLS",
+   "idCarte": "626",
+   "nom": "Timor oriental",
+   "indicateurs": {
+    "population": 745095.0,
+    "pib": 1906581061.0,
+    "co2": 0.22,
+    "co2ParHab": 0.295,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": -0.030108449653458047,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "TKM",
+   "idCarte": "795",
+   "nom": "Turkménistan",
+   "indicateurs": {
+    "population": 4582675.0,
+    "pib": 18299208667.0,
+    "co2": 39.361,
+    "co2ParHab": 8.589,
+    "prodPetrole": 84.666,
+    "prodGaz": 424.366,
+    "prodCharbon": 0.0,
+    "consoEnergie": 130.278
+   },
+   "croissancePop9500": 0.01801924829100554
+  },
+  {
+   "iso3": "UZB",
+   "idCarte": "860",
+   "nom": "Ouzbékistan",
+   "indicateurs": {
+    "population": 24787052.0,
+    "pib": 116875841754.0,
+    "co2": 123.478,
+    "co2ParHab": 4.982,
+    "prodPetrole": 87.644,
+    "prodGaz": 509.259,
+    "prodCharbon": 8.166,
+    "consoEnergie": 594.814
+   },
+   "croissancePop9500": 0.015806983125852936
+  },
+  {
+   "iso3": "BHR",
+   "idCarte": "048",
+   "nom": "Bahreïn",
+   "indicateurs": {
+    "population": 669589.0,
+    "pib": 11032289188.0,
+    "co2": 19.199,
+    "co2ParHab": 28.673,
+    "prodPetrole": 28.757,
+    "prodGaz": 91.749,
+    "prodCharbon": 0.0,
+    "consoEnergie": 111.877
+   },
+   "croissancePop9500": 0.024511979690063468
+  },
+  {
+   "iso3": "JOR",
+   "idCarte": "400",
+   "nom": "Jordanie",
+   "indicateurs": {
+    "population": 5386945.0,
+    "pib": 35825242090.0,
+    "co2": 15.401,
+    "co2ParHab": 2.859,
+    "prodPetrole": 0.026,
+    "prodGaz": 3.145,
+    "prodCharbon": 0.0,
+    "consoEnergie": 66.256
+   },
+   "croissancePop9500": 0.02539559852809714
+  },
+  {
+   "iso3": "KWT",
+   "idCarte": "414",
+   "nom": "Koweït",
+   "indicateurs": {
+    "population": 1954713.0,
+    "pib": 71053965539.0,
+    "co2": 54.98,
+    "co2ParHab": 28.127,
+    "prodPetrole": 1278.003,
+    "prodGaz": 91.2,
+    "prodCharbon": 0.0,
+    "consoEnergie": 218.162
+   },
+   "croissancePop9500": 0.03056715286159828
+  },
+  {
+   "iso3": "LBN",
+   "idCarte": "422",
+   "nom": "Liban",
+   "indicateurs": {
+    "population": 4329345.0,
+    "pib": 25915975238.0,
+    "co2": 15.466,
+    "co2ParHab": 3.572,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 59.718
+   },
+   "croissancePop9500": 0.01795633703287125
+  },
+  {
+   "iso3": "OMN",
+   "idCarte": "512",
+   "nom": "Oman",
+   "indicateurs": {
+    "population": 2282139.0,
+    "pib": 58124187550.0,
+    "co2": 23.984,
+    "co2ParHab": 10.51,
+    "prodPetrole": 546.898,
+    "prodGaz": 103.211,
+    "prodCharbon": 0.0,
+    "consoEnergie": 110.96
+   },
+   "croissancePop9500": 0.014797744778333621
+  },
+  {
+   "iso3": "SYR",
+   "idCarte": "760",
+   "nom": "Syrie",
+   "indicateurs": {
+    "population": 16637884.0,
+    "pib": 125214242976.0,
+    "co2": 54.527,
+    "co2ParHab": 3.277,
+    "prodPetrole": 326.76,
+    "prodGaz": 53.722,
+    "prodCharbon": 0.0,
+    "consoEnergie": 211.444
+   },
+   "croissancePop9500": 0.02624046190237639
+  },
+  {
+   "iso3": "YEM",
+   "idCarte": "887",
+   "nom": "Yémen",
+   "indicateurs": {
+    "population": 19624139.0,
+    "pib": 72599512561.0,
+    "co2": 15.832,
+    "co2ParHab": 0.807,
+    "prodPetrole": 243.513,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 60.137
+   },
+   "croissancePop9500": 0.03230192164353429
+  },
+  {
+   "iso3": "AGO",
+   "idCarte": "024",
+   "nom": "Angola",
+   "indicateurs": {
+    "population": 16194873.0,
+    "pib": 23512184116.0,
+    "co2": 15.995,
+    "co2ParHab": 0.988,
+    "prodPetrole": 428.565,
+    "prodGaz": 6.182,
+    "prodCharbon": 0.0,
+    "consoEnergie": 30.66
+   },
+   "croissancePop9500": 0.034029170776522566
+  },
+  {
+   "iso3": "BEN",
+   "idCarte": "204",
+   "nom": "Bénin",
+   "indicateurs": {
+    "population": 7221618.0,
+    "pib": 12746225376.0,
+    "co2": 1.473,
+    "co2ParHab": 0.204,
+    "prodPetrole": 0.455,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 6.865
+   },
+   "croissancePop9500": 0.030087857400155515
+  },
+  {
+   "iso3": "BWA",
+   "idCarte": "072",
+   "nom": "Botswana",
+   "indicateurs": {
+    "population": 1677384.0,
+    "pib": 13391002424.0,
+    "co2": 3.778,
+    "co2ParHab": 2.252,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 6.14,
+    "consoEnergie": 14.331
+   },
+   "croissancePop9500": 0.022763753595004266
+  },
+  {
+   "iso3": "BFA",
+   "idCarte": "854",
+   "nom": "Burkina Faso",
+   "indicateurs": {
+    "population": 11925548.0,
+    "pib": 14546973590.0,
+    "co2": 0.931,
+    "co2ParHab": 0.078,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 4.066
+   },
+   "croissancePop9500": 0.028016201097687432
+  },
+  {
+   "iso3": "BDI",
+   "idCarte": "108",
+   "nom": "Burundi",
+   "indicateurs": {
+    "population": 6470196.0,
+    "pib": 4647178132.0,
+    "co2": 0.271,
+    "co2ParHab": 0.042,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.457
+   },
+   "croissancePop9500": 0.012974326712347883
+  },
+  {
+   "iso3": "CPV",
+   "idCarte": "132",
+   "nom": "Cap-Vert",
+   "indicateurs": {
+    "population": 453335.0,
+    "pib": 1540942373.0,
+    "co2": 0.297,
+    "co2ParHab": 0.655,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.35
+   },
+   "croissancePop9500": 0.01630600731232512
+  },
+  {
+   "iso3": "CMR",
+   "idCarte": "120",
+   "nom": "Cameroun",
+   "indicateurs": {
+    "population": 14912632.0,
+    "pib": 31207712778.0,
+    "co2": 5.589,
+    "co2ParHab": 0.375,
+    "prodPetrole": 54.165,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 16.997
+   },
+   "croissancePop9500": 0.026909303415465935
+  },
+  {
+   "iso3": "CAF",
+   "idCarte": "140",
+   "nom": "Centrafrique",
+   "indicateurs": {
+    "population": 3833421.0,
+    "pib": 3836505744.0,
+    "co2": 0.125,
+    "co2ParHab": 0.032,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.281
+   },
+   "croissancePop9500": 0.027445052431610106
+  },
+  {
+   "iso3": "TCD",
+   "idCarte": "148",
+   "nom": "Tchad",
+   "indicateurs": {
+    "population": 8512092.0,
+    "pib": 5599887930.0,
+    "co2": 0.488,
+    "co2ParHab": 0.057,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.032
+   },
+   "croissancePop9500": 0.03726445227419606
+  },
+  {
+   "iso3": "COM",
+   "idCarte": "174",
+   "nom": "Comores",
+   "indicateurs": {
+    "population": 536084.0,
+    "pib": 656399277.0,
+    "co2": 0.103,
+    "co2ParHab": 0.191,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.434
+   },
+   "croissancePop9500": 0.01789298791506666
+  },
+  {
+   "iso3": "COG",
+   "idCarte": "178",
+   "nom": "Congo",
+   "indicateurs": {
+    "population": 3151349.0,
+    "pib": 12472135877.0,
+    "co2": 4.284,
+    "co2ParHab": 1.359,
+    "prodPetrole": 157.213,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 3.268
+   },
+   "croissancePop9500": 0.02766056858503796
+  },
+  {
+   "iso3": "CIV",
+   "idCarte": "384",
+   "nom": "Côte d'Ivoire",
+   "indicateurs": {
+    "population": 17699007.0,
+    "pib": 41297593671.0,
+    "co2": 6.63,
+    "co2ParHab": 0.375,
+    "prodPetrole": 7.281,
+    "prodGaz": 14.642,
+    "prodCharbon": 0.0,
+    "consoEnergie": 33.285
+   },
+   "croissancePop9500": 0.03564744855014701
+  },
+  {
+   "iso3": "DJI",
+   "idCarte": "262",
+   "nom": "Djibouti",
+   "indicateurs": {
+    "population": 747326.0,
+    "pib": 1258388183.0,
+    "co2": 0.366,
+    "co2ParHab": 0.49,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 3.534
+   },
+   "croissancePop9500": 0.033739200869572716
+  },
+  {
+   "iso3": "GNQ",
+   "idCarte": "226",
+   "nom": "Guinée équatoriale",
+   "indicateurs": {
+    "population": 703287.0,
+    "pib": 6341192117.0,
+    "co2": 2.699,
+    "co2ParHab": 3.838,
+    "prodPetrole": 66.256,
+    "prodGaz": 0.325,
+    "prodCharbon": 0.0,
+    "consoEnergie": 3.227
+   },
+   "croissancePop9500": 0.04245574284162612
+  },
+  {
+   "iso3": "ERI",
+   "idCarte": "232",
+   "nom": "Érythrée",
+   "indicateurs": {
+    "population": 2247036.0,
+    "pib": 3168542736.0,
+    "co2": 0.604,
+    "co2ParHab": 0.269,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 2.597
+   },
+   "croissancePop9500": 0.0209989406594282,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "SWZ",
+   "idCarte": "748",
+   "nom": "Eswatini",
+   "indicateurs": {
+    "population": 1041428.0,
+    "pib": 5050303320.0,
+    "co2": 1.205,
+    "co2ParHab": 1.158,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 2.632,
+    "consoEnergie": 6.778
+   },
+   "croissancePop9500": 0.01422007302631667
+  },
+  {
+   "iso3": "GAB",
+   "idCarte": "266",
+   "nom": "Gabon",
+   "indicateurs": {
+    "population": 1275578.0,
+    "pib": 12538030035.0,
+    "co2": 6.128,
+    "co2ParHab": 4.804,
+    "prodPetrole": 160.714,
+    "prodGaz": 0.868,
+    "prodCharbon": 0.0,
+    "consoEnergie": 9.896
+   },
+   "croissancePop9500": 0.025767788613378917
+  },
+  {
+   "iso3": "GMB",
+   "idCarte": "270",
+   "nom": "Gambie",
+   "indicateurs": {
+    "population": 1455095.0,
+    "pib": 1955249650.0,
+    "co2": 0.275,
+    "co2ParHab": 0.189,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.266
+   },
+   "croissancePop9500": 0.028506091163852387
+  },
+  {
+   "iso3": "GHA",
+   "idCarte": "288",
+   "nom": "Ghana",
+   "indicateurs": {
+    "population": 19637085.0,
+    "pib": 41569375833.0,
+    "co2": 5.313,
+    "co2ParHab": 0.271,
+    "prodPetrole": 4.461,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 28.607
+   },
+   "croissancePop9500": 0.024496387951163268
+  },
+  {
+   "iso3": "GIN",
+   "idCarte": "324",
+   "nom": "Guinée",
+   "indicateurs": {
+    "population": 8428837.0,
+    "pib": 8142368042.0,
+    "co2": 1.444,
+    "co2ParHab": 0.171,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 6.972
+   },
+   "croissancePop9500": 0.02217848640567799
+  },
+  {
+   "iso3": "GNB",
+   "idCarte": "624",
+   "nom": "Guinée-Bissau",
+   "indicateurs": {
+    "population": 1234747.0,
+    "pib": 1486201658.0,
+    "co2": 0.051,
+    "co2ParHab": 0.042,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.997
+   },
+   "croissancePop9500": 0.019708099998821726
+  },
+  {
+   "iso3": "LSO",
+   "idCarte": "426",
+   "nom": "Lesotho",
+   "indicateurs": {
+    "population": 2003919.0,
+    "pib": 3769602063.0,
+    "co2": 1.85,
+    "co2ParHab": 0.923,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.896
+   },
+   "croissancePop9500": 0.005321446709931843
+  },
+  {
+   "iso3": "LBR",
+   "idCarte": "430",
+   "nom": "Liberia",
+   "indicateurs": {
+    "population": 2928117.0,
+    "pib": 2767093377.0,
+    "co2": 0.402,
+    "co2ParHab": 0.137,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.891
+   },
+   "croissancePop9500": 0.06184001481283041
+  },
+  {
+   "iso3": "LBY",
+   "idCarte": "434",
+   "nom": "Libye",
+   "indicateurs": {
+    "population": 5305020.0,
+    "pib": 49983450587.0,
+    "co2": 53.239,
+    "co2ParHab": 10.036,
+    "prodPetrole": 808.269,
+    "prodGaz": 55.86,
+    "prodCharbon": 0.0,
+    "consoEnergie": 212.946
+   },
+   "croissancePop9500": 0.0157266117716528
+  },
+  {
+   "iso3": "MDG",
+   "idCarte": "450",
+   "nom": "Madagascar",
+   "indicateurs": {
+    "population": 16516336.0,
+    "pib": 19457200304.0,
+    "co2": 1.955,
+    "co2ParHab": 0.118,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 8.534
+   },
+   "croissancePop9500": 0.032855509391554794
+  },
+  {
+   "iso3": "MWI",
+   "idCarte": "454",
+   "nom": "Malawi",
+   "indicateurs": {
+    "population": 11315947.0,
+    "pib": 11274206470.0,
+    "co2": 0.854,
+    "co2ParHab": 0.075,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.576,
+    "consoEnergie": 4.868
+   },
+   "croissancePop9500": 0.021983604342292073
+  },
+  {
+   "iso3": "MLI",
+   "idCarte": "466",
+   "nom": "Mali",
+   "indicateurs": {
+    "population": 11559291.0,
+    "pib": 12490372339.0,
+    "co2": 1.066,
+    "co2ParHab": 0.092,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 4.095
+   },
+   "croissancePop9500": 0.02563042234606905
+  },
+  {
+   "iso3": "MRT",
+   "idCarte": "478",
+   "nom": "Mauritanie",
+   "indicateurs": {
+    "population": 2613450.0,
+    "pib": 4838789905.0,
+    "co2": 1.114,
+    "co2ParHab": 0.426,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 4.982
+   },
+   "croissancePop9500": 0.024812133828923333
+  },
+  {
+   "iso3": "MUS",
+   "idCarte": "480",
+   "nom": "Maurice",
+   "indicateurs": {
+    "population": 1216632.0,
+    "pib": 16933370565.0,
+    "co2": 2.689,
+    "co2ParHab": 2.211,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 15.943
+   },
+   "croissancePop9500": 0.009609500759613532
+  },
+  {
+   "iso3": "MAR",
+   "idCarte": "504",
+   "nom": "Maroc",
+   "indicateurs": {
+    "population": 28423439.0,
+    "pib": 136639290851.0,
+    "co2": 33.199,
+    "co2ParHab": 1.168,
+    "prodPetrole": 0.185,
+    "prodGaz": 0.542,
+    "prodCharbon": 0.257,
+    "consoEnergie": 117.463
+   },
+   "croissancePop9500": 0.014884012899251564
+  },
+  {
+   "iso3": "MOZ",
+   "idCarte": "508",
+   "nom": "Mozambique",
+   "indicateurs": {
+    "population": 18129652.0,
+    "pib": 20141918616.0,
+    "co2": 1.322,
+    "co2ParHab": 0.073,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.651,
+    "prodCharbon": 0.194,
+    "consoEnergie": 10.224
+   },
+   "croissancePop9500": 0.025813551014626457
+  },
+  {
+   "iso3": "NAM",
+   "idCarte": "516",
+   "nom": "Namibie",
+   "indicateurs": {
+    "population": 1818650.0,
+    "pib": 11306497296.0,
+    "co2": 1.718,
+    "co2ParHab": 0.945,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 10.106
+   },
+   "croissancePop9500": 0.025669662277199468
+  },
+  {
+   "iso3": "NER",
+   "idCarte": "562",
+   "nom": "Niger",
+   "indicateurs": {
+    "population": 11509634.0,
+    "pib": 7478107136.0,
+    "co2": 0.683,
+    "co2ParHab": 0.059,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.939,
+    "consoEnergie": 3.317
+   },
+   "croissancePop9500": 0.03449377426148459
+  },
+  {
+   "iso3": "RWA",
+   "idCarte": "646",
+   "nom": "Rwanda",
+   "indicateurs": {
+    "population": 8213936.0,
+    "pib": 8053572290.0,
+    "co2": 0.515,
+    "co2ParHab": 0.063,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 2.677
+   },
+   "croissancePop9500": 0.07678895027977051
+  },
+  {
+   "iso3": "STP",
+   "idCarte": "678",
+   "nom": "Sao Tomé-et-Principe",
+   "indicateurs": {
+    "population": 144029.0,
+    "pib": 312853560.0,
+    "co2": 0.051,
+    "co2ParHab": 0.356,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.272
+   },
+   "croissancePop9500": 0.013174801105910072
+  },
+  {
+   "iso3": "SEN",
+   "idCarte": "686",
+   "nom": "Sénégal",
+   "indicateurs": {
+    "population": 9968262.0,
+    "pib": 20439620643.0,
+    "co2": 3.902,
+    "co2ParHab": 0.391,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.466,
+    "prodCharbon": 0.0,
+    "consoEnergie": 19.903
+   },
+   "croissancePop9500": 0.024126883466313087
+  },
+  {
+   "iso3": "SYC",
+   "idCarte": "690",
+   "nom": "Seychelles",
+   "indicateurs": {
+    "population": 83339.0,
+    "pib": 1136006730.0,
+    "co2": 0.319,
+    "co2ParHab": 3.825,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 3.761
+   },
+   "croissancePop9500": 0.012955879150475136
+  },
+  {
+   "iso3": "SLE",
+   "idCarte": "694",
+   "nom": "Sierra Leone",
+   "indicateurs": {
+    "population": 4423615.0,
+    "pib": 3156875905.0,
+    "co2": 0.271,
+    "co2ParHab": 0.061,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.846
+   },
+   "croissancePop9500": 0.011433399066423933
+  },
+  {
+   "iso3": "SOM",
+   "idCarte": "706",
+   "nom": "Somalie",
+   "indicateurs": {
+    "population": 8838714.0,
+    "pib": 4201198246.0,
+    "co2": 0.509,
+    "co2ParHab": 0.058,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 2.966
+   },
+   "croissancePop9500": 0.0394216299017871,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "SSD",
+   "idCarte": "728",
+   "nom": "Soudan du Sud",
+   "indicateurs": {
+    "population": 6032274.0,
+    "pib": 21601466198.0,
+    "co2": 0.445,
+    "co2ParHab": 0.074,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.02911756365507534,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "SDN",
+   "idCarte": "729",
+   "nom": "Soudan",
+   "indicateurs": {
+    "population": 27816748.0,
+    "pib": 81855336081.0,
+    "co2": 5.292,
+    "co2ParHab": 0.19,
+    "prodPetrole": 102.9,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 28.77
+   },
+   "croissancePop9500": 0.024282830643020503,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "TZA",
+   "idCarte": "834",
+   "nom": "Tanzanie",
+   "indicateurs": {
+    "population": 34260142.0,
+    "pib": 39001698887.0,
+    "co2": 2.572,
+    "co2ParHab": 0.075,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.598,
+    "consoEnergie": 13.382
+   },
+   "croissancePop9500": 0.024307335879774516
+  },
+  {
+   "iso3": "TGO",
+   "idCarte": "768",
+   "nom": "Togo",
+   "indicateurs": {
+    "population": 4783721.0,
+    "pib": 5742626906.0,
+    "co2": 1.331,
+    "co2ParHab": 0.278,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 4.498
+   },
+   "croissancePop9500": 0.0308019994321167
+  },
+  {
+   "iso3": "TUN",
+   "idCarte": "788",
+   "nom": "Tunisie",
+   "indicateurs": {
+    "population": 9764940.0,
+    "pib": 71818861344.0,
+    "co2": 19.436,
+    "co2ParHab": 1.99,
+    "prodPetrole": 42.589,
+    "prodGaz": 22.864,
+    "prodCharbon": 0.0,
+    "consoEnergie": 88.907
+   },
+   "croissancePop9500": 0.012844666801903104
+  },
+  {
+   "iso3": "UGA",
+   "idCarte": "800",
+   "nom": "Ouganda",
+   "indicateurs": {
+    "population": 24000158.0,
+    "pib": 28839086120.0,
+    "co2": 1.361,
+    "co2ParHab": 0.057,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 7.266
+   },
+   "croissancePop9500": 0.030369298091038832
+  },
+  {
+   "iso3": "ZMB",
+   "idCarte": "894",
+   "nom": "Zambie",
+   "indicateurs": {
+    "population": 10017633.0,
+    "pib": 15211406947.0,
+    "co2": 1.784,
+    "co2ParHab": 0.178,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 1.629,
+    "consoEnergie": 13.79
+   },
+   "croissancePop9500": 0.0265901128477668
+  },
+  {
+   "iso3": "ZWE",
+   "idCarte": "716",
+   "nom": "Zimbabwe",
+   "indicateurs": {
+    "population": 11892055.0,
+    "pib": 26765004403.0,
+    "co2": 13.815,
+    "co2ParHab": 1.162,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 33.071,
+    "consoEnergie": 51.767
+   },
+   "croissancePop9500": 0.016186886944605572
+  },
+  {
+   "iso3": "ATG",
+   "idCarte": "028",
+   "nom": "Antigua-et-Barbuda",
+   "indicateurs": {
+    "population": 74929.0,
+    "pib": 1294264843.0,
+    "co2": 0.355,
+    "co2ParHab": 4.743,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 2.136
+   },
+   "croissancePop9500": 0.018967605613951388,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "BHS",
+   "idCarte": "044",
+   "nom": "Bahamas",
+   "indicateurs": {
+    "population": 323846.0,
+    "pib": 7576798055.0,
+    "co2": 2.026,
+    "co2ParHab": 6.257,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 16.463
+   },
+   "croissancePop9500": 0.014421859510317603,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "BRB",
+   "idCarte": "052",
+   "nom": "Barbade",
+   "indicateurs": {
+    "population": 262071.0,
+    "pib": 3452406154.0,
+    "co2": 1.309,
+    "co2ParHab": 4.995,
+    "prodPetrole": 0.964,
+    "prodGaz": 0.411,
+    "prodCharbon": 0.0,
+    "consoEnergie": 6.965
+   },
+   "croissancePop9500": 1.90798913348722e-05
+  },
+  {
+   "iso3": "BLZ",
+   "idCarte": "084",
+   "nom": "Belize",
+   "indicateurs": {
+    "population": 240809.0,
+    "pib": 1850526836.0,
+    "co2": 0.396,
+    "co2ParHab": 1.643,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 2.177
+   },
+   "croissancePop9500": 0.033566166168028655,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "BOL",
+   "idCarte": "068",
+   "nom": "Bolivie",
+   "indicateurs": {
+    "population": 8606330.0,
+    "pib": 34126236477.0,
+    "co2": 8.442,
+    "co2ParHab": 0.981,
+    "prodPetrole": 21.47,
+    "prodGaz": 31.224,
+    "prodCharbon": 0.0,
+    "consoEnergie": 39.702
+   },
+   "croissancePop9500": 0.017927998871284823
+  },
+  {
+   "iso3": "CRI",
+   "idCarte": "188",
+   "nom": "Costa Rica",
+   "indicateurs": {
+    "population": 3937737.0,
+    "pib": 36043077867.0,
+    "co2": 5.367,
+    "co2ParHab": 1.363,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 29.093
+   },
+   "croissancePop9500": 0.021802732028117333
+  },
+  {
+   "iso3": "DMA",
+   "idCarte": "212",
+   "nom": "Dominique",
+   "indicateurs": {
+    "population": 68527.0,
+    "pib": 404483810.0,
+    "co2": 0.103,
+    "co2ParHab": 1.497,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.466
+   },
+   "croissancePop9500": -0.0027871145912308215
+  },
+  {
+   "iso3": "DOM",
+   "idCarte": "214",
+   "nom": "République dominicaine",
+   "indicateurs": {
+    "population": 8584196.0,
+    "pib": 56344968399.0,
+    "co2": 18.937,
+    "co2ParHab": 2.206,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 84.964
+   },
+   "croissancePop9500": 0.017056836174908385
+  },
+  {
+   "iso3": "ECU",
+   "idCarte": "218",
+   "nom": "Équateur",
+   "indicateurs": {
+    "population": 12689215.0,
+    "pib": 85978888021.0,
+    "co2": 20.949,
+    "co2ParHab": 1.651,
+    "prodPetrole": 251.12,
+    "prodGaz": 1.885,
+    "prodCharbon": 0.0,
+    "consoEnergie": 104.129
+   },
+   "croissancePop9500": 0.018278031997229327
+  },
+  {
+   "iso3": "SLV",
+   "idCarte": "222",
+   "nom": "Salvador",
+   "indicateurs": {
+    "population": 5943363.0,
+    "pib": 31478454275.0,
+    "co2": 5.648,
+    "co2ParHab": 0.95,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 26.401
+   },
+   "croissancePop9500": 0.006212632649352345
+  },
+  {
+   "iso3": "GRD",
+   "idCarte": "308",
+   "nom": "Grenade",
+   "indicateurs": {
+    "population": 107466.0,
+    "pib": 844747230.0,
+    "co2": 0.187,
+    "co2ParHab": 1.739,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.863
+   },
+   "croissancePop9500": 0.006791331488032792,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "GTM",
+   "idCarte": "320",
+   "nom": "Guatemala",
+   "indicateurs": {
+    "population": 11697592.0,
+    "pib": 68731616093.0,
+    "co2": 9.742,
+    "co2ParHab": 0.833,
+    "prodPetrole": 13.203,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 42.138
+   },
+   "croissancePop9500": 0.02551566517264381
+  },
+  {
+   "iso3": "GUY",
+   "idCarte": "328",
+   "nom": "Guyana",
+   "indicateurs": {
+    "population": 764836.0,
+    "pib": 4150958696.0,
+    "co2": 1.748,
+    "co2ParHab": 2.285,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 6.832
+   },
+   "croissancePop9500": 0.0016928459821341502,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "HTI",
+   "idCarte": "332",
+   "nom": "Haïti",
+   "indicateurs": {
+    "population": 8303151.0,
+    "pib": 12590117444.0,
+    "co2": 1.634,
+    "co2ParHab": 0.197,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 6.433
+   },
+   "croissancePop9500": 0.01886096550393601
+  },
+  {
+   "iso3": "HND",
+   "idCarte": "340",
+   "nom": "Honduras",
+   "indicateurs": {
+    "population": 6577781.0,
+    "pib": 21239307387.0,
+    "co2": 5.032,
+    "co2ParHab": 0.765,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 19.919
+   },
+   "croissancePop9500": 0.0276352944455458
+  },
+  {
+   "iso3": "JAM",
+   "idCarte": "388",
+   "nom": "Jamaïque",
+   "indicateurs": {
+    "population": 2607827.0,
+    "pib": 17441468822.0,
+    "co2": 10.314,
+    "co2ParHab": 3.955,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 43.29
+   },
+   "croissancePop9500": 0.00846881472174954
+  },
+  {
+   "iso3": "NIC",
+   "idCarte": "558",
+   "nom": "Nicaragua",
+   "indicateurs": {
+    "population": 5022636.0,
+    "pib": 13909591678.0,
+    "co2": 3.71,
+    "co2ParHab": 0.739,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 15.977
+   },
+   "croissancePop9500": 0.015845959885793848
+  },
+  {
+   "iso3": "PRY",
+   "idCarte": "600",
+   "nom": "Paraguay",
+   "indicateurs": {
+    "population": 5100875.0,
+    "pib": 26799187738.0,
+    "co2": 3.592,
+    "co2ParHab": 0.704,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 19.864
+   },
+   "croissancePop9500": 0.021785126780938135
+  },
+  {
+   "iso3": "PER",
+   "idCarte": "604",
+   "nom": "Pérou",
+   "indicateurs": {
+    "population": 26598328.0,
+    "pib": 128561599053.0,
+    "co2": 28.678,
+    "co2ParHab": 1.078,
+    "prodPetrole": 60.023,
+    "prodGaz": 3.325,
+    "prodCharbon": 0.126,
+    "consoEnergie": 147.359
+   },
+   "croissancePop9500": 0.017829232308518517
+  },
+  {
+   "iso3": "KNA",
+   "idCarte": "659",
+   "nom": "Saint-Christophe-et-Niévès",
+   "indicateurs": {
+    "population": 45272.0,
+    "pib": 607120927.0,
+    "co2": 0.172,
+    "co2ParHab": 3.804,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.771
+   },
+   "croissancePop9500": 0.013447851689909252,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "LCA",
+   "idCarte": "662",
+   "nom": "Sainte-Lucie",
+   "indicateurs": {
+    "population": 158624.0,
+    "pib": 1100265060.0,
+    "co2": 0.341,
+    "co2ParHab": 2.148,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.465
+   },
+   "croissancePop9500": 0.013650679079825423
+  },
+  {
+   "iso3": "VCT",
+   "idCarte": "670",
+   "nom": "Saint-Vincent-et-les-Grenadines",
+   "indicateurs": {
+    "population": 113561.0,
+    "pib": 767800847.0,
+    "co2": 0.143,
+    "co2ParHab": 1.258,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.651
+   },
+   "croissancePop9500": 0.0008776063548416868,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "SUR",
+   "idCarte": "740",
+   "nom": "Suriname",
+   "indicateurs": {
+    "population": 476647.0,
+    "pib": 5228418152.0,
+    "co2": 2.193,
+    "co2ParHab": 4.601,
+    "prodPetrole": 6.786,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 6.95
+   },
+   "croissancePop9500": 0.020996596195828277,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "TTO",
+   "idCarte": "780",
+   "nom": "Trinité-et-Tobago",
+   "indicateurs": {
+    "population": 1319781.0,
+    "pib": 24996996038.0,
+    "co2": 24.35,
+    "co2ParHab": 18.45,
+    "prodPetrole": 76.436,
+    "prodGaz": 138.307,
+    "prodCharbon": 0.0,
+    "consoEnergie": 119.043
+   },
+   "croissancePop9500": 0.003772331273417029
+  },
+  {
+   "iso3": "URY",
+   "idCarte": "858",
+   "nom": "Uruguay",
+   "indicateurs": {
+    "population": 3266212.0,
+    "pib": 42357504785.0,
+    "co2": 5.277,
+    "co2ParHab": 1.616,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 34.252
+   },
+   "croissancePop9500": 0.004768569194406602
+  },
+  {
+   "iso3": "FJI",
+   "idCarte": "242",
+   "nom": "Fidji",
+   "indicateurs": {
+    "population": 840913.0,
+    "pib": 5158522052.0,
+    "co2": 0.815,
+    "co2ParHab": 0.969,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 7.037
+   },
+   "croissancePop9500": 0.010341143970948208,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "KIR",
+   "idCarte": "296",
+   "nom": "Kiribati",
+   "indicateurs": {
+    "population": 88632.0,
+    "pib": 148721576.0,
+    "co2": 0.037,
+    "co2ParHab": 0.413,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.145
+   },
+   "croissancePop9500": 0.017542053272801228,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "MHL",
+   "idCarte": "584",
+   "nom": "Îles Marshall",
+   "indicateurs": {
+    "population": 50721.0,
+    "pib": 129369820.0,
+    "co2": 0.099,
+    "co2ParHab": 1.95,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.00990079053813786,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "FSM",
+   "idCarte": "583",
+   "nom": "Micronésie",
+   "indicateurs": {
+    "population": 112067.0,
+    "pib": 270044021.0,
+    "co2": 0.18,
+    "co2ParHab": 1.602,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": 0.526
+   },
+   "croissancePop9500": 0.0032855487509673154,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "NRU",
+   "idCarte": "520",
+   "nom": "Nauru",
+   "indicateurs": {
+    "population": 10187.0,
+    "pib": 60828613.0,
+    "co2": 0.088,
+    "co2ParHab": 8.632,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.458
+   },
+   "croissancePop9500": 0.0,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "NZL",
+   "idCarte": "554",
+   "nom": "Nouvelle-Zélande",
+   "indicateurs": {
+    "population": 3857576.0,
+    "pib": 104942102861.0,
+    "co2": 32.221,
+    "co2ParHab": 8.353,
+    "prodPetrole": 24.529,
+    "prodGaz": 62.753,
+    "prodCharbon": 25.375,
+    "consoEnergie": 229.557
+   },
+   "croissancePop9500": 0.009775450551599008
+  },
+  {
+   "iso3": "PLW",
+   "idCarte": "585",
+   "nom": "Palaos",
+   "indicateurs": {
+    "population": 19206.0,
+    "pib": 199862957.0,
+    "co2": 0.209,
+    "co2ParHab": 10.874,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": null
+   },
+   "croissancePop9500": 0.022105885403044034,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "PNG",
+   "idCarte": "598",
+   "nom": "Papouasie-Nouvelle-Guinée",
+   "indicateurs": {
+    "population": 5537068.0,
+    "pib": 12458998845.0,
+    "co2": 2.938,
+    "co2ParHab": 0.531,
+    "prodPetrole": 42.175,
+    "prodGaz": 1.193,
+    "prodCharbon": 0.0,
+    "consoEnergie": 13.262
+   },
+   "croissancePop9500": 0.0357912906655089,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "WSM",
+   "idCarte": "882",
+   "nom": "Samoa",
+   "indicateurs": {
+    "population": 181695.0,
+    "pib": 570010126.0,
+    "co2": 0.143,
+    "co2ParHab": 0.786,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.86
+   },
+   "croissancePop9500": 0.008015499092671075,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "SLB",
+   "idCarte": "090",
+   "nom": "Îles Salomon",
+   "indicateurs": {
+    "population": 440481.0,
+    "pib": 678299509.0,
+    "co2": 0.227,
+    "co2ParHab": 0.516,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 1.056
+   },
+   "croissancePop9500": 0.027427213788815408,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "TON",
+   "idCarte": "776",
+   "nom": "Tonga",
+   "indicateurs": {
+    "population": 102695.0,
+    "pib": 403363589.0,
+    "co2": 0.099,
+    "co2ParHab": 0.963,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.438
+   },
+   "croissancePop9500": 0.004850951888536015,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "TUV",
+   "idCarte": "798",
+   "nom": "Tuvalu",
+   "indicateurs": {
+    "population": 9566.0,
+    "pib": 25128663.0,
+    "co2": 0.007,
+    "co2ParHab": 0.766,
+    "prodPetrole": null,
+    "prodGaz": null,
+    "prodCharbon": null,
+    "consoEnergie": 0.0
+   },
+   "croissancePop9500": 0.005677713013841679,
+   "estimations": [
+    "pib"
+   ]
+  },
+  {
+   "iso3": "VUT",
+   "idCarte": "548",
+   "nom": "Vanuatu",
+   "indicateurs": {
+    "population": 186290.0,
+    "pib": 479419496.0,
+    "co2": 0.084,
+    "co2ParHab": 0.452,
+    "prodPetrole": 0.0,
+    "prodGaz": 0.0,
+    "prodCharbon": 0.0,
+    "consoEnergie": 0.382
+   },
+   "croissancePop9500": 0.021913259330736512,
+   "estimations": [
+    "pib"
+   ]
+  }
+ ]
+}

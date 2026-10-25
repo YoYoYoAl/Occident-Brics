@@ -1,0 +1,2165 @@
+{
+ "note": "ESTIMATION qualitative (outils/estimer_monde.py), même contenu que influence2000_monde.ts",
+ "pays": {
+  "ALB": {
+   "OCC": {
+    "p": 50,
+    "m": 35,
+    "c": 35,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « balkans »"
+  },
+  "AND": {
+   "OCC": {
+    "p": 60,
+    "m": 10,
+    "c": 60,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « micro_europe »"
+  },
+  "AUT": {
+   "OCC": {
+    "p": 60,
+    "m": 30,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « ue_neutre »"
+  },
+  "BLR": {
+   "OCC": {
+    "p": 5,
+    "m": 0,
+    "c": 10,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "régime Loukachenko, alignée sur la Russie"
+  },
+  "BEL": {
+   "OCC": {
+    "p": 65,
+    "m": 60,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « otan »"
+  },
+  "BIH": {
+   "OCC": {
+    "p": 50,
+    "m": 35,
+    "c": 35,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « balkans »"
+  },
+  "BGR": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "HRV": {
+   "OCC": {
+    "p": 50,
+    "m": 35,
+    "c": 35,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « balkans »"
+  },
+  "CYP": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "CZE": {
+   "OCC": {
+    "p": 65,
+    "m": 60,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « otan »"
+  },
+  "DNK": {
+   "OCC": {
+    "p": 65,
+    "m": 60,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « otan »"
+  },
+  "EST": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "FIN": {
+   "OCC": {
+    "p": 60,
+    "m": 30,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « ue_neutre »"
+  },
+  "GRC": {
+   "OCC": {
+    "p": 65,
+    "m": 60,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « otan »"
+  },
+  "HUN": {
+   "OCC": {
+    "p": 65,
+    "m": 60,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « otan »"
+  },
+  "ISL": {
+   "OCC": {
+    "p": 70,
+    "m": 60,
+    "c": 55,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "base américaine de Keflavík"
+  },
+  "IRL": {
+   "OCC": {
+    "p": 60,
+    "m": 30,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « ue_neutre »"
+  },
+  "LVA": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "LIE": {
+   "OCC": {
+    "p": 60,
+    "m": 10,
+    "c": 60,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « micro_europe »"
+  },
+  "LTU": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "LUX": {
+   "OCC": {
+    "p": 65,
+    "m": 60,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « otan »"
+  },
+  "MLT": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "MDA": {
+   "OCC": {
+    "p": 30,
+    "m": 0,
+    "c": 15,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "entre Russie et Roumanie, Transnistrie"
+  },
+  "MCO": {
+   "OCC": {
+    "p": 60,
+    "m": 10,
+    "c": 60,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « micro_europe »"
+  },
+  "MNE": {
+   "OCC": {
+    "p": 30,
+    "m": 5,
+    "c": 25,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "partie de la Yougoslavie, déjà tournée vers l'Ouest"
+  },
+  "MKD": {
+   "OCC": {
+    "p": 50,
+    "m": 35,
+    "c": 35,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « balkans », reconnaît Taïwan en 2000"
+  },
+  "PRT": {
+   "OCC": {
+    "p": 65,
+    "m": 60,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « otan »"
+  },
+  "ROU": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "SMR": {
+   "OCC": {
+    "p": 60,
+    "m": 10,
+    "c": 60,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « micro_europe »"
+  },
+  "SRB": {
+   "OCC": {
+    "p": 15,
+    "m": 5,
+    "c": 20,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 20,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "Milošević au pouvoir jusqu'en octobre 2000, après les frappes de l'OTAN"
+  },
+  "SVK": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "SVN": {
+   "OCC": {
+    "p": 55,
+    "m": 30,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « candidat_ue »"
+  },
+  "SWE": {
+   "OCC": {
+    "p": 60,
+    "m": 30,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « ue_neutre »"
+  },
+  "CHE": {
+   "OCC": {
+    "p": 55,
+    "m": 10,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 3,
+    "commerce": 0.4
+   },
+   "raison": "neutralité, place financière"
+  },
+  "AFG": {
+   "OCC": {
+    "p": 0,
+    "m": 0,
+    "c": 2,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 5,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.3
+   },
+   "raison": "régime taliban, sanctions de l'ONU (1999)"
+  },
+  "ARM": {
+   "OCC": {
+    "p": 25,
+    "m": 0,
+    "c": 20,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "alliée de la Russie, forte diaspora en Occident"
+  },
+  "AZE": {
+   "OCC": {
+    "p": 35,
+    "m": 5,
+    "c": 10,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.3
+   },
+   "raison": "pétrole de la Caspienne, oléoduc BTC en projet"
+  },
+  "BTN": {
+   "OCC": {
+    "p": 30,
+    "m": 0,
+    "c": 10,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "sous l'aile de l'Inde, pas de relations avec Pékin"
+  },
+  "BRN": {
+   "OCC": {
+    "p": 50,
+    "m": 25,
+    "c": 25,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 15,
+    "commerce": 0.5
+   },
+   "raison": "lien britannique (Gurkhas)"
+  },
+  "KHM": {
+   "OCC": {
+    "p": 25,
+    "m": 0,
+    "c": 10,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 40,
+    "m": 10,
+    "c": 15,
+    "commerce": 0.7
+   },
+   "raison": "Hun Sen, aide chinoise"
+  },
+  "GEO": {
+   "OCC": {
+    "p": 40,
+    "m": 10,
+    "c": 20,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "Chevardnadzé, orientation occidentale"
+  },
+  "KGZ": {
+   "OCC": {
+    "p": 30,
+    "m": 5,
+    "c": 8,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 25,
+    "m": 5,
+    "c": 3,
+    "commerce": 0.6
+   },
+   "raison": "frontière chinoise, Groupe de Shanghai"
+  },
+  "LAO": {
+   "OCC": {
+    "p": 10,
+    "m": 0,
+    "c": 3,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 35,
+    "m": 5,
+    "c": 5,
+    "commerce": 0.6
+   },
+   "raison": "régime communiste"
+  },
+  "MDV": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 25,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "tourisme européen"
+  },
+  "MNG": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 15,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 30,
+    "m": 0,
+    "c": 5,
+    "commerce": 0.8
+   },
+   "raison": "« troisième voisin », dépendance commerciale envers la Chine"
+  },
+  "MMR": {
+   "OCC": {
+    "p": 0,
+    "m": 0,
+    "c": 3,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 55,
+    "m": 30,
+    "c": 5,
+    "commerce": 0.9
+   },
+   "raison": "junte sous sanctions occidentales, armée équipée par la Chine"
+  },
+  "NPL": {
+   "OCC": {
+    "p": 35,
+    "m": 5,
+    "c": 15,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 25,
+    "m": 0,
+    "c": 3,
+    "commerce": 0.5
+   },
+   "raison": "entre Inde et Chine, guérilla maoïste"
+  },
+  "LKA": {
+   "OCC": {
+    "p": 40,
+    "m": 10,
+    "c": 25,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 30,
+    "m": 5,
+    "c": 3,
+    "commerce": 0.5
+   },
+   "raison": "guerre contre les Tigres tamouls, armes chinoises"
+  },
+  "TJK": {
+   "OCC": {
+    "p": 20,
+    "m": 0,
+    "c": 5,
+    "commerce": 0.4
+   },
+   "CHN": {
+    "p": 20,
+    "m": 5,
+    "c": 2,
+    "commerce": 0.5
+   },
+   "raison": "sortie de guerre civile, sous protection russe"
+  },
+  "TLS": {
+   "OCC": {
+    "p": 60,
+    "m": 40,
+    "c": 35,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 3,
+    "commerce": 0.3
+   },
+   "raison": "administration de l'ONU, forces australiennes (INTERFET)"
+  },
+  "TKM": {
+   "OCC": {
+    "p": 15,
+    "m": 0,
+    "c": 5,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.4
+   },
+   "raison": "neutralité permanente, régime fermé"
+  },
+  "UZB": {
+   "OCC": {
+    "p": 30,
+    "m": 10,
+    "c": 8,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 20,
+    "m": 5,
+    "c": 2,
+    "commerce": 0.5
+   },
+   "raison": "méfiant envers Moscou, avant la base américaine de 2001"
+  },
+  "BHR": {
+   "OCC": {
+    "p": 65,
+    "m": 65,
+    "c": 30,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.4
+   },
+   "raison": "profil « golfe »"
+  },
+  "JOR": {
+   "OCC": {
+    "p": 65,
+    "m": 50,
+    "c": 35,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "allié des États-Unis, paix avec Israël"
+  },
+  "KWT": {
+   "OCC": {
+    "p": 65,
+    "m": 65,
+    "c": 30,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.4
+   },
+   "raison": "profil « golfe »"
+  },
+  "LBN": {
+   "OCC": {
+    "p": 35,
+    "m": 5,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "sous tutelle syrienne, francophonie"
+  },
+  "OMN": {
+   "OCC": {
+    "p": 65,
+    "m": 65,
+    "c": 30,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.4
+   },
+   "raison": "profil « golfe »"
+  },
+  "SYR": {
+   "OCC": {
+    "p": 5,
+    "m": 0,
+    "c": 10,
+    "commerce": 0.6
+   },
+   "CHN": {
+    "p": 20,
+    "m": 5,
+    "c": 2,
+    "commerce": 0.4
+   },
+   "raison": "État soutien du terrorisme selon Washington"
+  },
+  "YEM": {
+   "OCC": {
+    "p": 25,
+    "m": 10,
+    "c": 10,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.4
+   },
+   "raison": "attentat contre l'USS Cole en octobre 2000"
+  },
+  "AGO": {
+   "OCC": {
+    "p": 35,
+    "m": 5,
+    "c": 20,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 20,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.5
+   },
+   "raison": "guerre civile, pétrole vendu aux États-Unis"
+  },
+  "BEN": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "BWA": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "BFA": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_fr », reconnaît Taïwan en 2000"
+  },
+  "BDI": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "CPV": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 35,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_pt »"
+  },
+  "CMR": {
+   "OCC": {
+    "p": 55,
+    "m": 45,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr_base »"
+  },
+  "CAF": {
+   "OCC": {
+    "p": 55,
+    "m": 45,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr_base »"
+  },
+  "TCD": {
+   "OCC": {
+    "p": 55,
+    "m": 45,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_fr_base », reconnaît Taïwan en 2000"
+  },
+  "COM": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "COG": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "CIV": {
+   "OCC": {
+    "p": 55,
+    "m": 45,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr_base »"
+  },
+  "DJI": {
+   "OCC": {
+    "p": 55,
+    "m": 45,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr_base »"
+  },
+  "GNQ": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 15,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.3
+   },
+   "raison": "pétrole exploité par des compagnies américaines"
+  },
+  "ERI": {
+   "OCC": {
+    "p": 25,
+    "m": 5,
+    "c": 10,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.3
+   },
+   "raison": "guerre avec l'Éthiopie (1998-2000)"
+  },
+  "SWZ": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_en », reconnaît Taïwan en 2000"
+  },
+  "GAB": {
+   "OCC": {
+    "p": 55,
+    "m": 45,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr_base »"
+  },
+  "GMB": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_en », reconnaît Taïwan en 2000"
+  },
+  "GHA": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "GIN": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "GNB": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 35,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_pt »"
+  },
+  "LSO": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "LBR": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_en », reconnaît Taïwan en 2000"
+  },
+  "LBY": {
+   "OCC": {
+    "p": 0,
+    "m": 0,
+    "c": 5,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.3
+   },
+   "raison": "Kadhafi, sanctions américaines"
+  },
+  "MDG": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "MWI": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_en », reconnaît Taïwan en 2000"
+  },
+  "MLI": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "MRT": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "MUS": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "MAR": {
+   "OCC": {
+    "p": 60,
+    "m": 30,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "partenaire de la France et des États-Unis"
+  },
+  "MOZ": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 25,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 15,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "bailleurs occidentaux"
+  },
+  "NAM": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "NER": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "RWA": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "STP": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 35,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_pt », reconnaît Taïwan en 2000"
+  },
+  "SEN": {
+   "OCC": {
+    "p": 55,
+    "m": 45,
+    "c": 55,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « afrique_fr_base », reconnaît Taïwan en 2000"
+  },
+  "SYC": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "SLE": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "SOM": {
+   "OCC": {
+    "p": 15,
+    "m": 0,
+    "c": 10,
+    "commerce": 0.3
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.1
+   },
+   "raison": "État effondré"
+  },
+  "SSD": {
+   "OCC": {
+    "p": 40,
+    "m": 5,
+    "c": 15,
+    "commerce": 0.5
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "rébellion du SPLM soutenue par Washington, partie du Soudan jusqu'en 2011"
+  },
+  "SDN": {
+   "OCC": {
+    "p": 0,
+    "m": 0,
+    "c": 3,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 45,
+    "m": 15,
+    "c": 2,
+    "commerce": 0.8
+   },
+   "raison": "sanctions américaines (1997), pétrole exploité par la CNPC"
+  },
+  "TZA": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "TGO": {
+   "OCC": {
+    "p": 45,
+    "m": 15,
+    "c": 45,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_fr »"
+  },
+  "TUN": {
+   "OCC": {
+    "p": 55,
+    "m": 25,
+    "c": 50,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "Ben Ali, proche de la France"
+  },
+  "UGA": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "ZMB": {
+   "OCC": {
+    "p": 45,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « afrique_en »"
+  },
+  "ZWE": {
+   "OCC": {
+    "p": 20,
+    "m": 0,
+    "c": 30,
+    "commerce": 0.7
+   },
+   "CHN": {
+    "p": 25,
+    "m": 5,
+    "c": 2,
+    "commerce": 0.4
+   },
+   "raison": "réforme agraire, rupture avec Londres"
+  },
+  "ATG": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « caraibes »"
+  },
+  "BHS": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « caraibes »"
+  },
+  "BRB": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « caraibes »"
+  },
+  "BLZ": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 55,
+    "commerce": 1.3
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « amerique_centrale », reconnaît Taïwan en 2000"
+  },
+  "BOL": {
+   "OCC": {
+    "p": 50,
+    "m": 15,
+    "c": 50,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 6,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « amerique_latine »"
+  },
+  "CRI": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 55,
+    "commerce": 1.3
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « amerique_centrale », reconnaît Taïwan en 2000"
+  },
+  "DMA": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « caraibes », reconnaît Taïwan en 2000"
+  },
+  "DOM": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « caraibes », reconnaît Taïwan en 2000"
+  },
+  "ECU": {
+   "OCC": {
+    "p": 50,
+    "m": 15,
+    "c": 50,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 6,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « amerique_latine »"
+  },
+  "SLV": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 55,
+    "commerce": 1.3
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « amerique_centrale », reconnaît Taïwan en 2000"
+  },
+  "GRD": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « caraibes », reconnaît Taïwan en 2000"
+  },
+  "GTM": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 55,
+    "commerce": 1.3
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « amerique_centrale », reconnaît Taïwan en 2000"
+  },
+  "GUY": {
+   "OCC": {
+    "p": 50,
+    "m": 15,
+    "c": 50,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 6,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « amerique_latine »"
+  },
+  "HTI": {
+   "OCC": {
+    "p": 45,
+    "m": 25,
+    "c": 40,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "après l'intervention américaine et la mission de l'ONU, reconnaît Taïwan en 2000"
+  },
+  "HND": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 55,
+    "commerce": 1.3
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « amerique_centrale », reconnaît Taïwan en 2000"
+  },
+  "JAM": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « caraibes »"
+  },
+  "NIC": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 55,
+    "commerce": 1.3
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 1,
+    "commerce": 0.2
+   },
+   "raison": "profil « amerique_centrale », reconnaît Taïwan en 2000"
+  },
+  "PRY": {
+   "OCC": {
+    "p": 50,
+    "m": 15,
+    "c": 50,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « amerique_latine », reconnaît Taïwan en 2000"
+  },
+  "PER": {
+   "OCC": {
+    "p": 50,
+    "m": 15,
+    "c": 50,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 6,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « amerique_latine »"
+  },
+  "KNA": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « caraibes », reconnaît Taïwan en 2000"
+  },
+  "LCA": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « caraibes »"
+  },
+  "VCT": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « caraibes », reconnaît Taïwan en 2000"
+  },
+  "SUR": {
+   "OCC": {
+    "p": 50,
+    "m": 15,
+    "c": 50,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 6,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « amerique_latine »"
+  },
+  "TTO": {
+   "OCC": {
+    "p": 60,
+    "m": 20,
+    "c": 60,
+    "commerce": 1.2
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « caraibes »"
+  },
+  "URY": {
+   "OCC": {
+    "p": 50,
+    "m": 15,
+    "c": 50,
+    "commerce": 1.0
+   },
+   "CHN": {
+    "p": 6,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « amerique_latine »"
+  },
+  "FJI": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 3,
+    "commerce": 0.3
+   },
+   "raison": "coup d'État de mai 2000"
+  },
+  "KIR": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « pacifique »"
+  },
+  "MHL": {
+   "OCC": {
+    "p": 80,
+    "m": 70,
+    "c": 60,
+    "commerce": 1.5
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « compact », reconnaît Taïwan en 2000"
+  },
+  "FSM": {
+   "OCC": {
+    "p": 80,
+    "m": 70,
+    "c": 60,
+    "commerce": 1.5
+   },
+   "CHN": {
+    "p": 8,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « compact »"
+  },
+  "NRU": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « pacifique », reconnaît Taïwan en 2000"
+  },
+  "NZL": {
+   "OCC": {
+    "p": 70,
+    "m": 35,
+    "c": 65,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 12,
+    "m": 0,
+    "c": 5,
+    "commerce": 0.6
+   },
+   "raison": "ANZUS suspendu avec Washington, proche de l'Australie"
+  },
+  "PLW": {
+   "OCC": {
+    "p": 80,
+    "m": 70,
+    "c": 60,
+    "commerce": 1.5
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « compact », reconnaît Taïwan en 2000"
+  },
+  "PNG": {
+   "OCC": {
+    "p": 55,
+    "m": 20,
+    "c": 40,
+    "commerce": 0.9
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "sous l'influence de l'Australie"
+  },
+  "WSM": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « pacifique »"
+  },
+  "SLB": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « pacifique », reconnaît Taïwan en 2000"
+  },
+  "TON": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « pacifique »"
+  },
+  "TUV": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 3,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.2
+   },
+   "raison": "profil « pacifique », reconnaît Taïwan en 2000"
+  },
+  "VUT": {
+   "OCC": {
+    "p": 50,
+    "m": 10,
+    "c": 40,
+    "commerce": 0.8
+   },
+   "CHN": {
+    "p": 10,
+    "m": 0,
+    "c": 2,
+    "commerce": 0.3
+   },
+   "raison": "profil « pacifique »"
+  }
+ }
+}
