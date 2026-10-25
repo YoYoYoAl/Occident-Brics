@@ -10,7 +10,7 @@ Règles :
   (à égalité, la plus ancienne), et l'année réelle est enregistrée avec la valeur ;
 - les pages Wikipedia sont lues à une révision fixe (oldid), pour que la collecte soit reproductible ;
 - exceptions demandées le 25/10/2026, marquées "e": 1 et "ESTIMATION" : religion (composition Pew 2020),
-  naval et aérien (importations SIPRI 1981-2000), cyber (indice calculé).
+  naval et aérien (indices estimés par le projet), cyber (indice calculé).
 """
 import csv, json, os, re, sys, time, urllib.error, urllib.request
 
@@ -47,6 +47,7 @@ SOURCES = {
     "usgs": {"nom": "U.S. Geological Survey, Minerals Yearbook 2000, Rare earths (J. B. Hedrick)", "url": "https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/mineral-pubs/rare-earth/740400.pdf"},
     "sipri_at": {"nom": "SIPRI Arms Transfers Database (registre des transferts)", "url": "https://atbackend.sipri.org/api/p/trades/trade-register-csv/"},
     "calcul": {"nom": "Calcul du projet à partir des indicateurs sourcés ci-dessus (formule dans outils/collecter_attributs.py)", "url": "https://github.com/YoYoYoAl/Occident-Brics"},
+    "estimation_projet": {"nom": "Estimation du projet (jugement d'expert, table ESTIMATIONS_MILITAIRES de outils/collecter_attributs.py)", "url": "https://github.com/YoYoYoAl/Occident-Brics"},
     "wikipedia": {"nom": "Wikipedia (en), révision fixe indiquée par indicateur", "url": "https://en.wikipedia.org/"},
 }
 
@@ -118,16 +119,19 @@ ind("depensesMil", "Dépenses militaires", "millions de $ constants 2024", "mili
 ind("depensesMilPib", "Dépenses militaires", "% du PIB", "militaire", "Ensemble", "sipri", "Share of GDP", "Part publiée par le SIPRI (0,031) convertie en pourcentage (3,1)")
 ind("effectifsArmes", "Effectifs des forces armées", "personnes", "militaire", "Terrestre", "bm_wdi", "MS.MIL.TOTL.P1", "IISS Military Balance via la Banque mondiale ; toutes armées confondues (indicateur indirect de la force terrestre)")
 ind("naviresImportes", "Navires de guerre importés 1981-2000", "millions de TIV SIPRI", "militaire", "Naval", "sipri_at", "Ships, livraisons 1981-2000",
-    "ESTIMATION de la flotte de 2000 : valeur militaire (TIV) des navires livrés par l'étranger en 20 ans ; ignore la production nationale, "
-    "donc sous-estime fortement les pays producteurs (États-Unis, Russie, Chine, France, Royaume-Uni, Allemagne, Italie, Japon...)")
+    "Valeur militaire (TIV) des navires livrés par l'étranger en 20 ans ; ignore la production nationale (indicateur de dépendance, pas de taille de flotte)")
 ind("avionsImportes", "Aéronefs militaires importés 1981-2000", "millions de TIV SIPRI", "militaire", "Aérien", "sipri_at", "Aircraft, livraisons 1981-2000",
-    "ESTIMATION de la flotte aérienne de 2000 : valeur militaire (TIV) des aéronefs livrés par l'étranger en 20 ans ; ignore la production nationale, "
-    "donc sous-estime fortement les pays producteurs (États-Unis, Russie, Chine, France, Royaume-Uni...)")
-ind("indiceCyber", "Indice cyber estimé", "0 à 100", "militaire", "Cyber", "calcul", "40 % internet + 30 % supérieur + 30 % dépenses militaires (+25 agences)",
-    "ESTIMATION : moyenne pondérée des valeurs 2000 normalisées (min-max sur les 50 pays) des utilisateurs d'Internet (40 %), de la scolarisation "
-    "dans le supérieur (30 %) et des dépenses militaires en valeur (30 %), pondération recalculée si une valeur manque ; +25 points (plafond 100) "
-    "pour les États dotés d'une agence de renseignement électronique connue en 2000 : NSA (États-Unis), GCHQ (Royaume-Uni), unité 8200 (Israël), "
-    "FAPSI (Russie), 3e département de l'APL (Chine)")
+    "Valeur militaire (TIV) des aéronefs livrés par l'étranger en 20 ans ; ignore la production nationale (indicateur de dépendance, pas de taille de flotte)")
+ind("indiceNaval", "Puissance navale estimée", "0 à 100 (États-Unis = 100)", "militaire", "Naval", "estimation_projet", "ESTIMATIONS_MILITAIRES",
+    "ESTIMATION experte du projet : ordre de grandeur relatif de la puissance navale en 2000 (tonnage, porte-avions, sous-marins, "
+    "état de la flotte), pas une mesure ; à ajuster au jeu")
+ind("indiceAerien", "Puissance aérienne estimée", "0 à 100 (États-Unis = 100)", "militaire", "Aérien", "estimation_projet", "ESTIMATIONS_MILITAIRES",
+    "ESTIMATION experte du projet : ordre de grandeur relatif de la puissance aérienne en 2000 (nombre et génération des avions de combat, "
+    "entraînement, soutien), pas une mesure ; à ajuster au jeu")
+ind("indiceCyber", "Indice cyber estimé", "0 à 100", "militaire", "Cyber", "calcul", "50 % rang + 25 % internautes + 25 % dépenses militaires",
+    "ESTIMATION : 50 % rang étatique fixé par le projet (1 : États-Unis ; 2 : Russie, Chine, Royaume-Uni, Israël, France ; "
+    "3 : Allemagne, Canada, Australie, Japon, Corée du Sud, Inde, Taïwan, Pays-Bas, Corée du Nord), 25 % nombre d'internautes "
+    "et 25 % dépenses militaires (échelles logarithmiques, normalisées sur les 50 pays)")
 ind("objetsSpatiaux", "Objets lancés dans l'espace (cumul)", "objets", "militaire", "Spatial", "owid_grapher", "cumulative-number-of-objects-launched-into-outer-space", "Registre de l'ONU (UNOOSA) via Our World in Data ; 0 si le pays n'apparaît pas")
 ind("lanceurOrbital", "Lancement orbital autonome réussi avant 2001", "1 = oui, 0 = non", "militaire", "Spatial", "wikipedia", "Timeline_of_first_orbital_launches_by_country@1380598983", "Russie : premier lancement de l'Union soviétique (1957), dont elle a repris le programme ; Ukraine : 1991 selon la page")
 ind("partieCiac", "Partie à la Convention sur les armes chimiques fin 2000", "1 = oui, 0 = non", "militaire", "Chimique", "wikipedia", "List_of_parties_to_the_Chemical_Weapons_Convention@1357135945", "Date d'entrée en vigueur pour l'État ; Taïwan non éligible (null)")
@@ -370,25 +374,45 @@ def transferts_sipri(cache, categorie, entite, debut=1981, fin=2000):
             total[noms[l[0]]] = total.get(noms[l[0]], 0.0) + float(l[col])
     if total.get("IND", 0) <= 0 or total.get("TWN", 0) <= 0:
         raise SystemExit(f"Transferts SIPRI {categorie} : lecture douteuse")
-    return {iso: {"v": round(total.get(iso, 0.0), 1), "a": ANNEE, "e": 1} for iso in PAYS}
+    return {iso: {"v": round(total.get(iso, 0.0), 1), "a": ANNEE} for iso in PAYS}
+
+
+# Puissances navale et aérienne relatives en 2000 (États-Unis = 100), estimées par le projet à la demande de
+# l'utilisateur (25/10/2026), faute de source gratuite : ordres de grandeur, pas des mesures. (naval, aérien)
+ESTIMATIONS_MILITAIRES = {
+    "USA": (100, 100), "RUS": (45, 50), "CHN": (30, 35), "GBR": (35, 22), "FRA": (32, 22), "JPN": (30, 18), "IND": (18, 20),
+    "ITA": (18, 13), "DEU": (14, 16), "KOR": (14, 15), "ESP": (13, 9), "TWN": (13, 15), "TUR": (12, 14), "AUS": (10, 8),
+    "CAN": (9, 7), "NLD": (9, 7), "BRA": (9, 7), "PRK": (8, 9), "IDN": (7, 4), "NOR": (6, 5), "PAK": (6, 9), "IRN": (6, 7),
+    "EGY": (6, 12), "ISR": (4, 18), "UKR": (4, 12), "ARG": (5, 4), "CHL": (5, 4), "THA": (5, 6), "SAU": (5, 11), "SGP": (5, 6),
+    "MYS": (4, 4), "POL": (4, 6), "VNM": (3, 5), "ZAF": (3, 4), "MEX": (3, 2), "DZA": (3, 5), "PHL": (2, 1), "ARE": (2, 6),
+    "VEN": (2, 3), "COL": (2, 2), "BGD": (2, 2), "CUB": (1, 2), "QAT": (1, 2), "NGA": (1, 2), "KEN": (1, 1), "IRQ": (1, 4),
+    "KAZ": (1, 4), "PAN": (1, 0), "ETH": (0, 2), "COD": (0, 0),
+}
+
+# Rang cyber en 2000, jugement du projet (à valider par l'utilisateur) : 1 = puissance de premier plan,
+# 2 = grande agence de renseignement électronique établie, 3 = capacité étatique notable.
+RANGS_CYBER = {"USA": 1, "RUS": 2, "CHN": 2, "GBR": 2, "ISR": 2, "FRA": 2,
+               "DEU": 3, "CAN": 3, "AUS": 3, "JPN": 3, "KOR": 3, "IND": 3, "TWN": 3, "NLD": 3, "PRK": 3}
 
 
 def indice_cyber(valeurs):
-    poids = {"internet": 0.4, "scolSuperieur": 0.3, "depensesMil": 0.3}
-    agences = {"USA", "GBR", "ISR", "RUS", "CHN"}
-    norme = {}
-    for cle in poids:
-        x = {iso: v["v"] for iso, v in valeurs[cle].items() if v}
+    """50 % rang (1 -> 100, 2 -> 70, 3 -> 40, autres 0) + 25 % internautes (nombre absolu, log)
+    + 25 % dépenses militaires (log), normalisés min-max sur les 50 pays ; pondération recalculée si une valeur manque."""
+    import math
+    def norme_log(x):
+        x = {k: math.log10(v) for k, v in x.items() if v and v > 0}
         lo, hi = min(x.values()), max(x.values())
-        norme[cle] = {iso: (val - lo) / (hi - lo) for iso, val in x.items()}
+        return {k: (v - lo) / (hi - lo) for k, v in x.items()}
+    g = lambda iso, cle: (valeurs[cle][iso] or {}).get("v")
+    internautes = norme_log({iso: g(iso, "internet") * g(iso, "population") / 100 for iso in PAYS
+                             if g(iso, "internet") is not None and g(iso, "population")})
+    defense = norme_log({iso: g(iso, "depensesMil") for iso in PAYS})
+    points = {1: 1.0, 2: 0.7, 3: 0.4}
     sortie = {}
     for iso in PAYS:
-        dispo = [c for c in poids if iso in norme[c]]
-        if len(dispo) < 2:
-            sortie[iso] = None
-            continue
-        score = 100 * sum(poids[c] * norme[c][iso] for c in dispo) / sum(poids[c] for c in dispo)
-        sortie[iso] = {"v": round(min(100.0, score + (25 if iso in agences else 0)), 1), "a": ANNEE, "e": 1}
+        parts = [(0.5, points.get(RANGS_CYBER.get(iso), 0.0))]
+        parts += [(0.25, n[iso]) for n in (internautes, defense) if iso in n]
+        sortie[iso] = {"v": round(100 * sum(p * x for p, x in parts) / sum(p for p, _ in parts), 1), "a": ANNEE, "e": 1}
     return sortie
 
 
@@ -460,6 +484,8 @@ def main(cache):
     valeurs["naviresImportes"] = transferts_sipri(cache, "Ships", 1150374)
     valeurs["avionsImportes"] = transferts_sipri(cache, "Aircraft", 1150363)
     valeurs["indiceCyber"] = indice_cyber(valeurs)
+    for j, cle in enumerate(("indiceNaval", "indiceAerien")):
+        valeurs[cle] = {iso: {"v": float(ESTIMATIONS_MILITAIRES[iso][j]), "a": ANNEE, "e": 1} for iso in PAYS}
     for cle, (src, code) in COMPLEMENTS.items():
         s = serie_owid(src, code, co2, energie, cache)
         for iso in PAYS:

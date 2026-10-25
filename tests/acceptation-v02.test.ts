@@ -145,22 +145,24 @@ describe("M1b Religion (estimation 2000 demandée)", () => {
 });
 
 describe("M1b Estimations naval, aérien, cyber (demandées)", () => {
-  it("marque comme estimation toutes les valeurs naval, aérien et cyber", () => {
-    for (const k of ["naviresImportes", "avionsImportes", "indiceCyber"]) {
+  const tri = (k: string) => ISO.filter(iso => v(iso, k) !== null).sort((a, b) => v(b, k)! - v(a, k)!);
+  it("marque comme estimation toutes les valeurs des indices naval, aérien et cyber, pour les 50 pays", () => {
+    for (const k of ["indiceNaval", "indiceAerien", "indiceCyber"]) {
       expect(DONNEES.indicateurs[k].note, k).toMatch(/^ESTIMATION/);
-      for (const iso of ISO) { const val = valeur(iso, k); if (val) expect(val.e, `${iso}.${k}`).toBe(1); }
+      for (const iso of ISO) { expect(valeur(iso, k)?.e, `${iso}.${k}`).toBe(1); expect(v(iso, k)!).toBeLessThanOrEqual(100); }
     }
   });
-  it("retrouve les grands importateurs d'armes connus des années 1990 (Inde, Taïwan, Turquie, Arabie saoudite, Japon)", () => {
-    const top = (k: string) => ISO.filter(iso => v(iso, k) !== null).sort((a, b) => v(b, k)! - v(a, k)!).slice(0, 5);
-    expect(top("naviresImportes")).toEqual(expect.arrayContaining(["IND", "TWN", "TUR"]));
-    expect(top("avionsImportes")).toEqual(expect.arrayContaining(["JPN", "IND", "SAU"]));
+  it("place les États-Unis en tête et la Russie deuxième sur mer et dans les airs", () => {
+    for (const k of ["indiceNaval", "indiceAerien"]) { expect(tri(k)[0], k).toBe("USA"); expect(tri(k)[1], k).toBe("RUS"); }
   });
-  it("place les États-Unis en tête de l'indice cyber, le Royaume-Uni et Israël dans les 6 premiers", () => {
-    const tri = ISO.filter(iso => v(iso, "indiceCyber") !== null).sort((a, b) => v(b, "indiceCyber")! - v(a, "indiceCyber")!);
-    expect(tri[0]).toBe("USA");
-    expect(tri.slice(0, 6)).toEqual(expect.arrayContaining(["GBR", "ISR"]));
-    expect(tri.length).toBeGreaterThanOrEqual(45);
+  it("place les États-Unis en tête de l'indice cyber, les 5 puissances de rang 2 juste derrière", () => {
+    expect(tri("indiceCyber")[0]).toBe("USA");
+    expect(tri("indiceCyber").slice(1, 6).sort()).toEqual(["CHN", "FRA", "GBR", "ISR", "RUS"]);
+  });
+  it("garde les importations SIPRI comme données réelles, avec les grands importateurs connus", () => {
+    expect(valeur("IND", "naviresImportes")!.e).toBeUndefined();
+    expect(tri("naviresImportes").slice(0, 5)).toEqual(expect.arrayContaining(["IND", "TWN", "TUR"]));
+    expect(tri("avionsImportes").slice(0, 5)).toEqual(expect.arrayContaining(["JPN", "IND", "SAU"]));
   });
 });
 
