@@ -60,10 +60,15 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
     tx = Math.min(0, Math.max(LARGEUR * (1 - k), tx)); ty = Math.min(0, Math.max(HAUTEUR * (1 - k), ty));
     zoom.setAttribute("transform", `translate(${tx},${ty}) scale(${k})`);
     svg.style.setProperty("--k", String(k));
-    for (const g of coucheNoms.children as unknown as SVGGElement[]) {
-      const a = ancre.get((g as SVGGElement).dataset.iso!)!;
+    // Grands pays d'abord ; un nom qui chevauche un nom déjà posé est masqué (visible en zoomant).
+    const poses: { x: number; y: number; l: number }[] = [];
+    const noms = [...coucheNoms.children as unknown as SVGGElement[]].sort((p, q) => ancre.get(q.dataset.iso!)!.aire - ancre.get(p.dataset.iso!)!.aire);
+    for (const g of noms) {
+      const a = ancre.get(g.dataset.iso!)!, l = (g.firstChild?.textContent?.length ?? 6) * 3.2 / k, h = 13 / k;
       g.setAttribute("transform", `translate(${a.x},${a.y}) scale(${1 / k})`);
-      (g as SVGGElement).style.display = a.aire * k * k > 220 ? "" : "none"; // petits pays : nom visible en zoomant
+      const libre = a.aire * k * k > 380 && !poses.some(p => Math.abs(p.x - a.x) < p.l + l && Math.abs(p.y - a.y) < 2 * h);
+      g.style.display = libre ? "" : "none";
+      if (libre) poses.push({ x: a.x, y: a.y, l });
     }
     for (const g of coucheMarques.children as unknown as SVGGElement[]) {
       const a = ancre.get((g as SVGGElement).dataset.iso!)!;
@@ -119,16 +124,16 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
       for (const [iso, x] of Object.entries(a)) {
         if (!ancre.has(iso)) continue;
         const g = el("g", { class: "nom" }); g.dataset.iso = iso;
-        const t = el("text", { y: x.valeur ? -1 : 3 }); t.textContent = x.nom;
+        const t = el("text", { y: x.valeur ? -2 : 4 }); t.textContent = x.nom;
         g.appendChild(t);
-        if (x.valeur) { const v = el("text", { y: 9, class: "valeur" }); v.textContent = x.valeur; g.appendChild(v); }
+        if (x.valeur) { const v = el("text", { y: 10, class: "valeur" }); v.textContent = x.valeur; g.appendChild(v); }
         coucheNoms.appendChild(g);
         if (x.marqueurs.length) {
           const m = el("g", { class: "marque" }); m.dataset.iso = iso;
           x.marqueurs.slice(0, 4).forEach((q, i) => {
-            const c = el("g", { transform: `translate(${(i - (Math.min(4, x.marqueurs.length) - 1) / 2) * 13},-16)` });
+            const c = el("g", { transform: `translate(${(i - (Math.min(4, x.marqueurs.length) - 1) / 2) * 15},-20)` });
             const titre = el("title"); titre.textContent = q.titre;
-            const rond = el("circle", { r: 6.2, fill: q.couleur });
+            const rond = el("circle", { r: 7, fill: q.couleur });
             const s = el("text", { y: 3.2 }); s.textContent = q.symbole;
             c.append(titre, rond, s); m.appendChild(c);
           });

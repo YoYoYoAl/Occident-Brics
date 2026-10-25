@@ -246,6 +246,7 @@ function lierPanneau(zone: HTMLElement) {
 function couleurs(): Record<string, string> {
   const e = etat!, vue = $<HTMLSelectElement>("vue").value, isos = Object.keys(e.pays);
   if (vue === "alignement") return Object.fromEntries(isos.map(i => [i, couleurAlignement(alignement(e, i))]));
+  if (vue === "militaire") return Object.fromEntries(isos.map(i => [i, couleurAlignement(i === "USA" ? 1 : i === "CHN" ? -1 : (e.pays[i].influence.OCC.m - e.pays[i].influence.CHN.m) / 60)]));
   const val = (i: string) => vue === "population" ? e.pays[i].population : vue === "pib" ? e.pays[i].pib : vue === "environnement" ? e.pays[i].environnement + 1 : e.pays[i].stabilite + 1;
   const vs = isos.map(val), min = Math.min(...vs), max = Math.max(...vs);
   return Object.fromEntries(isos.map(i => [i, couleurLog(val(i), min, max)]));
@@ -261,6 +262,7 @@ function valeurVue(iso: string): string {
     case "pib": return `${nombre(p.pib / 1e9, 0)} Md`;
     case "stabilite": return `${nombre(p.stabilite, 0)}`;
     case "environnement": return `${nombre(p.environnement, 0)}`;
+    case "militaire": return iso === "USA" || iso === "CHN" ? "leader" : `${nombre(p.influence.OCC.m, 0)} / ${nombre(p.influence.CHN.m, 0)}`;
     default: return iso === "USA" || iso === "CHN" ? "leader" : signe(alignement(e, iso), 2);
   }
 }
@@ -276,7 +278,6 @@ function annotations(): Record<string, Annotation> {
       else if ((j.type === "action" || j.type === "carte") && (j.joueParCamp ?? j.camp) === adv) m.push({ symbole: "◆", couleur: coul(adv), titre: `${NOM_CAMP[adv]} : ${j.titre}` });
       else if ((j.type === "action" || j.type === "carte") && j.camp === moi) m.push({ symbole: "✓", couleur: coul(moi), titre: `Toi : ${j.titre}` });
     }
-    for (const c of ["OCC", "CHN"] as Camp[]) if (iso !== "USA" && iso !== "CHN" && p.influence[c].m >= 40) m.push({ symbole: "▲", couleur: coul(c), titre: `Présence militaire forte du ${NOM_CAMP[c]} (${nombre(p.influence[c].m, 0)})` });
     if (p.stabilite < 30) m.push({ symbole: "↯", couleur: "#9b59b6", titre: `Pays instable (stabilité ${nombre(p.stabilite, 0)})` });
     const vus = new Set<string>(), uniques = m.filter(x => { const k = x.symbole + x.couleur; if (vus.has(k)) return false; vus.add(k); return true; });
     const io = influenceTotale(p, "OCC"), ic = influenceTotale(p, "CHN"), leader = iso === "USA" || iso === "CHN";
@@ -293,7 +294,8 @@ function annotations(): Record<string, Annotation> {
 }
 function legende(): string {
   const vue = $<HTMLSelectElement>("vue").value;
-  const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#777">▲</i>bases</span><span><i style="background:#9b59b6">↯</i>instable</span></div>`;
+  const symboles = `<div class="symboles"><span><i style="background:#d9a441">★</i>historique</span><span><i style="background:#e07b2a">!</i>événement</span><span><i style="background:${joueur() === "OCC" ? "#dc4b3c" : "#4f8be0"}">◆</i>adversaire</span><span><i style="background:${joueur() === "OCC" ? "#4f8be0" : "#dc4b3c"}">✓</i>toi</span><span><i style="background:#9b59b6">↯</i>instable</span></div>`;
+  if (vue === "militaire") return `<div class="degrade"><span>Présence militaire chinoise</span><b style="background:linear-gradient(90deg,${couleurAlignement(-1)},${couleurAlignement(0)},${couleurAlignement(1)})"></b><span>américaine</span></div><div class="note">Valeurs : influence militaire USA / Chine (bases, traités, armes).</div>${symboles}`;
   if (vue === "alignement") return `<div class="degrade"><span>Bloc Chine</span><b style="background:linear-gradient(90deg,${couleurAlignement(-1)},${couleurAlignement(0)},${couleurAlignement(1)})"></b><span>Bloc USA</span></div>${symboles}`;
   const nom = { population: "Population", pib: "PIB", stabilite: "Stabilité", environnement: "Environnement local" }[vue] ?? vue;
   return `<div class="degrade"><span>${nom} faible</span><b style="background:linear-gradient(90deg,${couleurLog(1, 1, 100)},${couleurLog(100, 1, 100)})"></b><span>fort</span></div>${symboles}`;
