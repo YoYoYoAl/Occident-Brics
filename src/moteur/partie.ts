@@ -56,11 +56,13 @@ export interface EtatCamp {
   fatigue?: number; // CACHÉ : lassitude de l'opinion face aux engagements militaires
   agenda?: { id: string; annee: number; depart: number } | null; // agenda secret de l'année
   renseigne?: number; // dernier trimestre de renseignement
+  course?: number; // dernière année de course aux armements
+  recherche?: Record<string, number>; technologies?: string[]; // points investis par technologie, percées obtenues
 }
 export type TypeCarte = "camp" | "adverse" | "neutre";
 export const NOMS_TYPES: Record<TypeCarte, string> = { camp: "de ton camp", adverse: "adverse", neutre: "neutre" };
 export interface EntreeJournal {
-  round: number; type: "historique" | "generique" | "carte" | "briefing" | "cache" | "politique" | "bilan" | "action";
+  round: number; type: "historique" | "generique" | "carte" | "briefing" | "cache" | "politique" | "bilan" | "action" | "rumeur";
   titre: string; texte: string; famille?: string; pays?: string[]; camp?: Camp; visiblePour: Camp[];
   effets?: string[]; intensite?: number; mineur?: boolean; contestable?: boolean; joueParCamp?: Camp; reactif?: boolean; source?: string; // source : identifiant de l'événement historique ; reactif : événement négatif localisé, on peut y réagir (aider, exploiter) // joueParCamp : qui a posé la carte (≠ camp quand l'événement adverse se déclenche) // effets lisibles (« ce que ça change ») et gravité des événements génériques (0,5 mineur à 3 majeur)
 }
@@ -78,9 +80,16 @@ export interface EtatPartie {
   conflits: Conflit[]; // conflits armés en cours (symboles sur la carte)
   blocages: { detroit: string; fin: number }[]; // détroits fermés : les flux qui les traversent sont coupés
   concessions: { hub: string; iso: string; camp: Camp; fin: number }[];
-  proposition?: { de: Camp; type: "sommet" | "accord"; round: number } | null; // offre diplomatique en attente de réponse
+  proposition?: { de: Camp; type: "sommet" | "accord" | "paix"; round: number } | null; // offre diplomatique en attente de réponse
   paliers: Record<string, number>;
-  memoire: Record<string, Record<Camp, number>>; // CACHÉ : gratitude (+) ou rancune (−) de chaque pays envers chaque bloc, de −10 à +10
+  memoire: Record<string, Record<Camp, number>>;
+  prets: { iso: string; camp: Camp; montant: number; echeance: number }[];
+  interventions: { iso: string; camp: Camp; fin: number }[];
+  campagnesElectorales: Record<string, Record<Camp, number>>; // « ISO:année » → soutiens de chaque bloc
+  chaines: { iso: string; famille: string; round: number; source: string }[]; // crises en chaîne programmées
+  onu?: { annee: number; theme: string; de: Camp; lobby: Record<Camp, number> } | null;
+  blocus?: { detroit: string; camp: Camp; fin: number } | null;
+  guerre?: { theatre: string; agresseur: Camp; debut: number } | null; // guerre directe entre les deux leaders // CACHÉ : gratitude (+) ou rancune (−) de chaque pays envers chaque bloc, de −10 à +10
   rapprochements: { iso: string; camp: Camp; restant: number }[]; // entraînements en cours (trimestres restants)
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
   zones: Record<string, Record<Camp, number>>; // présence des blocs dans les zones stratégiques (0-100) // ports et aéroports sous concession d'un bloc
@@ -202,7 +211,7 @@ export function agirZone(e0: EtatPartie, camp: Camp, zone: string, type: ActionZ
   const e = copie(e0), c = e.camps[camp], a = ACTIONS_ZONE[type], z = ZONES_STRATEGIQUES.find(x => x.id === zone)!;
   c.pa -= a.pa; c.budget -= a.budget; c.paParPays[`strat:${zone}`] = a.pa;
   if (type === "deploiement") c.fatigue = (c.fatigue ?? 0) + 1;
-  e.zones[zone][camp] = borne(e.zones[zone][camp] + a.gain * (c.priorite === "securite" ? BONUS_PRIORITE : 1), 0, 100); e.tension = borne(e.tension + a.tension, 0, 100);
+  e.zones[zone][camp] = borne(e.zones[zone][camp] + a.gain * (c.priorite === "securite" ? BONUS_PRIORITE : 1) * (c.technologies?.includes("satellites") ? 1.25 : 1), 0, 100); e.tension = borne(e.tension + a.tension, 0, 100);
   noter(e, { type: "action", titre: `${a.nom} : ${z.nom}`, texte: `Présence ${camp === "OCC" ? "du bloc USA" : "du bloc Chine"} +${a.gain}.`, camp, visiblePour: [...CAMPS] });
   return e;
 }
@@ -214,7 +223,7 @@ export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
 // Compensation (komi, comme au go) mesurée en IA contre IA pour viser 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
-export const KOMI = 9.7, SEUIL_EGALITE = 0.2;
+export const KOMI = 4.7, SEUIL_EGALITE = 0.2;
 // Progression depuis 2000 (sans jugement sur l'écart à l'histoire), komi au prorata du temps écoulé.
 export const progression = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE;
 // Bilan : moyenne des décomptes annuels (fin de chaque T4) ; avant le premier décompte, la progression courante.
@@ -277,7 +286,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
       CHN: { cp: 70, budget: 0, main: [], pa: 0, paParPays: {}, paAchetes: 0, carteJouee: false, briefing: null, doctrine: "développement pacifique", reactions: [], typesJoues: [] },
     },
     tension: 15, co2Cumule: 0, ecartTemp: ECART_2000, drapeaux: [], historiquesFaits: [], briefingsFaits: [],
-    pioche: [], defausse: [], retirees: [], attente: [], journal: [], scoreDepart: 0, termine: false, resultat: null, decomptes: [], deficitDepart: { OCC: 0, CHN: 0 }, reglages, conflits: [], blocages: [], concessions: [], paliers: {}, rapprochements: [], contagion: {}, memoire: {}, zones: Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])),
+    pioche: [], defausse: [], retirees: [], attente: [], journal: [], scoreDepart: 0, termine: false, resultat: null, decomptes: [], deficitDepart: { OCC: 0, CHN: 0 }, reglages, conflits: [], blocages: [], concessions: [], paliers: {}, rapprochements: [], contagion: {}, memoire: {}, prets: [], interventions: [], campagnesElectorales: {}, chaines: [], onu: null, blocus: null, guerre: null, zones: Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])),
   };
   for (const iso of ISO) for (const camp of CAMPS) {
     const v = cibleEconomique(e, iso, camp);
@@ -403,8 +412,10 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
       noter(e, { type: "historique", source: h.id, titre: `L'histoire dévie : ${h.titre.toLowerCase()} n'a pas lieu`, texte: ok ? "Le hasard en a décidé autrement (10 % de chances de déviation même quand les conditions sont réunies)." : `Condition réelle qui manque dans votre partie : ${conditionsManquantes(e, h.conditions).join(" ; ")}.`, famille: h.famille, pays: h.pays, visiblePour: [...CAMPS] });
     }
   }
-  // 3. événements génériques calibrés
-  if (e.reglages.generiques) tirerGeneriques(e);
+  // 3. événements génériques calibrés, crises en chaîne, rumeurs, session de l'ONU
+  if (e.reglages.generiques) { tirerGeneriques(e); declencherChaines(e); }
+  rumeurs(e);
+  if (trimestre === 2) ouvrirSessionOnu(e);
   // 4. budget et main en début d'année
   if (trimestre === 1) for (const camp of CAMPS) {
     if (e.round > 0) e.camps[camp].budget = Math.min(e.camps[camp].budget, Math.floor(budgetAnnuel(e, camp) / 2)) + budgetAnnuel(e, camp);
@@ -492,7 +503,7 @@ export const GRAVITES = [0.5, 1, 1.5, 2, 3];
 export const NOMS_GRAVITE: Record<number, string> = { 0.5: "mineur", 1: "modéré", 1.5: "sérieux", 2: "grave", 3: "majeur" };
 // Plafond réaliste par pays et par an : 3 événements génériques au plus, et pas deux fois la même famille
 // (le tirage passe alors à un autre pays ; la fréquence mondiale ne change pas).
-const MAX_GENERIQUES_PAYS_AN = 3;
+export const MAX_GENERIQUES_PAYS_AN = 3;
 function tirerGeneriques(e: EtatPartie) {
   const debutAn = e.round - (e.round % 4), deja: Record<string, string[]> = {};
   for (let i = e.journal.length - 1; i >= 0 && e.journal[i].round >= debutAn; i--) {
@@ -611,7 +622,8 @@ function declencherCarte(e: EtatPartie, camp: Camp, c: Carte, mode: number, pays
     pays: pays ? [pays] : undefined, visiblePour: [...CAMPS], joueParCamp: parAdversaire ? adversaire(camp) : camp, effets: decrire(e, m.effets, camp, pays, 0.3).concat(m.caches?.length ? ["Conséquences cachées possibles"] : []) });
 }
 
-export type TypeAction = "politique" | "culturelle" | "economique" | "militaire" | "contre" | "developpement" | "armes" | "exercices" | "clandestin" | "destabiliser" | "espionnage" | "infrastructure";
+export type TypeAction = "politique" | "culturelle" | "economique" | "militaire" | "contre" | "developpement" | "armes" | "exercices" | "clandestin" | "destabiliser" | "espionnage" | "infrastructure"
+  | "pret" | "electorale" | "intimidation" | "soutien" | "putsch" | "intervention";
 export const ACTIONS: Record<TypeAction, { nom: string; pa: number; budget: number; famille?: "militaire" | "secret"; aide?: string }> = {
   politique: { nom: "Influence politique", pa: 1, budget: 0 },
   culturelle: { nom: "Influence culturelle", pa: 1, budget: 0 },
@@ -624,6 +636,12 @@ export const ACTIONS: Record<TypeAction, { nom: string; pa: number; budget: numb
   clandestin: { nom: "Soutien clandestin", pa: 1, budget: 1, famille: "secret", aide: "Influence politique +7, invisible pour l'adversaire. 25 % de risque d'être révélé : influence politique −10, capital politique −3, tension +1." },
   destabiliser: { nom: "Déstabilisation", pa: 2, budget: 2, famille: "secret", aide: "Stabilité −8, influence adverse politique −6 et économique −3. 35 % de risque d'être révélé : influence politique −8, capital politique −5, tension +2." },
   infrastructure: { nom: "Investir dans un port ou un aéroport", pa: 1, budget: 2, aide: "Concession de 4 ans sur le principal port ou aéroport du pays : influence économique +6 et lien de flux +2 avec ton bloc tant qu'elle dure." },
+  pret: { nom: "Prêt d'État", pa: 1, budget: 4, aide: "Influence économique +6 et politique +3. Remboursé avec intérêts (budget +5) au bout de 3 ans, sauf défaut : le risque, caché, croît avec l'instabilité du pays ; un défaut se solde par une saisie d'actifs (concession, mais rancune) ou par une annulation (gratitude)." },
+  electorale: { nom: "Soutenir une campagne électorale", pa: 1, budget: 1, aide: "Possible dans l'année qui précède une élection : chaque soutien pèse sur le résultat. Le gagnant du scrutin penche nettement vers le bloc qui a le plus soutenu (influence politique +6, −4 pour l'autre)." },
+  intimidation: { nom: "Manœuvres d'intimidation", pa: 1, budget: 1, famille: "militaire", aide: "Démonstration de force : si le pays ne penche pas vers l'adversaire, il plie (influence politique +5) ; sinon il se braque (−2 et rancune). Capital politique adverse −2, tension +3, 15 % de risque d'incident. Il faut une influence militaire d'au moins 15 dans le pays ou un voisin." },
+  soutien: { nom: "Soutenir un camp dans le conflit", pa: 2, budget: 2, famille: "militaire", aide: "Armes, conseillers, frappes : influence militaire +8 et politique +4, conflit raccourci de 2 trimestres ; si l'adversaire soutient aussi, guerre par procuration (tension +3, conflit rallongé). Seulement dans un pays en conflit." },
+  putsch: { nom: "Fomenter un putsch", pa: 2, budget: 4, famille: "secret", aide: "Pays instable (stabilité < 40) seulement. 45 % de réussite : un régime ami (influence politique 60, adverse 15), stabilité −15. Échec : stabilité −5, et 70 % de risque d'être démasqué : scandale, capital politique −6, rancune dans le pays et chez ses voisins." },
+  intervention: { nom: "Intervention armée", pa: 2, budget: 8, famille: "militaire", aide: "Capital politique 55 requis (−5). Conflit de 8 trimestres, coût 1 budget par trimestre, tension +10, stabilité −20, rancune ; influence militaire +15, adverse −10. Issue cachée selon le rapport des forces militaires : régime ami (politique +15) ou enlisement (politique −10, capital politique −8)." },
   espionnage: { nom: "Espionnage économique", pa: 1, budget: 0, famille: "secret", aide: "Influence économique +4 et adverse −3, rapporte 1 de budget. 20 % de risque d'être révélé : influence économique −6, capital politique −2." },
 };
 export const AIDES_ACTIONS: Partial<Record<TypeAction, string>> = {
@@ -647,6 +665,15 @@ export function peutAgir(e: EtatPartie, camp: Camp, type: TypeAction, iso: strin
     if (!h) return "Tous ses ports et aéroports sont déjà sous concession.";
     if (vers < -0.3) return "Le pays penche trop vers l'adversaire pour t'accorder une concession.";
   }
+  if (type === "electorale") { const el = electionProchaine(e, iso); if (!el) return "Aucune élection dans ce pays dans l'année qui vient."; }
+  if (type === "intimidation" && Math.max(e.pays[iso].influence[camp].m, ...prochesDe(e, iso).voisins.map(v => e.pays[v].influence[camp].m)) < 15) return "Intimidation : il faut une influence militaire d'au moins 15 dans le pays ou chez un voisin.";
+  if (type === "soutien" && !e.conflits.some(x => x.iso === iso)) return "Soutien militaire : le pays doit être en conflit.";
+  if (type === "putsch" && e.pays[iso].stabilite >= 40) return `Putsch : le pays doit être instable (stabilité < 40 ; actuelle : ${Math.round(e.pays[iso].stabilite)}).`;
+  if (type === "intervention") {
+    if (c.cp < 55) return `Intervention : capital politique 55 requis (actuel : ${Math.floor(c.cp)}).`;
+    if (e.interventions.some(x => x.iso === iso)) return "Une intervention est déjà en cours dans ce pays.";
+    if (vers >= 0.4) return "On n'envahit pas un allié.";
+  }
   if (type === "armes" && vers < -0.2) return `Vente d'armes : le pays penche trop vers l'adversaire (${(-vers).toFixed(2).replace(".", ",")} ; limite 0,20).`;
   return null;
 }
@@ -659,7 +686,7 @@ export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string, 
   const n = !su ? 0 : su.round === e.round ? su.n : su.round === e.round - 1 ? Math.min(3, su.n + 1) : 0; // investissement durable
   c.suite[iso] = { round: e.round, n };
   const durable = 1 + DURABLE * n;
-  if (a.famille === "militaire") c.fatigue = (c.fatigue ?? 0) + (type === "armes" ? 0.5 : 1);
+  if (a.famille === "militaire" && type !== "intervention") c.fatigue = (c.fatigue ?? 0) + (type === "armes" ? 0.5 : 1);
   if (type === "developpement") memoriser(e, iso, camp, 1);
   if (type === "destabiliser") memoriser(e, iso, camp, -2);
   // court et long terme : 2/3 du gain tout de suite, 1/3 étalé sur les 4 trimestres suivants (atténué comme le gain immédiat)
@@ -680,9 +707,43 @@ export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string, 
     noter(e, { type: "action", titre: `Concession : ${h.nom} (${nomPays(iso)})`, texte: "Concession de 4 ans : influence économique +6, lien de flux +2.", camp, pays: [iso], visiblePour: [...CAMPS], contestable: true }); return e; }
   if (type === "armes") { gain("m", 6); gain("e", 2); c.budget += 1; e.tension = borne(e.tension + 0.5, 0, 100); }
   if (type === "exercices") { gain("m", 5); e.pays[iso].stabilite = borne(e.pays[iso].stabilite + 2, 0, 100); e.tension = borne(e.tension + 1, 0, 100); }
+  if (type === "pret") { gain("e", 6); gain("p", 3); e.prets.push({ iso, camp, montant: a.budget, echeance: e.round + 12 }); }
+  if (type === "electorale") { const el = electionProchaine(e, iso)!; const k = `${iso}:${el.annee}`; (e.campagnesElectorales[k] ??= { OCC: 0, CHN: 0 })[camp] += 1; }
+  if (type === "intimidation") {
+    e.tension = borne(e.tension + 3, 0, 100); e.camps[adversaire(camp)].cp = borne(e.camps[adversaire(camp)].cp - 2, 0, 100);
+    if ((camp === "OCC" ? 1 : -1) * alignement(e, iso) >= -0.1) gain("p", 5); else { inf.p = borne(inf.p - 2, 0, 100); memoriser(e, iso, camp, -2); }
+    if (!apercu && tirer(e) < 0.15) { e.tension = borne(e.tension + 3, 0, 100); e.pays[iso].stabilite = borne(e.pays[iso].stabilite - 3, 0, 100);
+      noter(e, { type: "generique", titre: `Incident lors de manœuvres près ${duPays(iso, nomPays(iso))}`, famille: "incident_militaire", texte: "Un accrochage entre navires et avions fait monter la tension (+3) ; le pays s'inquiète (stabilité −3).", pays: [iso], visiblePour: [...CAMPS] }); }
+  }
+  if (type === "soutien") {
+    gain("m", 8); gain("p", 4); memoriser(e, iso, camp, 1); e.tension = borne(e.tension + 2, 0, 100);
+    const advSoutient = e.journal.some(j => j.titre === `${ACTIONS.soutien.nom} : ${nomPays(iso)}` && j.camp === adversaire(camp) && j.round >= e.round - 4);
+    for (const x of e.conflits.filter(x => x.iso === iso)) x.fin = advSoutient ? x.fin + 2 : Math.max(e.round, x.fin - 2);
+    if (advSoutient) e.tension = borne(e.tension + 3, 0, 100);
+  }
+  if (type === "intervention") {
+    c.cp = borne(c.cp - 5, 0, 100); gain("m", 15); const adv = e.pays[iso].influence[adversaire(camp)]; adv.m = Math.max(0, adv.m - 10); adv.p = Math.max(0, adv.p - 10);
+    e.pays[iso].stabilite = borne(e.pays[iso].stabilite - 20, 0, 100); e.tension = borne(e.tension + 10, 0, 100); c.fatigue = (c.fatigue ?? 0) + 3;
+    memoriser(e, iso, camp, -4); for (const v of prochesDe(e, iso).voisins) memoriser(e, v, camp, -1);
+    e.conflits.push({ iso, titre: `Intervention ${camp === "OCC" ? "américaine" : "chinoise"} ${enPays(iso, nomPays(iso))}`, fin: e.round + 7 });
+    e.interventions.push({ iso, camp, fin: e.round + 7 });
+  }
+  if (type === "putsch") {
+    const reussi = !apercu && tirer(e) < 0.45, p = e.pays[iso], adv = p.influence[adversaire(camp)];
+    if (apercu || reussi) { inf.p = Math.max(inf.p, 60); adv.p = Math.min(adv.p, 15); p.stabilite = borne(p.stabilite - 15, 0, 100); }
+    const demasque = !apercu && !reussi && tirer(e) < 0.7 * (c.technologies?.includes("calcul") ? 0.5 : 1);
+    if (!apercu && !reussi) p.stabilite = borne(p.stabilite - 5, 0, 100);
+    noter(e, { type: "action", titre: `Opération secrète, putsch : ${nomPays(iso)}`, texte: reussi ? "Le nouveau régime t'est acquis." : apercu ? "" : "Le coup échoue.", camp, pays: [iso], visiblePour: [camp] });
+    if (reussi) noter(e, { type: "generique", titre: `Coup d'État ${enPays(iso, nomPays(iso))}`, famille: "coup_etat", texte: "L'armée renverse le gouvernement ; les nouveaux dirigeants restent discrets sur leurs soutiens étrangers.", pays: [iso], visiblePour: [...CAMPS] });
+    if (demasque) {
+      c.cp = borne(c.cp - 6, 0, 100); memoriser(e, iso, camp, -6); for (const v of prochesDe(e, iso).voisins) memoriser(e, v, camp, -2); e.tension = borne(e.tension + 5, 0, 100);
+      noter(e, { type: "action", titre: `Scandale : un putsch ${camp === "OCC" ? "soutenu par Washington" : "soutenu par Pékin"} échoue ${enPays(iso, nomPays(iso))}`, texte: "Les conjurés arrêtés révèlent leurs commanditaires.", camp, pays: [iso], famille: "scandale_dirigeant", visiblePour: [...CAMPS] });
+    }
+    return e;
+  }
   if (a.famille === "secret") {
     const adv = e.pays[iso].influence[adversaire(camp)], perte = (canal: Canal, k: number) => { inf[canal] = borne(inf[canal] - k, 0, 100); };
-    const risque = { clandestin: 0.25, destabiliser: 0.35, espionnage: 0.2 }[type as "clandestin" | "destabiliser" | "espionnage"];
+    const risque = { clandestin: 0.25, destabiliser: 0.35, espionnage: 0.2 }[type as "clandestin" | "destabiliser" | "espionnage"] * (c.technologies?.includes("calcul") ? 0.5 : 1);
     if (type === "clandestin") gain("p", 7);
     if (type === "destabiliser") { e.pays[iso].stabilite = borne(e.pays[iso].stabilite - 8, 0, 100); adv.p = Math.max(0, adv.p - 6); adv.e = Math.max(0, adv.e - 3); }
     if (type === "espionnage") { gain("e", 4); adv.e = Math.max(0, adv.e - 3); c.budget += 1; }
@@ -921,6 +982,16 @@ function iaJouerSurPlace(e: EtatPartie, camp: Camp): EtatPartie {
     const t: Diplomatie | null = e.tension > 45 ? "sommet" : tirer(e) < 0.5 ? "accord" : tirer(e) < 0.3 ? "sanctions" : null;
     if (t && !peutDiplomatie(e, camp, t)) e = diplomatie(e, camp, t);
   }
+  // guerre : l'IA cherche la paix dès qu'elle y est
+  if (e.guerre && !e.proposition) e = proposerPaix(e, camp);
+  // ONU, élections, recherche, prêts : usage modéré
+  if (e.onu && !peutLobbyOnu(e, camp) && tirer(e) < 0.4) e = lobbyOnu(e, camp);
+  for (const x of ELECTIONS_PAYS) { if (c().pa < 2) break; if (!e.pays[x.iso] || peutAgir(e, camp, "electorale", x.iso) || Math.abs(alignement(e, x.iso)) > 0.5 || tirer(e) >= 0.3) continue; e = agir(e, camp, "electorale", x.iso); }
+  if (c().budget >= 10 && tirer(e) < 0.3) { const t = Object.keys(TECHNOLOGIES).find(k => !peutRechercher(e, camp, k)); if (t) e = rechercher(e, camp, t); }
+  if (c().budget >= 14 && c().pa >= 2 && tirer(e) < 0.1) {
+    const iso = ISO.filter(i => !peutAgir(e, camp, "pret", i) && s * alignement(e, i) > -0.1 && s * alignement(e, i) < 0.4).sort((a, b) => e.pays[b].pib - e.pays[a].pib)[0];
+    if (iso) e = agir(e, camp, "pret", iso);
+  }
   // achat de points d'action en gardant une réserve de 6 unités
   while (!peutAcheterPA(e, camp) && c().budget - PRIX_PA >= 6) e = acheterPA(e, camp);
   // zones stratégiques : une mission par trimestre dans 35 % des cas, là où le poids non tenu est le plus grand
@@ -979,8 +1050,14 @@ export function peutDiplomatie(e: EtatPartie, camp: Camp, type: Diplomatie): str
   if (c.cp < DIPLOMATIE[type].cp) return `Capital politique insuffisant (${DIPLOMATIE[type].cp} requis).`;
   return null;
 }
-function conclure(e: EtatPartie, de: Camp, type: "sommet" | "accord", accepte: boolean) {
+function conclure(e: EtatPartie, de: Camp, type: "sommet" | "accord" | "paix", accepte: boolean) {
   const adv = adversaire(de);
+  if (type === "paix") {
+    if (accepte) { e.guerre = null; e.tension = 70; }
+    noter(e, { type: "politique", titre: `Négociations de paix : ${accepte ? "cessez-le-feu signé" : "refusées"}`, visiblePour: [...CAMPS], camp: de,
+      texte: `Proposées par le ${nomBloc(de)}, ${accepte ? "acceptées" : "refusées"} par le ${nomBloc(adv)}.${accepte ? " La guerre s'arrête ; la tension reste très forte (70)." : " La guerre continue."}` });
+    return;
+  }
   if (accepte && type === "sommet") { e.tension = borne(e.tension - 5, 0, 100); for (const c of CAMPS) e.camps[c].cp = borne(e.camps[c].cp + 2, 0, 100); }
   else if (accepte) { e.tension = borne(e.tension - 2, 0, 100); for (const c of CAMPS) e.camps[c].budget += 2; }
   else e.tension = borne(e.tension + 1, 0, 100);
@@ -988,7 +1065,8 @@ function conclure(e: EtatPartie, de: Camp, type: "sommet" | "accord", accepte: b
     texte: `Proposé par le ${nomBloc(de)}, ${accepte ? "accepté" : "refusé"} par le ${nomBloc(adv)}. ${accepte ? (type === "sommet" ? "Tension −5, capital politique +2 pour chacun." : "Budget +2 pour chacun, tension −2.") : "Tension +1."}` });
 }
 // L'IA accepte un sommet quand la tension est forte, un accord quand son budget ne dépasse pas celui de l'adversaire (sinon 40 % de chances).
-function iaAccepte(e: EtatPartie, camp: Camp, type: "sommet" | "accord"): boolean {
+function iaAccepte(e: EtatPartie, camp: Camp, type: "sommet" | "accord" | "paix"): boolean {
+  if (type === "paix") return true; // l'IA ne veut pas d'une guerre entre puissances nucléaires
   return type === "sommet" ? e.tension >= 30 || tirer(e) < 0.4 : e.camps[camp].budget <= e.camps[adversaire(camp)].budget || tirer(e) < 0.4;
 }
 export function diplomatie(e0: EtatPartie, camp: Camp, type: Diplomatie): EtatPartie {
@@ -1131,6 +1209,283 @@ export function progresAgenda(e: EtatPartie, camp: Camp): { texte: string; progr
   return { texte: a.texte(camp), progres: a.mesure(e, camp) - ag.depart, cible: a.cible };
 }
 
+// ---------- Élections dans les pays clés (dates réelles 2000-2008) ----------
+export interface ElectionPays { iso: string; annee: number; trimestre: 1 | 2 | 3 | 4; nom: string }
+const el = (iso: string, annee: number, trimestre: 1 | 2 | 3 | 4, nom: string): ElectionPays => ({ iso, annee, trimestre, nom });
+export const ELECTIONS_PAYS: ElectionPays[] = [
+  el("RUS", 2000, 1, "présidentielle"), el("RUS", 2004, 1, "présidentielle"), el("RUS", 2008, 1, "présidentielle"),
+  el("TWN", 2000, 1, "présidentielle"), el("TWN", 2004, 1, "présidentielle"), el("TWN", 2008, 1, "présidentielle"),
+  el("ESP", 2000, 1, "législatives"), el("ESP", 2004, 1, "législatives"), el("ESP", 2008, 1, "législatives"),
+  el("MEX", 2000, 3, "présidentielle"), el("MEX", 2006, 3, "présidentielle"), el("VEN", 2000, 3, "présidentielle"), el("VEN", 2006, 4, "présidentielle"),
+  el("JPN", 2000, 2, "législatives"), el("JPN", 2003, 4, "législatives"), el("JPN", 2005, 3, "législatives"),
+  el("CAN", 2000, 4, "fédérales"), el("CAN", 2004, 2, "fédérales"), el("CAN", 2006, 1, "fédérales"), el("CAN", 2008, 4, "fédérales"),
+  el("IRN", 2001, 2, "présidentielle"), el("IRN", 2005, 2, "présidentielle"), el("GBR", 2001, 2, "législatives"), el("GBR", 2005, 2, "législatives"),
+  el("ITA", 2001, 2, "législatives"), el("ITA", 2006, 2, "législatives"), el("ITA", 2008, 2, "législatives"),
+  el("AUS", 2001, 4, "fédérales"), el("AUS", 2004, 4, "fédérales"), el("AUS", 2007, 4, "fédérales"),
+  el("FRA", 2002, 2, "présidentielle"), el("FRA", 2007, 2, "présidentielle"), el("DEU", 2002, 3, "fédérales"), el("DEU", 2005, 3, "fédérales"),
+  el("BRA", 2002, 4, "présidentielle"), el("BRA", 2006, 4, "présidentielle"), el("TUR", 2002, 4, "législatives"), el("TUR", 2007, 3, "législatives"),
+  el("PAK", 2002, 4, "législatives"), el("PAK", 2008, 1, "législatives"), el("KOR", 2002, 4, "présidentielle"), el("KOR", 2007, 4, "présidentielle"),
+  el("ARG", 2003, 2, "présidentielle"), el("ARG", 2007, 4, "présidentielle"), el("NGA", 2003, 2, "présidentielle"), el("NGA", 2007, 2, "présidentielle"),
+  el("IND", 2004, 2, "législatives"), el("ZAF", 2004, 2, "législatives"), el("PHL", 2004, 2, "présidentielle"), el("IDN", 2004, 3, "présidentielle"),
+  el("UKR", 2004, 4, "présidentielle"),
+];
+const roundDe = (annee: number, trimestre: number) => (annee - 2000) * 4 + trimestre - 1;
+// Prochaine élection d'un pays dans l'année qui vient (ce trimestre compris).
+export function electionProchaine(e: EtatPartie, iso: string): ElectionPays | null {
+  return ELECTIONS_PAYS.find(x => x.iso === iso && roundDe(x.annee, x.trimestre) >= e.round && roundDe(x.annee, x.trimestre) <= e.round + 4) ?? null;
+}
+// Scrutin : soutiens de campagne (1 point chacun), penchant actuel (×2) et hasard (±1). Écart sous 1 : continuité.
+function resoudreElections(e: EtatPartie) {
+  for (const x of ELECTIONS_PAYS.filter(x => roundDe(x.annee, x.trimestre) === e.round && e.pays[x.iso])) {
+    const k = e.campagnesElectorales[`${x.iso}:${x.annee}`] ?? { OCC: 0, CHN: 0 };
+    const d = k.OCC - k.CHN + 2 * alignement(e, x.iso) + (tirer(e) - 0.5) * 2, g: Camp | null = d >= 1 ? "OCC" : d <= -1 ? "CHN" : null;
+    if (g) { const p = e.pays[x.iso]; p.influence[g].p = borne(p.influence[g].p + 6, 0, 100); p.influence[adversaire(g)].p = borne(p.influence[adversaire(g)].p - 4, 0, 100); }
+    noter(e, { type: "politique", titre: `Élection ${x.nom} ${enPays(x.iso, nomPays(x.iso))}`, pays: [x.iso], visiblePour: [...CAMPS],
+      texte: `${g ? `Le vainqueur penche vers le ${nomBloc(g)} (influence politique +6, −4 pour l'autre bloc).` : "Continuité : le résultat ne change pas l'orientation du pays."} Soutiens de campagne : bloc USA ${k.OCC}, bloc Chine ${k.CHN}.` });
+  }
+}
+
+// ---------- Prêts et dette (issue cachée, à 3 ans) ----------
+function echeancesPrets(e: EtatPartie) {
+  for (const pr of e.prets.filter(x => x.echeance === e.round)) {
+    const p = e.pays[pr.iso], c = e.camps[pr.camp], risque = borne(0.1 + (50 - p.stabilite) / 150, 0.05, 0.5);
+    if (tirer(e) >= risque) { c.budget += pr.montant + 1; noter(e, { type: "action", titre: `Prêt remboursé : ${nomPays(pr.iso)}`, texte: `Budget +${pr.montant + 1} (intérêts compris).`, camp: pr.camp, pays: [pr.iso], visiblePour: [pr.camp] }); continue; }
+    const h = hubLibre(e, pr.camp, pr.iso);
+    if (tirer(e) < 0.5 && h) {
+      e.concessions.push({ hub: h.id, iso: pr.iso, camp: pr.camp, fin: e.round + 15 }); p.influence[pr.camp].e = borne(p.influence[pr.camp].e + 6, 0, 100); memoriser(e, pr.iso, pr.camp, -3);
+      noter(e, { type: "action", titre: `Piège de la dette : ${nomPays(pr.iso)} cède ${h.nom}`, texte: "Faute de pouvoir rembourser, le pays concède son port ou son aéroport pour 4 ans ; l'opinion locale le vit mal (rancune).", camp: pr.camp, pays: [pr.iso], visiblePour: [...CAMPS] });
+    } else {
+      memoriser(e, pr.iso, pr.camp, 2);
+      noter(e, { type: "action", titre: `Dette annulée : ${nomPays(pr.iso)}`, texte: `Le pays fait défaut ; tu annules la créance (${pr.montant} de budget perdus), il s'en souviendra (gratitude).`, camp: pr.camp, pays: [pr.iso], visiblePour: [...CAMPS] });
+    }
+  }
+  e.prets = e.prets.filter(x => x.echeance > e.round);
+}
+
+// ---------- Interventions armées (issue cachée) ----------
+function suiviInterventions(e: EtatPartie) {
+  for (const it of e.interventions) {
+    const c = e.camps[it.camp]; c.budget = Math.max(0, c.budget - 1); c.fatigue = (c.fatigue ?? 0) + 0.5;
+    if (it.fin !== e.round) continue;
+    const p = e.pays[it.iso], pSucces = borne(0.5 + 0.4 * (p.influence[it.camp].m - p.influence[adversaire(it.camp)].m) / 100, 0.2, 0.85), ok = tirer(e) < pSucces;
+    if (ok) p.influence[it.camp].p = borne(p.influence[it.camp].p + 15, 0, 100);
+    else { p.influence[it.camp].p = borne(p.influence[it.camp].p - 10, 0, 100); c.cp = borne(c.cp - 8, 0, 100); }
+    noter(e, { type: "action", titre: `Fin de l'intervention ${enPays(it.iso, nomPays(it.iso))} : ${ok ? "régime ami installé" : "enlisement et retrait"}`, camp: it.camp, pays: [it.iso], visiblePour: [...CAMPS],
+      texte: ok ? "Le nouveau pouvoir est acquis à ton bloc (influence politique +15)." : "Les troupes se retirent sans avoir atteint leurs objectifs (influence politique −10, capital politique −8)." });
+  }
+  e.interventions = e.interventions.filter(x => x.fin > e.round);
+}
+
+// ---------- Crises en chaîne ----------
+// Une crise laissée sans réponse (aucun bloc n'a réagi) a 35 % de chances d'en provoquer une autre, 2 à 4 trimestres plus tard.
+export const CHAINES: Record<string, string> = {
+  secheresse: "famine", famine: "crise_migratoire", guerre_civile: "crise_migratoire", flambee_alimentaire: "manifestations", manifestations: "election_rupture",
+  hyperinflation: "manifestations", crise_change: "defaut_souverain", krach_boursier: "crise_bancaire", crise_bancaire: "defaut_souverain",
+  coup_etat: "manifestations", repression: "guerre_civile", inondation: "epidemie", seisme: "crise_migratoire", attentat: "repression", defaut_souverain: "manifestations",
+};
+export const P_CHAINE = 0.35;
+function programmerChaines(e: EtatPartie) {
+  e.journal.forEach((j, i) => {
+    if (j.round !== e.round || j.type !== "generique" || !j.reactif || !j.famille || !CHAINES[j.famille] || !j.pays?.length) return;
+    if (CAMPS.some(c => e.camps[c].reactions.includes(i))) return;
+    if (tirer(e) < P_CHAINE) e.chaines.push({ iso: j.pays[0], famille: CHAINES[j.famille], round: e.round + 2 + Math.floor(tirer(e) * 3), source: j.titre });
+  });
+}
+function declencherChaines(e: EtatPartie) {
+  const debutAn = e.round - (e.round % 4), deja = (iso: string) => e.journal.filter(j => j.round >= debutAn && j.type === "generique" && j.pays?.length === 1 && j.pays[0] === iso && j.famille).map(j => j.famille!);
+  for (const ch of e.chaines.filter(x => x.round === e.round)) {
+    const modeles = MODELES_PAR_FAMILLE[ch.famille]; if (!modeles?.length || !e.pays[ch.iso]) continue;
+    const d = deja(ch.iso); if (d.length >= MAX_GENERIQUES_PAYS_AN || d.includes(ch.famille)) continue; // le plafond annuel vaut aussi pour les crises en chaîne
+    const m = modeles[Math.floor(tirer(e) * modeles.length)], h = habiller(e, ch.famille, m, ch.iso), avant = e.round < 92;
+    executer(e, rebond(m.effets, avant, 1, resilience(e, ch.iso)), null, ch.iso, h.titre, () => 1);
+    noter(e, { type: "generique", titre: h.titre, texte: `${h.texte} Conséquence de : ${ch.source}.`, famille: ch.famille, pays: [ch.iso], visiblePour: visibleDans(e, [ch.iso]), intensite: 1,
+      reactif: m.effets.some(ef => (ef.type === "stabilite" && ef.valeur < 0) || (ef.type === "croissance" && ef.points < 0)), effets: decrire(e, rebond(m.effets, false, 1, resilience(e, ch.iso)), null, ch.iso) });
+    const duree = DUREE_CONFLIT[ch.famille]; if (duree) e.conflits.push({ iso: ch.iso, titre: h.titre, fin: e.round + duree - 1 });
+  }
+  e.chaines = e.chaines.filter(x => x.round > e.round);
+}
+
+// ---------- Rumeurs ----------
+// La moitié des événements historiques du trimestre suivant sont précédés d'une rumeur vague ; 15 % des trimestres, une fausse rumeur.
+function rumeurs(e: EtatPartie) {
+  const { annee, trimestre } = date(e.round + 1), nomF = (f: string) => (FAMILLES.find(x => x.id === f)?.nom ?? f).toLowerCase();
+  for (const h of HISTORIQUES_ERE1.filter(h => h.annee === annee && h.trimestre === trimestre)) if (tirer(e) < 0.5)
+    noter(e, { type: "rumeur", titre: `Rumeurs : ${nomF(h.famille)} en vue`, texte: `Les chancelleries bruissent de rumeurs autour ${h.pays.length ? `de ${h.pays.slice(0, 3).map(nomPays).join(", ")}` : "du monde"}. Rien n'est sûr.`, pays: h.pays.slice(0, 3), visiblePour: [...CAMPS] });
+  if (tirer(e) < 0.15) {
+    const iso = ISO[Math.floor(tirer(e) * ISO.length)], f = FAMILLES[Math.floor(tirer(e) * FAMILLES.length)];
+    noter(e, { type: "rumeur", titre: `Rumeurs : ${nomF(f.id)} en vue`, texte: `Les chancelleries bruissent de rumeurs autour de ${nomPays(iso)}. Rien n'est sûr.`, pays: [iso], visiblePour: [...CAMPS] });
+  }
+}
+
+// ---------- Votes à l'ONU (Assemblée générale, chaque automne) ----------
+const THEMES_ONU: Record<Camp, string[]> = {
+  OCC: ["les droits de l'homme en Iran", "la non-prolifération nucléaire en Corée du Nord", "la situation au Darfour", "la liberté de la presse"],
+  CHN: ["la non-ingérence dans les affaires intérieures", "la levée de l'embargo contre Cuba", "le droit au développement", "la non-militarisation de l'espace"],
+};
+export const LOBBY_ONU = { pa: 1, budget: 1, max: 2, poids: 0.08 };
+function ouvrirSessionOnu(e: EtatPartie) {
+  const { annee } = date(e.round), de: Camp = annee % 2 === 0 ? "OCC" : "CHN", t = THEMES_ONU[de];
+  e.onu = { annee, theme: t[Math.floor(annee / 2) % t.length], de, lobby: { OCC: 0, CHN: 0 } };
+  noter(e, { type: "politique", titre: `ONU : le ${nomBloc(de)} dépose une résolution sur ${e.onu.theme}`, texte: "Vote de l'Assemblée générale à la fin du 3e trimestre. Chaque bloc peut faire campagne auprès des délégations.", visiblePour: [...CAMPS] });
+}
+export function peutLobbyOnu(e: EtatPartie, camp: Camp): string | null {
+  const c = e.camps[camp];
+  if (!e.onu) return "Aucune résolution en discussion (session ouverte au 2e trimestre).";
+  if (e.onu.lobby[camp] >= LOBBY_ONU.max) return `${LOBBY_ONU.max} campagnes au plus par session.`;
+  if (c.pa < LOBBY_ONU.pa) return "Points d'action insuffisants.";
+  if (c.budget < LOBBY_ONU.budget) return "Budget insuffisant.";
+  return null;
+}
+export function lobbyOnu(e0: EtatPartie, camp: Camp): EtatPartie {
+  const err = peutLobbyOnu(e0, camp); if (err) throw new Error(err);
+  const e = copie(e0); e.camps[camp].pa -= LOBBY_ONU.pa; e.camps[camp].budget -= LOBBY_ONU.budget; e.onu!.lobby[camp]++;
+  return e;
+}
+// Chaque délégation vote selon son alignement, la campagne de chaque bloc, sa mémoire et un peu de hasard.
+export function voteOnu(e: EtatPartie): { pour: string[]; contre: string[] } {
+  const o = e.onu!, s = sensDe(o.de), pour: string[] = [], contre: string[] = [];
+  for (const iso of ISO) {
+    if (iso === leaderDe(o.de)) { pour.push(iso); continue; } if (iso === leaderDe(adversaire(o.de))) { contre.push(iso); continue; }
+    const m = e.memoire[iso] ?? { OCC: 0, CHN: 0 };
+    const v = s * alignement(e, iso) + LOBBY_ONU.poids * (o.lobby[o.de] - o.lobby[adversaire(o.de)]) + (m[o.de] - m[adversaire(o.de)]) / 40 + (tirer(e) - 0.5) * 0.3;
+    (v > 0 ? pour : contre).push(iso);
+  }
+  return { pour, contre };
+}
+function cloreSessionOnu(e: EtatPartie) {
+  if (!e.onu) return;
+  const o = e.onu, { pour, contre } = voteOnu(e), adoptee = pour.length > contre.length;
+  if (adoptee) { e.camps[o.de].cp = borne(e.camps[o.de].cp + 3, 0, 100); e.camps[adversaire(o.de)].cp = borne(e.camps[adversaire(o.de)].cp - 2, 0, 100); for (const i of pour) if (i !== "USA" && i !== "CHN") e.pays[i].influence[o.de].p = borne(e.pays[i].influence[o.de].p + 1, 0, 100); }
+  else e.camps[o.de].cp = borne(e.camps[o.de].cp - 2, 0, 100);
+  noter(e, { type: "politique", titre: `ONU : résolution sur ${o.theme} ${adoptee ? "adoptée" : "rejetée"} (${pour.length} pour, ${contre.length} contre)`, visiblePour: [...CAMPS],
+    texte: adoptee ? `Succès diplomatique du ${nomBloc(o.de)} : capital politique +3 (adversaire −2), influence politique +1 chez chaque pays qui a voté pour.` : `Revers pour le ${nomBloc(o.de)} : capital politique −2.` });
+  e.onu = null;
+}
+
+// ---------- Technologies ----------
+export const SEUIL_TECHNO = 5, COUT_RECHERCHE = 2;
+export const TECHNOLOGIES: Record<string, { nom: string; texte: string }> = {
+  renouvelables: { nom: "Énergies renouvelables", texte: "Croissance du leader +0,1 point par an, durablement." },
+  telecoms: { nom: "Internet mobile (3G)", texte: "Influence économique +2 dans chaque pays qui penche vers ton bloc." },
+  satellites: { nom: "Satellites et navigation", texte: "Présence dans les zones stratégiques +25 % par action." },
+  calcul: { nom: "Supercalculateurs et chiffrement", texte: "Risque d'être démasqué divisé par deux pour les opérations secrètes." },
+  biotech: { nom: "Biotechnologies", texte: "Stabilité du leader +3, capital politique +3." },
+};
+export function peutRechercher(e: EtatPartie, camp: Camp, t: string): string | null {
+  const c = e.camps[camp];
+  if (!TECHNOLOGIES[t]) return "Technologie inconnue.";
+  if (c.technologies?.includes(t)) return "Percée déjà obtenue.";
+  if (c.paParPays[`techno`]) return "Un investissement de recherche par trimestre.";
+  if (c.budget < COUT_RECHERCHE) return `Budget insuffisant (${COUT_RECHERCHE}).`;
+  return null;
+}
+export function rechercher(e0: EtatPartie, camp: Camp, t: string): EtatPartie {
+  const err = peutRechercher(e0, camp, t); if (err) throw new Error(err);
+  const e = copie(e0), c = e.camps[camp], r = (c.recherche ??= {});
+  c.budget -= COUT_RECHERCHE; c.paParPays.techno = 1; r[t] = (r[t] ?? 0) + 1;
+  if (r[t] >= SEUIL_TECHNO) {
+    (c.technologies ??= []).push(t); const l = leaderDe(camp);
+    if (t === "renouvelables") e.pays[l].bonus.push({ points: 0.1, reste: 9999 });
+    if (t === "telecoms") for (const i of ISO) if (i !== "USA" && i !== "CHN" && sensDe(camp) * alignement(e, i) >= 0.1) e.pays[i].influence[camp].e = borne(e.pays[i].influence[camp].e + 2, 0, 100);
+    if (t === "biotech") { e.pays[l].stabilite = borne(e.pays[l].stabilite + 3, 0, 100); c.cp = borne(c.cp + 3, 0, 100); }
+    noter(e, { type: "politique", titre: `Percée technologique du ${nomBloc(camp)} : ${TECHNOLOGIES[t].nom}`, texte: TECHNOLOGIES[t].texte, camp, visiblePour: [...CAMPS] });
+  }
+  return e;
+}
+
+// ---------- Blocus naval et course aux armements ----------
+export const BLOCUS = { pa: 2, budget: 3, cp: 3, duree: 4 };
+export function peutBloquer(e: EtatPartie, camp: Camp, detroit: string): string | null {
+  const c = e.camps[camp];
+  if (!DETROITS.some(d => d.id === detroit)) return "Détroit inconnu.";
+  if (e.blocus) return "Un blocus est déjà en cours.";
+  if (c.pa < BLOCUS.pa) return "Points d'action insuffisants."; if (c.budget < BLOCUS.budget) return "Budget insuffisant."; if (c.cp < 40) return "Capital politique 40 requis.";
+  return null;
+}
+export function bloquer(e0: EtatPartie, camp: Camp, detroit: string): EtatPartie {
+  const err = peutBloquer(e0, camp, detroit); if (err) throw new Error(err);
+  const e = copie(e0), c = e.camps[camp], d = DETROITS.find(x => x.id === detroit)!;
+  c.pa -= BLOCUS.pa; c.budget -= BLOCUS.budget; c.cp -= BLOCUS.cp; c.fatigue = (c.fatigue ?? 0) + 1;
+  e.blocus = { detroit, camp, fin: e.round + BLOCUS.duree - 1 }; e.blocages.push({ detroit, fin: e.round + BLOCUS.duree - 1 });
+  const touches = [...new Set(FLUX.filter(f => f.detroits?.includes(detroit)).flatMap(f => f.pays))].filter(i => e.pays[i]);
+  for (const iso of touches) { if (iso !== leaderDe(camp)) e.pays[iso].bonus.push({ points: -0.3, reste: BLOCUS.duree }); memoriser(e, iso, camp, -1); }
+  e.tension = borne(e.tension + 8, 0, 100);
+  noter(e, { type: "action", titre: `Blocus naval : ${d.nom}`, texte: `Le ${nomBloc(camp)} ferme le passage pour ${BLOCUS.duree} trimestres : les routes qui l'empruntent sont coupées, la croissance des pays qui en dépendent ralentit, tension +8.`, camp, pays: touches.slice(0, 8), visiblePour: [...CAMPS] });
+  return e;
+}
+export function peutArmer(e: EtatPartie, camp: Camp): string | null {
+  const c = e.camps[camp];
+  if (c.course === date(e.round).annee) return "Une course aux armements par an.";
+  return c.budget < 4 ? "Budget insuffisant (4)." : null;
+}
+export function courseArmements(e0: EtatPartie, camp: Camp): EtatPartie {
+  const err = peutArmer(e0, camp); if (err) throw new Error(err);
+  const e = copie(e0), c = e.camps[camp]; c.budget -= 4; c.course = date(e.round).annee; c.fatigue = (c.fatigue ?? 0) + 0.5;
+  for (const i of ISO) if (i !== "USA" && i !== "CHN" && sensDe(camp) * alignement(e, i) >= 0.3) e.pays[i].influence[camp].m = borne(e.pays[i].influence[camp].m + 2, 0, 100);
+  e.tension = borne(e.tension + 2, 0, 100); e.camps[adversaire(camp)].cp = borne(e.camps[adversaire(camp)].cp - 1, 0, 100);
+  noter(e, { type: "action", titre: `Course aux armements : le ${nomBloc(camp)} réarme`, texte: "Budget de défense en hausse : influence militaire +2 chez tous tes alliés, tension +2, capital politique adverse −1.", camp, visiblePour: [...CAMPS] });
+  return e;
+}
+
+// ---------- Guerre entre les deux leaders ----------
+// Branchée sur les seuils de défaite : chaque trimestre de guerre coûte 3 % du PIB des deux leaders (vers la banqueroute)
+// et 0,2 % de leur population ; le risque d'escalade nucléaire (4 % puis +2 points par trimestre) mène à l'effondrement des deux.
+export const THEATRES: Record<string, { nom: string; pays: string[] }> = {
+  taiwan: { nom: "détroit de Taïwan", pays: ["TWN", "JPN", "KOR", "PHL"] },
+  mer_chine_sud: { nom: "mer de Chine méridionale", pays: ["VNM", "PHL", "MYS", "IDN"] },
+  coree: { nom: "péninsule coréenne", pays: ["KOR", "PRK", "JPN"] },
+};
+export const GUERRE = { tension: 80, cp: 60, pib: 0.03, population: 0.002, nucleaire: 0.04, escalade: 0.02 };
+export function peutDeclarerGuerre(e: EtatPartie, camp: Camp, theatre: string): string | null {
+  if (!THEATRES[theatre]) return "Théâtre inconnu.";
+  if (e.guerre) return "La guerre est déjà déclarée.";
+  if (e.tension < GUERRE.tension) return `Il faut une tension d'au moins ${GUERRE.tension} (actuelle : ${Math.round(e.tension)}).`;
+  if (e.camps[camp].cp < GUERRE.cp) return `Capital politique ${GUERRE.cp} requis.`;
+  return null;
+}
+export function declarerGuerre(e0: EtatPartie, camp: Camp, theatre: string): EtatPartie {
+  const err = peutDeclarerGuerre(e0, camp, theatre); if (err) throw new Error(err);
+  const e = copie(e0); e.guerre = { theatre, agresseur: camp, debut: e.round }; e.tension = 100; e.camps[camp].fatigue = (e.camps[camp].fatigue ?? 0) + 4;
+  for (const i of ISO) if (i !== "USA" && i !== "CHN") memoriser(e, i, camp, -1);
+  noter(e, { type: "historique", titre: `Guerre entre les États-Unis et la Chine : ${THEATRES[theatre].nom}`, pays: ["USA", "CHN", ...THEATRES[theatre].pays], visiblePour: [...CAMPS],
+    texte: `Le ${nomBloc(camp)} ouvre les hostilités. Chaque trimestre de guerre ampute de ${GUERRE.pib * 100} % le PIB des deux puissances ; le risque d'escalade nucléaire grandit avec la durée.` });
+  return e;
+}
+function suiviGuerre(e: EtatPartie): { titre: string; texte: string } | null {
+  const g = e.guerre; if (!g) return null;
+  const duree = e.round - g.debut, risque = GUERRE.nucleaire + GUERRE.escalade * duree;
+  if (tirer(e) < risque) {
+    for (const l of ["USA", "CHN"]) e.pays[l].population *= 0.85;
+    for (const i of ISO) e.pays[i].stabilite = borne(e.pays[i].stabilite - 10, 0, 100);
+    return { titre: "Guerre nucléaire : défaite des deux camps", texte: "L'escalade devient nucléaire. Les deux puissances perdent des dizaines de millions d'habitants ; famines et hiver nucléaire frappent le monde entier." };
+  }
+  for (const l of ["USA", "CHN"]) { e.pays[l].pib *= 1 - GUERRE.pib; e.pays[l].population *= 1 - GUERRE.population; }
+  for (const c of CAMPS) { e.camps[c].budget = Math.max(0, e.camps[c].budget - 2); e.camps[c].cp = borne(e.camps[c].cp - (c === g.agresseur ? 2 : 1), 0, 100); }
+  const mo = partFamille(e, "OCC", "militaire"), mc = partFamille(e, "CHN", "militaire"), fort: Camp = mo >= mc ? "OCC" : "CHN";
+  for (const i of THEATRES[g.theatre].pays) if (e.pays[i]) { const p = e.pays[i]; p.influence[fort].m = borne(p.influence[fort].m + 3, 0, 100); p.stabilite = borne(p.stabilite - 3, 0, 100); }
+  e.tension = 100;
+  noter(e, { type: "generique", titre: `Guerre dans le ${THEATRES[g.theatre].nom} : ${duree + 1}e trimestre`, famille: "guerre_interetatique", pays: THEATRES[g.theatre].pays, visiblePour: [...CAMPS], intensite: 3,
+    texte: `PIB des deux puissances −${GUERRE.pib * 100} %, budgets −2. Le ${nomBloc(fort)} prend l'avantage sur le terrain. Risque d'escalade nucléaire ce trimestre : ${Math.round(risque * 100)} %.` });
+  return null;
+}
+export function proposerPaix(e0: EtatPartie, camp: Camp): EtatPartie {
+  if (!e0.guerre) throw new Error("Aucune guerre en cours.");
+  if (e0.proposition) throw new Error("Une offre attend déjà sa réponse.");
+  const e = copie(e0), adv = adversaire(camp);
+  if (adv === e.joueur && e.reglages.ia) e.proposition = { de: camp, type: "paix", round: e.round };
+  else conclure(e, camp, "paix", iaAccepte(e, adv, "paix"));
+  return e;
+}
+// Crise nucléaire sans guerre : une tension à 100 fait trembler le monde, puis les deux camps reculent.
+function criseNucleaire(e: EtatPartie) {
+  if (e.guerre || e.tension < 100) return;
+  for (const c of CAMPS) e.camps[c].cp = borne(e.camps[c].cp - 8, 0, 100);
+  for (const i of ISO) e.pays[i].stabilite = borne(e.pays[i].stabilite - 3, 0, 100);
+  e.tension = 75;
+  noter(e, { type: "generique", titre: "Crise nucléaire : le monde au bord du gouffre", famille: "proliferation_nucleaire", visiblePour: [...CAMPS], intensite: 3,
+    texte: "Alertes nucléaires, flottes face à face : pendant quelques jours, le pire semble possible. Les deux camps reculent (capital politique −8 chacun, stabilité −3 partout, tension ramenée à 75)." });
+}
+
 // ---------- Dépendance commerciale ----------
 // Part des routes d'échange qui relient directement les deux leaders (volume / 15, plafonné à 1) : les sanctions coûtent de 1 à 4.
 export const dependanceCommerciale = (e: EtatPartie) => Math.min(1, lienFlux(e, "CHN", "OCC") / 15);
@@ -1205,7 +1560,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
   if (e.reglages.ia) for (const camp of CAMPS) if (camp !== e.joueur) e = iaJouer(e, camp);
   e = structuredClone(e);
   const { annee, trimestre } = date(e.round);
-  brasDeFer(e);
+  brasDeFer(e); programmerChaines(e); criseNucleaire(e);
   // économie, population, émissions
   let emissions = 0;
   // globalisation : la moitié de l'écart de croissance moyen du monde (pondéré par le PIB) se transmet à chaque pays
@@ -1235,7 +1590,8 @@ export function finRound(e0: EtatPartie): EtatPartie {
     for (const canal of ["p", "m", "c"] as Canal[]) inf[canal] = borne(inf[canal] - USURE * (inf[canal] - p.ancre[camp][canal]), 0, 100);
     inf.e = borne(inf.e + DERIVE_E * (cibleEconomique(e, iso, camp) - inf.e), 0, 100);
   }
-  rapprochement(e); effetMemoire(e); usureOpinion(e);
+  rapprochement(e); effetMemoire(e); usureOpinion(e); resoudreElections(e); echeancesPrets(e); suiviInterventions(e);
+  if (trimestre === 3) cloreSessionOnu(e);
   // forces de rappel : la tension retombe de 8 % de son excès sur 10 par trimestre, la stabilité revient vers 50 (5 %),
   // le capital politique se reconstitue de 1 point ; sans elles, les événements génériques saturaient tension et instabilité.
   e.tension = borne(e.tension - 0.08 * (e.tension - 10), 0, 100);
@@ -1247,8 +1603,9 @@ export function finRound(e0: EtatPartie): EtatPartie {
     const deficit = Math.max(0, deficitRessources(e, camp) - e.deficitDepart[camp]);
     if (deficit > 0) e.pays[camp === "OCC" ? "USA" : "CHN"].bonus.push({ points: -PENURIE * deficit, reste: 1 });
   }
-  // seuils extrêmes : défaite immédiate
-  const defaite = seuilAtteint(e);
+  // guerre entre leaders, crise nucléaire, puis seuils extrêmes : défaite immédiate
+  const nucleaire = suiviGuerre(e);
+  const defaite = nucleaire ?? seuilAtteint(e);
   if (defaite) {
     e.termine = true; e.resultat = defaite.titre;
     noter(e, { type: "bilan", titre: defaite.titre, texte: defaite.texte, visiblePour: [...CAMPS] });
@@ -1341,6 +1698,6 @@ export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
-  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; e.memoire ??= {}; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; }
+  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; }
   return e;
 }

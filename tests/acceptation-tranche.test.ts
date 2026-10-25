@@ -40,11 +40,11 @@ describe("Tranche 2000-2008 : moteur", () => {
     expect(dans / total).toBeGreaterThanOrEqual(0.9);
   }, 60_000);
 
-  it("3. fréquences des événements génériques à un facteur 2 près du taux calibré (300 parties sans IA)", () => {
+  it("3. fréquences des événements génériques spontanés (hors crises en chaîne) à un facteur 2 près du taux calibré (300 parties sans IA)", () => {
     const n = 300, annees = ROUNDS_TRANCHE / 4, compte: Record<string, number> = {};
     for (let g = 1; g <= n; g++) {
       const e = jouer(creerPartie(g, null, { generiques: true, ia: false }));
-      for (const j of e.journal) if (j.type === "generique" && j.famille) compte[j.famille] = (compte[j.famille] ?? 0) + 1;
+      for (const j of e.journal) if (j.type === "generique" && j.famille && !j.texte.includes("Conséquence de :")) compte[j.famille] = (compte[j.famille] ?? 0) + 1;
     }
     for (const f of FAMILLES) {
       const observe = (compte[f.id] ?? 0) / (n * annees);

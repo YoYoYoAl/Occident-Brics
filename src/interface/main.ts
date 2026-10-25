@@ -7,7 +7,7 @@ import { FLUX, DETROITS } from "../data/flux";
 import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique } from "./sons";
 import { ficheHtml } from "./fiche";
 import {
-  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
+  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, KOMI, SEUIL_EGALITE, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
   decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, reagir, peutReagir, REACTIONS, MAX_REACTIONS, fluxActif, lienFlux,
   peutJouerCarte, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
@@ -296,7 +296,7 @@ function panneauMain(): string {
 // Actions sur un pays, groupées (influence, militaire, opérations secrètes), avec ce qu'elles rapportent.
 function blocActions(iso: string): string {
   const e = etat!, c = e.camps[joueur()];
-  const groupes: [string, TypeAction[]][] = [["Influence", ["politique", "economique", "culturelle", "contre", "developpement", "infrastructure"]], ["Militaire", ["militaire", "armes", "exercices"]], ["Opérations secrètes (invisibles pour l'adversaire, sauf si révélées)", ["clandestin", "destabiliser", "espionnage"]]];
+  const groupes: [string, TypeAction[]][] = [["Influence", ["politique", "economique", "culturelle", "contre", "developpement", "infrastructure", "pret", "electorale"]], ["Militaire", ["militaire", "armes", "exercices", "intimidation", "soutien", "intervention"]], ["Opérations secrètes (invisibles pour l'adversaire, sauf si révélées)", ["clandestin", "destabiliser", "espionnage", "putsch"]]];
   let h = `<h3>Agir sur ${esc(nomPays(iso))} (${nombre(c.pa, 0)} point${c.pa > 1 ? "s" : ""} d'action, budget ${nombre(c.budget, 0)})</h3>
     ${serieDurable(e, joueur(), iso) ? `<p class="note gain">Investissement durable : ${serieDurable(e, joueur(), iso)} trimestre(s) de suite sur ce pays, effet long terme +${Math.round(100 * DURABLE * serieDurable(e, joueur(), iso))} %.</p>` : `<p class="note">Agir ici plusieurs trimestres de suite renforce l'effet long terme (+${Math.round(100 * DURABLE)} % par trimestre consécutif, jusqu'à +${Math.round(300 * DURABLE)} %).</p>`}
     <p class="note">Sous chaque action : ce qu'elle rapporte tout de suite (2/3 de l'effet), puis le reste étalé sur 4 trimestres, en alignement du pays et en points de puissance pour ton bloc (le score). Une action publique sur cinq a une conséquence cachée, révélée 2 trimestres plus tard : contrecoup ou succès inattendu (±1/3 du gain), une chance sur deux pour chacun.</p>`;
@@ -329,14 +329,34 @@ function blocStrategie(): string {
   return `<details class="agir" ${errP ? "" : "open"}><summary>Stratégie de l'année${c.priorite ? ` : ${PRIORITES[c.priorite].nom}` : ""}</summary>
     <p class="note">Priorité : une par an, elle rend 25 % plus efficace une famille d'actions.${errP ? ` ${esc(errP)}` : ""}</p><div class="grille-actions">${prio}</div>
     ${ag ? `<p><strong>Agenda secret</strong> : ${esc(ag.texte)}. Progrès ${nombre(ag.progres, 1)} sur ${ag.cible}. <span class="note">Révélé à tous en fin d'année ; s'il est atteint : capital politique +${RECOMPENSE_AGENDA.cp}, budget +${RECOMPENSE_AGENDA.budget}.</span></p>` : ""}
+    ${blocMonde()}
     <div class="grille-actions"><button id="renseigner" ${errR ? `disabled title="${esc(errR)}"` : ""}>Renseignement<small>${RENSEIGNEMENT.pa} PA · ${RENSEIGNEMENT.budget} budget : révèle les opérations secrètes adverses de l'année, sa main et son agenda probable</small></button></div></details>`;
+}
+// ONU, élections à venir, recherche, défense (course aux armements, blocus, guerre).
+function blocMonde(): string {
+  const e = etat!, c = e.camps[joueur()], moi = joueur();
+  const prochaines = ELECTIONS_PAYS.filter(x => { const r = (x.annee - 2000) * 4 + x.trimestre - 1; return r >= e.round && r <= e.round + 4 && e.pays[x.iso]; });
+  let h = "";
+  if (e.onu) { const err = peutLobbyOnu(e, moi); h += `<p><strong>ONU</strong> : résolution du ${e.onu.de === "OCC" ? "bloc USA" : "bloc Chine"} sur ${esc(e.onu.theme)}, vote fin du 3e trimestre. Campagnes : USA ${e.onu.lobby.OCC}, Chine ${e.onu.lobby.CHN}. <button id="lobbyOnu" ${err ? `disabled title="${esc(err)}"` : ""}>Faire campagne (${LOBBY_ONU.pa} PA · ${LOBBY_ONU.budget} budget)</button></p>`; }
+  if (prochaines.length) h += `<p><strong>Élections dans l'année</strong> : ${prochaines.map(x => `<a href="#" data-pays-election="${x.iso}">${esc(nomPays(x.iso))}</a> (${x.nom}, ${x.annee} T${x.trimestre})`).join(" · ")}. <span class="note">Soutiens une campagne depuis la fiche du pays.</span></p>`;
+  h += `<p><strong>Recherche</strong> (${COUT_RECHERCHE} budget, une fois par trimestre, percée à ${SEUIL_TECHNO} points) :</p><div class="grille-actions">${Object.entries(TECHNOLOGIES).map(([k, t]) => { const err = peutRechercher(e, moi, k), pts = c.recherche?.[k] ?? 0, fait = c.technologies?.includes(k);
+    return `<button data-techno="${k}" title="${esc(t.texte + (err ? ` (${err})` : ""))}" ${err ? "disabled" : ""}>${fait ? "✓ " : ""}${esc(t.nom)}<small>${fait ? "obtenue" : `${pts}/${SEUIL_TECHNO}`} · ${esc(t.texte)}</small></button>`; }).join("")}</div>`;
+  const errA = peutArmer(e, moi);
+  h += `<p><strong>Défense</strong></p><div class="grille-actions"><button id="armer" ${errA ? `disabled title="${esc(errA)}"` : ""}>Course aux armements<small>4 budget, une fois par an : influence militaire +2 chez tes alliés, tension +2</small></button>
+    <span><select id="detroitBlocus">${DETROITS.map(d => `<option value="${d.id}">${esc(d.nom)}</option>`).join("")}</select><button id="blocus" ${e.blocus ? "disabled" : ""}>Blocus naval<small>${BLOCUS.pa} PA · ${BLOCUS.budget} budget · ${BLOCUS.cp} CP : passage fermé ${BLOCUS.duree} trimestres, tension +8</small></button></span></div>`;
+  if (e.guerre) h += `<p class="alerte">Guerre en cours dans le ${esc(THEATRES[e.guerre.theatre].nom)} depuis ${e.round - e.guerre.debut + 1} trimestre(s). Risque nucléaire au prochain trimestre : ${Math.round(100 * (GUERRE.nucleaire + GUERRE.escalade * (e.round - e.guerre.debut + 1)))} %. <button id="paix" ${e.proposition ? "disabled" : ""}>Proposer un cessez-le-feu</button></p>`;
+  else { const errG = peutDeclarerGuerre(e, moi, "taiwan"); h += `<details><summary>Guerre contre ${moi === "OCC" ? "la Chine" : "les États-Unis"}</summary><p class="note">Possible quand la tension atteint ${GUERRE.tension} et avec ${GUERRE.cp} de capital politique. Chaque trimestre : PIB des deux puissances −${GUERRE.pib * 100} % (vers la banqueroute), population −${GUERRE.population * 100} % ; risque d'escalade nucléaire de ${GUERRE.nucleaire * 100} %, +${GUERRE.escalade * 100} points par trimestre. Une guerre nucléaire est une défaite des deux camps.${errG ? ` ${esc(errG)}` : ""}</p><div class="grille-actions">${Object.entries(THEATRES).map(([k, t]) => `<button data-guerre="${k}" ${peutDeclarerGuerre(e, moi, k) ? "disabled" : ""}>Déclarer la guerre : ${esc(t.nom)}</button>`).join("")}</div></details>`; }
+  return h;
 }
 // Diplomatie bilatérale : une initiative par an ; une offre adverse attend ta réponse jusqu'à la fin du trimestre.
 function blocDiplomatie(): string {
   const e = etat!, pr = e.proposition;
   let h = "";
-  if (pr && pr.de !== joueur()) h += `<div class="mode prevision"><strong>Offre de l'adversaire : ${pr.type === "sommet" ? "sommet bilatéral" : "accord commercial"}</strong><small>${esc(DIPLOMATIE[pr.type].texte.replace("S'il accepte", "Si tu acceptes").replace("S'il refuse", "Si tu refuses"))} Sans réponse à la fin du trimestre, l'offre est refusée.</small>
+  if (pr && pr.de !== joueur()) {
+    const texte = pr.type === "paix" ? "Si tu acceptes : la guerre s'arrête, la tension retombe à 70. Si tu refuses : la guerre continue." : DIPLOMATIE[pr.type].texte.replace("S'il accepte", "Si tu acceptes").replace("S'il refuse", "Si tu refuses");
+    h += `<div class="mode prevision"><strong>Offre de l'adversaire : ${pr.type === "sommet" ? "sommet bilatéral" : pr.type === "accord" ? "accord commercial" : "cessez-le-feu"}</strong><small>${esc(texte)} Sans réponse à la fin du trimestre, l'offre est refusée.</small>
     <div><button data-diplo-reponse="1">Accepter</button><button data-diplo-reponse="0">Refuser</button></div></div>`;
+  }
   const dep = `Dépendance commerciale entre les deux blocs : ${Math.round(100 * dependanceCommerciale(e))} %, des sanctions te coûteraient ${nombre(coutSanctions(e), 1)} de budget.`;
   const boutons = (Object.keys(DIPLOMATIE) as Diplomatie[]).map(t => { const err = peutDiplomatie(e, joueur(), t);
     return `<button data-diplo="${t}" title="${esc(DIPLOMATIE[t].texte + (err ? ` (${err})` : ""))}" ${err ? "disabled" : ""}>${DIPLOMATIE[t].nom}<small>${DIPLOMATIE[t].cp} CP</small></button>`; }).join("");
@@ -428,6 +448,13 @@ function lierPanneau(zone: HTMLElement) {
   zone.querySelectorAll<HTMLSelectElement>("[data-cible]").forEach(sel => sel.onchange = () => { paysChoisi = sel.value || null; carteMonde.choisir(paysChoisi); afficher(); });
   zone.querySelector<HTMLSelectElement>("#paysAction")?.addEventListener("change", ev => { paysAction = (ev.target as HTMLSelectElement).value; if (paysAction) paysChoisi = paysAction; afficher(); });
   zone.querySelector<HTMLSelectElement>("#zoneCampagne")?.addEventListener("change", ev => { zoneCampagne = (ev.target as HTMLSelectElement).value; afficher(); });
+  zone.querySelector<HTMLButtonElement>("#lobbyOnu")?.addEventListener("click", () => tenter(() => lobbyOnu(etat!, joueur())));
+  zone.querySelectorAll<HTMLButtonElement>("[data-techno]").forEach(b => b.onclick = () => tenter(() => rechercher(etat!, joueur(), b.dataset.techno!)));
+  zone.querySelector<HTMLButtonElement>("#armer")?.addEventListener("click", () => tenter(() => courseArmements(etat!, joueur())));
+  zone.querySelector<HTMLButtonElement>("#blocus")?.addEventListener("click", () => tenter(() => bloquer(etat!, joueur(), $<HTMLSelectElement>("detroitBlocus").value)));
+  zone.querySelector<HTMLButtonElement>("#paix")?.addEventListener("click", () => tenter(() => proposerPaix(etat!, joueur())));
+  zone.querySelectorAll<HTMLButtonElement>("[data-guerre]").forEach(b => b.onclick = () => tenter(() => declarerGuerre(etat!, joueur(), b.dataset.guerre!)));
+  zone.querySelectorAll<HTMLAnchorElement>("[data-pays-election]").forEach(a => a.onclick = ev => { ev.preventDefault(); paysChoisi = a.dataset.paysElection!; onglet = "pays"; carteMonde.choisir(paysChoisi); afficher(); });
   zone.querySelectorAll<HTMLButtonElement>("[data-priorite]").forEach(b => b.onclick = () => tenter(() => choisirPriorite(etat!, joueur(), b.dataset.priorite as Priorite)));
   zone.querySelector<HTMLButtonElement>("#renseigner")?.addEventListener("click", () => tenter(() => renseigner(etat!, joueur())));
   zone.querySelectorAll<HTMLButtonElement>("[data-diplo]").forEach(b => b.onclick = () => tenter(() => diplomatie(etat!, joueur(), b.dataset.diplo as Diplomatie)));
