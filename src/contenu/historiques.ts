@@ -98,11 +98,14 @@ export const HISTORIQUES_ERE1: EvenementHistorique[] = [
     pays: ["USA"], famille: "cyclone", deviable: false, conditions: [],
     effets: [{ type: "cp", camp: "OCC", valeur: -8 }, { type: "stabilite", pays: "USA", valeur: -2 }] },
 
-  { id: "h_bric", annee: 2006, trimestre: 3, titre: "Première réunion du BRIC",
+  // Fin du prologue : le bloc rival naît (choix de l'utilisateur, 2026-10-25).
+  { id: "h_bric", annee: 2006, trimestre: 3, titre: "Naissance du bloc BRIC",
     texte: "En septembre 2006, en marge de l'Assemblée générale de l'ONU, les ministres des Affaires étrangères du Brésil, de la Russie, de l'Inde et de la Chine se réunissent pour la première fois.",
     pays: ["BRA", "RUS", "IND", "CHN"], famille: "sommet_reconciliation", deviable: true,
     conditions: [{ type: "alignement", pays: "BRA", max: 0.5 }, { type: "alignement", pays: "IND", max: 0.5 }],
-    effets: [{ type: "influence", pays: ["BRA", "RUS", "IND"], camp: "CHN", canal: "p", valeur: 6 }] },
+    effets: [{ type: "influence", pays: ["BRA", "RUS", "IND"], camp: "CHN", canal: "p", valeur: 12 },
+             { type: "influence", pays: ["BRA", "RUS", "IND"], camp: "CHN", canal: "e", valeur: 5 },
+             { type: "cp", camp: "CHN", valeur: 5 }, { type: "tension", valeur: 3 }, { type: "drapeau", id: "bloc_bric" }] },
 
   { id: "h_coree_nord_essai", annee: 2006, trimestre: 4, titre: "Premier essai nucléaire nord-coréen",
     texte: "Le 9 octobre 2006, la Corée du Nord procède à son premier essai nucléaire souterrain. Le Conseil de sécurité vote des sanctions.",

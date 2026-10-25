@@ -3,7 +3,8 @@
 // Chaque fonction publique prend un état et en rend un nouveau (l'état d'entrée n'est jamais modifié).
 import donnees from "../data/pays2000.json";
 import trajectoires from "../data/trajectoires.json";
-import { EXPOSITION, SANCTIONNES_2000, ALLIES_2000, NON_DEMOCRATIES_2000 } from "../data/geographie";
+import { EXPOSITION, SANCTIONNES_2000, NON_DEMOCRATIES_2000 } from "../data/geographie";
+import { INFLUENCE_2000 } from "../data/influence2000";
 import { HISTORIQUES_ERE1 } from "../contenu/historiques";
 import { FAMILLES, MODELES_LOT1 } from "../contenu/generiques";
 import { CARTES_ERE1 } from "../contenu/cartes";
@@ -146,7 +147,7 @@ export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
 // Compensation (komi, comme au go) mesurée en IA contre IA pour viser 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
-export const KOMI = 8.4, SEUIL_EGALITE = 0.3;
+export const KOMI = 9.4, SEUIL_EGALITE = 0.3;
 // Progression depuis 2000 (sans jugement sur l'écart à l'histoire), komi au prorata du temps écoulé.
 export const progression = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE;
 // Bilan : moyenne des décomptes annuels (fin de chaque T4) ; avant le premier décompte, la progression courante.
@@ -157,16 +158,15 @@ function cibleEconomique(e: EtatPartie, iso: string, camp: Camp): number {
   const usa = e.pays.USA.pib, chn = e.pays.CHN.pib;
   const part = camp === "OCC" ? usa / (usa + chn) : chn / (usa + chn);
   const sanction = camp === "OCC" && SANCTIONNES_2000.includes(iso) ? 0.1 : 1;
-  return CIBLE_E * part * sanction;
+  return Math.min(100, CIBLE_E * part * sanction * (INFLUENCE_2000[iso]?.[camp].commerce ?? 1));
 }
 
 export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglages: Reglages = { generiques: true, ia: true }): EtatPartie {
   const pays: Record<string, EtatPays> = {};
   for (const p of donnees.pays) {
     const t = TRAJ[p.iso3];
-    const inf = { OCC: { e: 0, p: 15, m: 0, c: 30 }, CHN: { e: 0, p: 15, m: 0, c: 5 } } as Record<Camp, Record<Canal, number>>;
-    for (const camp of CAMPS) if (ALLIES_2000[camp].includes(p.iso3)) { inf[camp].p = 50; inf[camp].m = 60; }
-    if (SANCTIONNES_2000.includes(p.iso3)) inf.OCC.p = 0;
+    const d = INFLUENCE_2000[p.iso3]; // leaders absents : leur alignement est fixe
+    const inf = { OCC: { e: 0, p: d?.OCC.p ?? 0, m: d?.OCC.m ?? 0, c: d?.OCC.c ?? 0 }, CHN: { e: 0, p: d?.CHN.p ?? 0, m: d?.CHN.m ?? 0, c: d?.CHN.c ?? 0 } } as Record<Camp, Record<Canal, number>>;
     pays[p.iso3] = { iso3: p.iso3, population: t.population[0], pib: t.pib[0], stabilite: 50, influence: inf,
       ancre: { OCC: { ...inf.OCC }, CHN: { ...inf.CHN } }, bonus: [], co2Mod: [], environnement: ENV_2000[p.iso3], pibMax: t.pib[0] };
   }

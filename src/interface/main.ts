@@ -255,6 +255,7 @@ function afficher() {
   if (!etat) return;
   const e = etat, c = e.camps[joueur()], b = bilan(e), monCamp = joueur();
   $("date").textContent = libelle(e.round);
+  $("periode").textContent = e.round < 26 ? "Prologue 2000-2006 : le bloc rival n'existe pas encore" : "Ère des blocs (BRIC depuis 2006)";
   $("camp").textContent = `Tu joues : ${NOM_CAMP[monCamp]}`;
   $("camp").className = monCamp === "OCC" ? "occ-t" : "chn-t";
   $("jauges").innerHTML = [

@@ -152,4 +152,16 @@ describe("Tranche 2000-2008 : moteur", () => {
     expect(finRound(c).resultat).toMatch(/Catastrophe climatique/);
     expect(finRound(c).termine).toBe(true);
   });
+
+  it("13. influence de départ propre à chaque pays (estimation), et naissance du bloc BRIC en 2006 T3", async () => {
+    const { INFLUENCE_2000 } = await import("../src/data/influence2000");
+    const e = creerPartie(8, "OCC", SANS_ALEA);
+    for (const iso of Object.keys(e.pays)) if (iso !== "USA" && iso !== "CHN") expect(INFLUENCE_2000[iso], iso).toBeDefined();
+    expect(e.pays.IRN.influence.OCC.c).toBeLessThanOrEqual(10);
+    expect(e.pays.GBR.influence.OCC.c).toBeGreaterThan(e.pays.IRN.influence.OCC.c);
+    expect(alignement(e, "IRN")).toBeLessThan(0);
+    expect(alignement(e, "GBR")).toBeGreaterThan(0.5);
+    let x = e; while (x.round < 26) x = finRound(x); // 2006 T3 = round 26
+    expect(x.historiquesFaits.includes("h_bric") || x.journal.some(j => j.titre.includes("naissance du bloc bric"))).toBe(true);
+  });
 });
