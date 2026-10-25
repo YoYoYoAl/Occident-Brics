@@ -51,3 +51,10 @@ export function couleurLog(v: number, min: number, max: number): string {
   const c = a.map((x, i) => Math.round(x + (b[i] - x) * t));
   return `rgb(${c.join(",")})`;
 }
+
+// Échelle divergente de l'alignement : bleu Occident (+1), sable neutre (0), rouge Chine (-1).
+export function couleurAlignement(a: number): string {
+  const neutre = [214, 200, 160], occ = [70, 135, 225], chn = [220, 75, 60];
+  const t = Math.min(1, Math.abs(a)), b = a >= 0 ? occ : chn;
+  return `rgb(${neutre.map((x, i) => Math.round(x + (b[i] - x) * t)).join(",")})`;
+}

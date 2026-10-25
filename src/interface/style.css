@@ -1,6 +1,6 @@
 :root {
   --fond: #0f1419; --panneau: #172029; --bord: #2a3742; --texte: #e6edf3; --doux: #8b9aa7;
-  --accent: #d9a441; --pays-hors: #56616b; --mer: #2b5878;
+  --accent: #d9a441; --pays-hors: #56616b; --mer: #2b5878; --occ: #6fa8f0; --chn: #f0806e;
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -23,12 +23,16 @@ main { flex: 1; display: flex; min-height: 0; }
 .carte path.jeu { cursor: pointer; }
 .carte path.jeu:hover { stroke: var(--texte); stroke-width: 1; }
 .carte path.choisi { stroke: var(--accent); stroke-width: 1.6; }
-.fiche { width: 360px; max-width: 45vw; overflow-y: auto; padding: 16px; background: var(--panneau); border-left: 1px solid var(--bord); }
-.fiche h2 { margin: 0 0 4px; }
-.fiche h3 { margin: 18px 0 6px; font-size: .95em; color: var(--accent); }
-.fiche table { width: 100%; border-collapse: collapse; font-size: .88em; }
-.fiche td { padding: 3px 0; border-bottom: 1px solid var(--bord); vertical-align: top; }
-.fiche td.v { text-align: right; white-space: nowrap; padding-left: 8px; }
+.panneau { width: 380px; max-width: 46vw; display: flex; flex-direction: column; background: var(--panneau); border-left: 1px solid var(--bord); min-height: 0; }
+.onglets { display: flex; border-bottom: 1px solid var(--bord); }
+.onglets button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 10px; }
+.onglets button.actif { border-bottom: 2px solid var(--accent); color: var(--accent); }
+.contenu { flex: 1; overflow-y: auto; padding: 14px 16px; }
+.contenu h2 { margin: 0 0 4px; }
+.contenu h3 { margin: 18px 0 6px; font-size: .95em; color: var(--accent); }
+.contenu table { width: 100%; border-collapse: collapse; font-size: .88em; }
+.contenu td { padding: 3px 0; border-bottom: 1px solid var(--bord); vertical-align: top; }
+.contenu td.v { text-align: right; white-space: nowrap; padding-left: 8px; }
 .aide, .note { color: var(--doux); font-size: .85em; }
 .attente { display: flex; flex-wrap: wrap; gap: 4px; }
 .attente span { font-size: .78em; padding: 2px 6px; border: 1px dashed var(--bord); border-radius: 10px; color: var(--doux); }
@@ -36,6 +40,50 @@ main { flex: 1; display: flex; min-height: 0; }
 .message.visible { opacity: 1; }
 @media (max-width: 760px) {
   main { flex-direction: column; }
-  .fiche { width: auto; max-width: none; border-left: 0; border-top: 1px solid var(--bord); max-height: 45vh; }
+  .panneau { width: auto; max-width: none; border-left: 0; border-top: 1px solid var(--bord); max-height: 50vh; }
+  .carte { min-height: 40vh; }
   .controles { margin-left: 0; }
 }
+
+.jauges { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .9em; color: var(--doux); }
+.jauges strong { color: var(--texte); }
+.occ-t { color: var(--occ) !important; } .chn-t { color: var(--chn) !important; }
+button.principal { background: var(--accent); color: #1a1406; border-color: var(--accent); font-weight: 600; }
+.alerte-btn { border-color: var(--chn); color: var(--chn); }
+.carte-jeu { border: 1px solid var(--bord); border-left: 4px solid var(--doux); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px; background: #1b2530; }
+.carte-jeu.occ { border-left-color: var(--occ); } .carte-jeu.chn { border-left-color: var(--chn); } .carte-jeu.neutre { border-left-color: var(--accent); }
+.carte-jeu header { display: flex; justify-content: space-between; gap: 8px; cursor: pointer; }
+.carte-jeu p { margin: 4px 0; font-size: .86em; color: var(--doux); }
+.carte-jeu .valeur { min-width: 24px; height: 24px; border-radius: 50%; background: #2a3a47; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.carte-jeu.ouverte { background: #1f2c38; }
+.carte-jeu > button { margin-top: 6px; width: 100%; }
+.mode { border-top: 1px solid var(--bord); padding: 6px 0; display: grid; gap: 4px; }
+.mode em, .option em { color: var(--accent); font-style: normal; font-size: .85em; }
+.mode small, .option small { color: var(--doux); display: block; }
+.erreur { color: var(--chn) !important; }
+.alerte { color: var(--chn) !important; }
+.achat { margin-top: 10px; }
+.grille-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.grille-actions button small { display: block; color: var(--doux); font-size: .78em; }
+.qualificatifs { margin-top: 16px; } .qualificatifs summary { cursor: pointer; color: var(--accent); }
+.gros { font-size: 1.1em; }
+.journal { list-style: none; padding: 0; margin: 0; }
+.journal li { border-left: 3px solid var(--bord); padding: 4px 8px; margin: 0 0 6px; font-size: .88em; }
+.journal li span { color: var(--doux); }
+.journal li.j-historique { border-left-color: var(--accent); }
+.journal li.j-briefing, .journal li.j-cache { border-left-color: #b48ee0; }
+.journal li.occ { border-left-color: var(--occ); } .journal li.chn { border-left-color: var(--chn); }
+.fenetre { position: fixed; inset: 0; background: rgba(5, 10, 15, .7); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.fenetre[hidden] { display: none; }
+.boite { background: var(--panneau); border: 1px solid var(--bord); border-radius: 10px; padding: 18px 20px; width: min(680px, 100%); max-height: 88vh; overflow-y: auto; }
+.boite h2 { margin-top: 0; } .boite h3 { color: var(--accent); font-size: .95em; margin: 14px 0 6px; }
+.conseillers { padding-left: 18px; font-size: .9em; }
+.options { display: grid; gap: 8px; }
+.option { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--bord); border-radius: 8px; padding: 8px; cursor: pointer; }
+.option:has(input:checked) { border-color: var(--accent); }
+.actions-fenetre { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.choix-camp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choix-camp button { text-align: left; padding: 14px; display: grid; gap: 6px; }
+.choix-camp button strong { font-size: 1.15em; } .choix-camp button span { color: var(--doux); font-size: .88em; }
+.choix-camp .occ { border-color: var(--occ); } .choix-camp .chn { border-color: var(--chn); }
+@media (max-width: 760px) { .choix-camp { grid-template-columns: 1fr; } }

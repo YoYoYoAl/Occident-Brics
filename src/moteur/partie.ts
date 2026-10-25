@@ -92,6 +92,8 @@ function melanger<T>(e: EtatPartie, t: T[]): T[] {
   return r;
 }
 const borne = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
+function normale(e: EtatPartie): number { return Math.sqrt(-2 * Math.log(1 - tirer(e))) * Math.cos(2 * Math.PI * tirer(e)); }
+const CONTAGION = 0.5, PAPILLON = 0.006; // écart-type du choc de niveau par trimestre : environ 3,6 % cumulés sur 2000-2008
 
 // ---------- Indicateurs dérivés ----------
 export function influenceTotale(p: EtatPays, camp: Camp): number {
@@ -109,24 +111,18 @@ const pibMonde = (e: EtatPartie) => ISO.reduce((s, i) => s + e.pays[i].pib, 0);
 
 export function puissance(e: EtatPartie, camp: Camp): number {
   const signe = camp === "OCC" ? 1 : -1;
-  return ISO.reduce((s, i) => s + e.pays[i].pib * Math.max(0, signe * alignement(e, i)), 0) / pibMonde(e);
+  // part du PIB des 48 autres pays alignée sur le camp : la croissance propre des leaders n'est pas une victoire d'influence
+  const autres = ISO.filter(i => i !== "USA" && i !== "CHN");
+  return autres.reduce((s, i) => s + e.pays[i].pib * Math.max(0, signe * alignement(e, i)), 0) / autres.reduce((s, i) => s + e.pays[i].pib, 0);
 }
 export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
-// Bilan = écart à la trajectoire historique : on retire la dérive structurelle (essor économique chinois)
-// mesurée sur une partie de référence sans joueur, sans IA ni événement générique (graine 0), calculée une fois.
-let REFERENCE: number[] | null = null;
-function reference(round: number): number {
-  if (!REFERENCE) {
-    REFERENCE = [];
-    let x = creerPartie(0, null, { generiques: false, ia: false });
-    REFERENCE.push(bilanBrut(x));
-    while (!x.termine) { x = finRound(x); REFERENCE.push(bilanBrut(x)); }
-  }
-  return REFERENCE[Math.min(round, REFERENCE.length - 1)] - REFERENCE[0];
-}
-export const bilan = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart - (e.termine ? reference(e.round + 1) : reference(e.round));
+// Compensation (komi, comme au go) : le monde de 2000-2008 avantage la Chine (essor économique, événements
+// historiques) d'environ 12,5 points en IA contre IA. L'Occident la reçoit au fil des 36 trimestres, et le seuil
+// d'égalité donne la cible validée : environ 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
+export const KOMI = 12.5, SEUIL_EGALITE = 0.5;
+export const bilan = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE; // progression depuis 2000, sans jugement sur l'écart à l'histoire
 
 // ---------- Création ----------
 function cibleEconomique(e: EtatPartie, iso: string, camp: Camp): number {
@@ -330,7 +326,12 @@ function tirerGeneriques(e: EtatPartie) {
 }
 // Avant 2023, un choc de croissance générique est suivi d'un rebond égal : le niveau du PIB revient sur la trajectoire réelle.
 // Rebond b tel que (1 - a)(1 + b) = 1 sur la même durée (a = choc annuel × intensité) : le niveau revient exactement à l'écart de second ordre près.
-function rebond(effets: Effet[], avant: boolean, intensite: number): Effet[] {
+// Les génériques sont un bruit de fond : sans amortissement, ils apportaient +6,7 de tension et -1,5 de stabilité
+// par pays et par trimestre (tension 79/100 et stabilité moyenne 32 en 2008). Calibrage : équilibre vers tension 30, stabilité 42.
+const AMORTI_GENERIQUE = { tension: 0.3, stabilite: 0.25 };
+function rebond(effets0: Effet[], avant: boolean, intensite: number): Effet[] {
+  const effets = effets0.map((ef): Effet => ef.type === "tension" ? { ...ef, valeur: ef.valeur * AMORTI_GENERIQUE.tension }
+    : ef.type === "stabilite" ? { ...ef, valeur: ef.valeur * AMORTI_GENERIQUE.stabilite } : ef);
   if (!avant) return effets;
   return effets.flatMap((ef): Effet[] => {
     if (ef.type !== "croissance") return [ef];
@@ -554,10 +555,15 @@ export function finRound(e0: EtatPartie): EtatPartie {
   const { annee, trimestre } = date(e.round);
   // économie, population, émissions
   let emissions = 0;
+  // globalisation : la moitié de l'écart de croissance moyen du monde (pondéré par le PIB) se transmet à chaque pays
+  const ecart: Record<string, number> = Object.fromEntries(ISO.map(i => [i, e.pays[i].bonus.reduce((s, b) => s + b.points / 100, 0)]));
+  const monde = pibMonde(e), contagion = CONTAGION * ISO.reduce((s, i) => s + ecart[i] * e.pays[i].pib / monde, 0);
   for (const iso of ISO) {
     const p = e.pays[iso];
-    const g = croissanceReference(iso, annee, e) + p.bonus.reduce((s, b) => s + b.points / 100, 0);
+    const g = croissanceReference(iso, annee, e) + ecart[iso] + contagion;
     p.pib *= Math.pow(1 + g, 0.25);
+    // effet papillon : petit choc de niveau permanent, sans rebond, qui fait diverger chaque partie de l'histoire
+    if (e.reglages.generiques) p.pib *= Math.exp(PAPILLON * normale(e));
     p.population *= Math.pow(1 + populationReference(iso, annee), 0.25);
     p.bonus = p.bonus.map(b => ({ ...b, reste: b.reste - 1 })).filter(b => b.reste > 0);
     const mod = p.co2Mod.reduce((s, m) => s * (1 + m.pourcent / 100), 1);
@@ -572,8 +578,11 @@ export function finRound(e0: EtatPartie): EtatPartie {
     for (const canal of ["p", "m", "c"] as Canal[]) inf[canal] = borne(inf[canal] - USURE * (inf[canal] - p.ancre[camp][canal]), 0, 100);
     inf.e = borne(inf.e + DERIVE_E * (cibleEconomique(e, iso, camp) - inf.e), 0, 100);
   }
-  e.tension = borne(e.tension - 1, 0, 100);
-  for (const camp of CAMPS) e.camps[camp].cp = borne(e.camps[camp].cp + 3, 0, 100);
+  // forces de rappel : la tension retombe de 8 % de son excès sur 10 par trimestre, la stabilité revient vers 50 (5 %),
+  // le capital politique se reconstitue de 1 point ; sans elles, les événements génériques saturaient tension et instabilité.
+  e.tension = borne(e.tension - 0.08 * (e.tension - 10), 0, 100);
+  for (const iso of ISO) e.pays[iso].stabilite += 0.05 * (50 - e.pays[iso].stabilite);
+  for (const camp of CAMPS) e.camps[camp].cp = borne(e.camps[camp].cp + 1, 0, 100);
   // fin d'année : main (2 cartes gardées au plus), élections
   if (trimestre === 4) {
     for (const camp of CAMPS) { const c = e.camps[camp]; while (c.main.length > 2) e.defausse.push(c.main.pop()!); }
@@ -583,7 +592,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
   if (e.round + 1 >= ROUNDS_TRANCHE || e.round + 1 >= NB_ROUNDS) {
     e.termine = true;
     const b = bilan(e);
-    e.resultat = Math.abs(b) < 2 ? "Égalité" : b > 0 ? "Victoire de l'Occident" : "Victoire de la Chine";
+    e.resultat = Math.abs(b) < SEUIL_EGALITE ? "Égalité" : b > 0 ? "Victoire de l'Occident" : "Victoire de la Chine";
     noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Bilan ${b >= 0 ? "+" : ""}${b.toFixed(1)} points (positif = Occident). Puissance Occident ${(100 * puissance(e, "OCC")).toFixed(1)} %, Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
     return e;
   }
@@ -609,8 +618,9 @@ export function roundAutomatique(e: EtatPartie): EtatPartie {
 
 // ---------- Description lisible d'un effet ----------
 const NOMS_CANAUX: Record<Canal, string> = { e: "économique", p: "politique", m: "militaire", c: "culturelle" };
-export function decrireEffet(e: EtatPartie, ef: Effet, joueur: Camp | null, paysTire?: string, fourchette = false): string {
-  const v = (x: number) => fourchette ? `${signe(x * 0.7)} à ${signe(x * 1.3)}` : signe(x);
+// fourchette : demi-amplitude du tirage (0,3 pour les cartes, 0,5 pour les briefings), 0 = valeur exacte.
+export function decrireEffet(e: EtatPartie, ef: Effet, joueur: Camp | null, paysTire?: string, fourchette = 0): string {
+  const v = (x: number) => fourchette ? `${signe(x * (1 - fourchette))} à ${signe(x * (1 + fourchette))}` : signe(x);
   const ou = (c: CiblePays) => c === "tous" ? "tous les pays" : paysCibles(c, paysTire).map(nomPays).join(", ");
   const qui = (c: CampRel) => campReel(c, joueur, paysTire, e) === "OCC" ? "Occident" : "Chine";
   const apres = ef.delai ? ` (dans ${ef.delai} trimestre${ef.delai > 1 ? "s" : ""})` : "";
@@ -628,3 +638,12 @@ export function decrireEffet(e: EtatPartie, ef: Effet, joueur: Camp | null, pays
 const signe = (x: number) => (x >= 0 ? "+" : "") + (Math.abs(x) < 10 ? x.toFixed(1).replace(".", ",").replace(",0", "") : Math.round(x).toString());
 
 export { libelle };
+
+// ---------- Sauvegarde ----------
+export function serialiserPartie(e: EtatPartie): string { return JSON.stringify(e); }
+export function chargerPartie(texte: string): EtatPartie {
+  const e = JSON.parse(texte) as EtatPartie;
+  if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
+  if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
+  return e;
+}

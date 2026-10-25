@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import trajectoires from "../src/data/trajectoires.json";
 import { FAMILLES } from "../src/contenu/generiques";
 import {
-  creerPartie, roundAutomatique, finRound, jouerCarte, alignement, bilan, ROUNDS_TRANCHE, type EtatPartie,
+  creerPartie, roundAutomatique, serialiserPartie, chargerPartie, finRound, jouerCarte, alignement, bilan, ROUNDS_TRANCHE, type EtatPartie,
 } from "../src/moteur/partie";
 import { CAMPS, CANAUX } from "../src/moteur/types";
 
@@ -21,14 +21,20 @@ describe("Tranche 2000-2008 : moteur", () => {
     expect(JSON.stringify(e)).toBe(avant);
   });
 
-  it("2. sans événements génériques ni IA, le PIB de chaque pays fin 2008 est à ±3 % de la trajectoire réelle", () => {
+  it("2. PIB fin 2008 : exact sans aléa (±1 %), et à ±10 % de la trajectoire réelle pour 90 % des pays avec aléas", () => {
     const e = jouer(creerPartie(1, null, SANS_ALEA));
     expect(e.round + 1).toBe(ROUNDS_TRANCHE);
     for (const iso of Object.keys(e.pays)) {
       const reel = TRAJ[iso].pib[9]; // niveau annuel 2009 = sortie du 4e trimestre 2008
-      expect(Math.abs(e.pays[iso].pib / reel - 1), iso).toBeLessThan(0.03);
+      expect(Math.abs(e.pays[iso].pib / reel - 1), iso).toBeLessThan(0.01);
     }
-  });
+    let dans = 0, total = 0;
+    for (let g = 1; g <= 40; g++) {
+      const x = jouer(creerPartie(g, null, { generiques: true, ia: false }));
+      for (const iso of Object.keys(x.pays)) { total++; if (Math.abs(x.pays[iso].pib / TRAJ[iso].pib[9] - 1) <= 0.1) dans++; }
+    }
+    expect(dans / total).toBeGreaterThanOrEqual(0.9);
+  }, 60_000);
 
   it("3. fréquences des événements génériques à un facteur 2 près du taux calibré (300 parties sans IA)", () => {
     const n = 300, annees = ROUNDS_TRANCHE / 4, compte: Record<string, number> = {};
@@ -97,15 +103,26 @@ describe("Tranche 2000-2008 : moteur", () => {
     throw new Error("aucun effet caché tiré sur 200 graines");
   });
 
-  it("7. équilibre : aucun camp ne dépasse 70 % de victoires en IA contre IA (150 parties)", () => {
-    const n = 150, res: Record<string, number> = {};
+  it("7. équilibre visé 40 / 20 / 40 en IA contre IA, à 10 points près (200 parties)", () => {
+    const n = 200, res: Record<string, number> = {};
     for (let g = 1; g <= n; g++) { const e = jouer(creerPartie(g, null)); res[e.resultat!] = (res[e.resultat!] ?? 0) + 1; }
-    expect((res["Victoire de l'Occident"] ?? 0) / n).toBeLessThanOrEqual(0.7);
-    expect((res["Victoire de la Chine"] ?? 0) / n).toBeLessThanOrEqual(0.7);
+    console.log("Équilibre IA contre IA :", JSON.stringify(res));
+    const part = (k: string) => (res[k] ?? 0) / n;
+    expect(Math.abs(part("Victoire de l'Occident") - 0.4)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(part("Victoire de la Chine") - 0.4)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(part("Égalité") - 0.2)).toBeLessThanOrEqual(0.1);
   }, 120_000);
 
   it("8. une partie complète IA contre IA dure moins de 2 s", () => {
     const t0 = performance.now(); jouer(creerPartie(99, null));
     expect(performance.now() - t0).toBeLessThan(2000);
+  });
+
+  it("9. une sauvegarde rechargée reprend la partie à l'identique ; une version étrangère est refusée", () => {
+    let e = creerPartie(5, "CHN"); for (let i = 0; i < 10; i++) e = roundAutomatique(e);
+    const repris = chargerPartie(serialiserPartie(e));
+    expect(JSON.stringify(jouer(repris))).toBe(JSON.stringify(jouer(e)));
+    expect(() => chargerPartie(JSON.stringify({ ...e, version: 1 }))).toThrow(/version/);
+    expect(() => chargerPartie("{}")).toThrow();
   });
 });

@@ -8,18 +8,16 @@
 </head>
 <body>
   <header class="barre">
-    <div class="titre">Occident vs BRICS <span class="version">v0.1</span></div>
-    <div class="date"><strong id="date">2000 T1</strong> <span id="ere"></span></div>
+    <div class="titre">Occident vs BRICS <span class="version">v0.3 · tranche 2000-2008</span></div>
+    <div class="date"><strong id="date">2000 T1</strong> <span id="camp"></span></div>
+    <div class="jauges" id="jauges"></div>
     <div class="controles">
-      <button id="btnLecture" title="Lecture / pause (espace)">▶</button>
-      <button id="btnPas" title="Avancer d'un trimestre">+1 trimestre</button>
-      <select id="vitesse" title="Vitesse">
-        <option value="1500">Vitesse 1</option><option value="700">Vitesse 2</option><option value="250">Vitesse 3</option>
-      </select>
-      <select id="indicateur" title="Couleur de la carte">
+      <button id="btnFin" class="principal" title="Terminer le trimestre (Entrée)">Fin du trimestre</button>
+      <select id="vue" title="Couleur de la carte">
+        <option value="alignement">Carte : alignement</option>
         <option value="population">Carte : population</option>
-        <option value="pib">Carte : PIB 2000</option>
-        <option value="co2ParHab">Carte : CO2 par habitant 2000</option>
+        <option value="pib">Carte : PIB</option>
+        <option value="stabilite">Carte : stabilité</option>
       </select>
       <button id="btnSauver">Sauver</button>
       <button id="btnCharger">Charger</button>
@@ -30,8 +28,16 @@
   </header>
   <main>
     <div id="carte" class="carte" aria-label="Carte du monde"></div>
-    <aside id="fiche" class="fiche"><p class="aide">Clique sur un pays en couleur pour ouvrir sa fiche. Les 50 pays de la v0.1 sont colorés ; les autres sont en gris.</p></aside>
+    <aside class="panneau">
+      <nav class="onglets">
+        <button data-onglet="main" class="actif">Main</button>
+        <button data-onglet="pays">Pays</button>
+        <button data-onglet="journal">Journal</button>
+      </nav>
+      <section id="contenu" class="contenu"></section>
+    </aside>
   </main>
+  <div id="fenetre" class="fenetre" hidden><div class="boite" id="boite" role="dialog" aria-modal="true"></div></div>
   <div id="message" class="message" role="status"></div>
   <script type="module" src="/src/interface/main.ts"></script>
 </body>
