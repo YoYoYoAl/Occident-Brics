@@ -108,8 +108,8 @@ describe("Tranche 2000-2008 : moteur", () => {
     for (let g = 1; g <= n; g++) { const e = jouer(creerPartie(g, null)); res[e.resultat!] = (res[e.resultat!] ?? 0) + 1; }
     console.log("Équilibre IA contre IA :", JSON.stringify(res));
     const part = (k: string) => (res[k] ?? 0) / n;
-    expect(Math.abs(part("Victoire de l'Occident") - 0.4)).toBeLessThanOrEqual(0.1);
-    expect(Math.abs(part("Victoire de la Chine") - 0.4)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(part("Victoire du bloc USA") - 0.4)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(part("Victoire du bloc Chine") - 0.4)).toBeLessThanOrEqual(0.1);
     expect(Math.abs(part("Égalité") - 0.2)).toBeLessThanOrEqual(0.1);
   }, 120_000);
 
@@ -145,9 +145,9 @@ describe("Tranche 2000-2008 : moteur", () => {
   it("12. seuils extrêmes : banqueroute, effondrement démographique, catastrophe climatique", () => {
     const base = creerPartie(6, "OCC", SANS_ALEA);
     const b = structuredClone(base); b.pays.USA.pibMax = b.pays.USA.pib / (SEUILS.banqueroute - 0.05);
-    expect(finRound(b).resultat).toMatch(/Défaite de l'Occident : banqueroute/);
+    expect(finRound(b).resultat).toMatch(/Défaite du bloc USA : banqueroute/);
     const p = structuredClone(base); p.pays.CHN.population *= SEUILS.population - 0.05;
-    expect(finRound(p).resultat).toMatch(/Défaite de la Chine : effondrement/);
+    expect(finRound(p).resultat).toMatch(/Défaite du bloc Chine : effondrement/);
     const c = structuredClone(base); c.ecartTemp = SEUILS.climat + 1; c.co2Cumule = (SEUILS.climat + 1 - 0.8) / 0.45 * 1000;
     expect(finRound(c).resultat).toMatch(/Catastrophe climatique/);
     expect(finRound(c).termine).toBe(true);

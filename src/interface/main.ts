@@ -11,7 +11,7 @@ import type { EtatJeu } from "../moteur/etat";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const CLE_SAUVEGARDE = "occident-brics-partie";
-const NOM_CAMP: Record<Camp, string> = { OCC: "Occident", CHN: "Chine" };
+const NOM_CAMP: Record<Camp, string> = { OCC: "Bloc USA", CHN: "Bloc Chine" };
 const NOM_CANAL = { e: "Économique", p: "Politique", m: "Militaire", c: "Culturelle" };
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const nombre = (x: number, d = 1) => x.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -49,11 +49,11 @@ const fermer = () => { $("fenetre").hidden = true; };
 const fenetreOuverte = () => !$("fenetre").hidden;
 
 function choisirCamp() {
-  ouvrir(`<h2>Nouvelle partie</h2>
+  ouvrir(`<h2>Nouvelle partie</h2><p class="note">Première partie ? Le bouton <strong>Aide</strong> (ou la touche ?) explique tout en 2 minutes.</p>
     <p>De 2000 à 2008, 36 trimestres. Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le score compte, pour 5 familles (économie, population, ressources, armée, environnement), la part du monde que contrôle chaque camp ; un décompte a lieu chaque fin d'année.</p>
     <div class="choix-camp">
-      <button data-camp="OCC" class="occ"><strong>Occident</strong><span>États-Unis et alliés. Riche et influent partout, mais l'essor chinois grignote ta position.</span></button>
-      <button data-camp="CHN" class="chn"><strong>Chine</strong><span>Croissance à deux chiffres, peu d'alliés. Transforme ton poids économique en influence.</span></button>
+      <button data-camp="OCC" class="occ"><strong>Bloc USA</strong><span>Les États-Unis et leurs alliés. Riche et influent partout, mais l'essor chinois grignote ta position.</span></button>
+      <button data-camp="CHN" class="chn"><strong>Bloc Chine</strong><span>La Chine et ses partenaires. Croissance à deux chiffres, peu d'alliés. Transforme ton poids économique en influence.</span></button>
     </div>`, b => b.querySelectorAll<HTMLButtonElement>("[data-camp]").forEach(x => x.onclick = () => {
     etat = creerPartie(Date.now() % 2147483647, x.dataset.camp as Camp);
     journalVu = 0; briefingVuAuRound = -1; paysChoisi = null; carteOuverte = null; onglet = "main";
@@ -63,17 +63,42 @@ function choisirCamp() {
 
 function ligneJournal(j: EntreeJournal) {
   const classe = j.camp ? (j.camp === "OCC" ? "occ" : "chn") : "";
-  return `<li class="j-${j.type} ${classe}"><strong>${esc(j.titre)}</strong><br><span>${esc(j.texte)}</span></li>`;
+  const effets = j.effets?.length ? `<small class="effets">Ce que ça change : ${j.effets.map(esc).join(" · ")}</small>` : "";
+  return `<li class="j-${j.type} ${classe}"><strong>${esc(j.titre)}</strong>${j.texte ? `<br><span>${esc(j.texte)}</span>` : ""}${effets}</li>`;
 }
 const visibles = (debut = 0) => etat!.journal.slice(debut).filter(j => j.visiblePour.includes(joueur()) && j.type !== "action");
 
+// Un événement générique mérite le rapport s'il touche un leader, le monde entier, ou un pays où se joue la partie.
+function importance(j: EntreeJournal): number {
+  if (!j.pays?.length) return 3 + (j.intensite ?? 1);
+  const iso = j.pays[0], p = etat!.pays[iso];
+  if (iso === "USA" || iso === "CHN") return 4 + (j.intensite ?? 1);
+  const enJeu = Math.abs(alignement(etat!, iso)) >= 0.3 || influenceTotale(p, joueur()) >= 25 || influenceTotale(p, adversaire(joueur())) >= 25;
+  return (j.intensite ?? 1) + (enJeu ? 1 : 0);
+}
+const MAX_MONDE = 3;
+
 function rapport(titre: string) {
-  const neuf = visibles(journalVu);
+  const tout = etat!.journal.slice(journalVu);
   journalVu = etat!.journal.length;
-  const majeurs = neuf.filter(j => j.type !== "generique"), mineurs = neuf.filter(j => j.type === "generique");
+  const moi = joueur(), adv = adversaire(moi), vu = (j: EntreeJournal) => j.visiblePour.includes(moi);
+  const histoire = tout.filter(j => vu(j) && (j.type === "historique" || j.type === "politique" || j.type === "bilan"));
+  const cartesAdv = tout.filter(j => vu(j) && j.type === "carte" && (j.joueParCamp ?? j.camp) === adv);
+  const actionsAdv = tout.filter(j => j.type === "action" && j.camp === adv);
+  const consequences = tout.filter(j => vu(j) && j.type === "cache");
+  const monde = tout.filter(j => vu(j) && j.type === "generique").map(j => ({ j, n: importance(j) })).sort((a, b) => b.n - a.n);
+  const retenus = monde.filter(x => x.n >= 3).slice(0, MAX_MONDE).map(x => x.j), autres = monde.map(x => x.j).filter(j => !retenus.includes(j));
+  const section = (t: string, l: EntreeJournal[]) => l.length ? `<h3>${t}</h3><ul class="journal">${l.map(ligneJournal).join("")}</ul>` : "";
+  const parType = new Map<string, string[]>();
+  for (const a of actionsAdv) { const [nom, pays] = a.titre.split(" : "); parType.set(nom, [...(parType.get(nom) ?? []), pays]); }
+  const actionsTxt = [...parType].map(([nom, pays]) => `${nom} (${pays.join(", ")})`).join(" ; ");
   ouvrir(`<h2>${titre} : ${libelle(etat!.round)}</h2>
-    ${majeurs.length ? `<ul class="journal">${majeurs.map(ligneJournal).join("")}</ul>` : `<p class="note">Aucun événement majeur.</p>`}
-    ${mineurs.length ? `<details><summary>${mineurs.length} événement${mineurs.length > 1 ? "s" : ""} dans le monde</summary><ul class="journal">${mineurs.map(ligneJournal).join("")}</ul></details>` : ""}
+    ${section("Histoire et politique", histoire)}
+    ${cartesAdv.length || actionsTxt ? `<h3>Ce qu'a fait le ${NOM_CAMP[adv]}</h3><ul class="journal">${cartesAdv.map(ligneJournal).join("")}${actionsTxt ? `<li class="${adv === "OCC" ? "occ" : "chn"}"><strong>Actions sur la carte</strong><br><span>${esc(actionsTxt)}</span></li>` : ""}</ul>` : ""}
+    ${section("Conséquences de tes choix passés", consequences)}
+    ${section("Dans le monde", retenus)}
+    ${autres.length ? `<details><summary>${autres.length} autre${autres.length > 1 ? "s" : ""} événement${autres.length > 1 ? "s" : ""} mineur${autres.length > 1 ? "s" : ""}, loin de ton jeu</summary><ul class="journal">${autres.map(ligneJournal).join("")}</ul></details>` : ""}
+    ${!histoire.length && !cartesAdv.length && !actionsTxt && !consequences.length && !retenus.length ? `<p class="note">Trimestre calme.</p>` : ""}
     <div class="actions-fenetre"><button id="okRapport" class="principal">Continuer</button></div>`,
   b => { b.querySelector<HTMLButtonElement>("#okRapport")!.onclick = () => { fermer(); if (etat!.termine) finDePartie(); else proposerBriefing(); }; });
 }
@@ -111,9 +136,9 @@ function finDePartie() {
   const b = bilan(etat!), fin = etat!.journal.filter(j => j.type === "bilan").pop();
   const gagne = (b > 0 && joueur() === "OCC") || (b < 0 && joueur() === "CHN");
   ouvrir(`<h2>${esc(etat!.resultat ?? "")}</h2>
-    <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : bilan ${signe(b)} points (positif = Occident).</p>
+    <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : bilan ${signe(b)} points (positif = bloc USA).</p>
     <p>${esc(fin?.texte ?? "")}</p>
-    <p class="note">Le bilan est la moyenne des décomptes annuels : progression depuis 2000 de la puissance de chaque camp (5 familles de qualificatifs à poids égaux), plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour l'Occident. Égalité sous ${nombre(SEUIL_EGALITE)} point. Détail dans l'onglet Score.</p>
+    <p class="note">Le bilan est la moyenne des décomptes annuels : progression depuis 2000 de la puissance de chaque camp (5 familles de qualificatifs à poids égaux), plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour le bloc USA. Égalité sous ${nombre(SEUIL_EGALITE)} point. Détail dans l'onglet Score.</p>
     <div class="actions-fenetre"><button id="rejouer" class="principal">Nouvelle partie</button><button id="voir">Voir la carte</button></div>`,
   bt => { bt.querySelector<HTMLButtonElement>("#rejouer")!.onclick = choisirCamp; bt.querySelector<HTMLButtonElement>("#voir")!.onclick = fermer; });
 }
@@ -151,14 +176,14 @@ function panneauMain(): string {
 function panneauPays(): string {
   if (!paysChoisi) return `<p class="aide">Clique sur un pays en couleur pour ouvrir sa fiche et y agir.</p>`;
   const e = etat!, iso = paysChoisi, p = e.pays[iso], a = alignement(e, iso);
-  const pente = Math.abs(a) < 0.1 ? "neutre" : a > 0 ? (a >= 0.4 ? "allié de l'Occident" : "penche vers l'Occident") : (a <= -0.4 ? "allié de la Chine" : "penche vers la Chine");
+  const pente = Math.abs(a) < 0.1 ? "neutre" : a > 0 ? (a >= 0.4 ? "allié du bloc USA" : "penche vers le bloc USA") : (a <= -0.4 ? "allié du bloc Chine" : "penche vers le bloc Chine");
   let h = `<h2>${esc(nomPays(iso))}</h2>
     <p class="gros">Alignement ${signe(a, 2)} <span class="note">(${pente})</span></p>
     <table><tr><td>PIB</td><td class="v">${nombre(p.pib / 1e9, 0)} Md USD <span class="note">(int-$ 2011)</span></td></tr>
     <tr><td>Population</td><td class="v">${nombre(p.population / 1e6)} millions</td></tr>
     <tr><td>Stabilité</td><td class="v">${nombre(p.stabilite, 0)} / 100</td></tr></table>`;
   if (iso !== "USA" && iso !== "CHN") {
-    h += `<h3>Influence (0 à 100)</h3><table><tr><td></td><td class="v occ-t">Occident</td><td class="v chn-t">Chine</td></tr>
+    h += `<h3>Influence (0 à 100)</h3><p class="note">Poids : économique 35 %, politique 30 %, militaire 20 %, culturelle 15 %. Alignement = (total USA − total Chine) / 70, borné entre −1 et +1.</p><table><tr><td></td><td class="v occ-t">USA</td><td class="v chn-t">Chine</td></tr>
       ${CANAUX.map(k => `<tr><td>${NOM_CANAL[k]}</td><td class="v">${nombre(p.influence.OCC[k], 0)}</td><td class="v">${nombre(p.influence.CHN[k], 0)}</td></tr>`).join("")}
       <tr><td><strong>Total pondéré</strong></td><td class="v"><strong>${nombre(influenceTotale(p, "OCC"))}</strong></td><td class="v"><strong>${nombre(influenceTotale(p, "CHN"))}</strong></td></tr></table>
       <h3>Agir (${nombre(e.camps[joueur()].pa, 0)} point${e.camps[joueur()].pa > 1 ? "s" : ""} d'action)</h3><div class="grille-actions">`;
@@ -177,14 +202,14 @@ function panneauPays(): string {
 function panneauScore(): string {
   const e = etat!;
   let h = `<h2>Score</h2><p class="note">Pour chaque famille, part du total des 50 pays contrôlée par chaque camp : le leader compte en entier, les autres pays au prorata de leur alignement. Les 5 familles pèsent autant.</p>
-    <table><tr><td></td><td class="v occ-t">Occident</td><td class="v chn-t">Chine</td></tr>`;
+    <table><tr><td></td><td class="v occ-t">USA</td><td class="v chn-t">Chine</td></tr>`;
   for (const f of Object.keys(NOMS_FAMILLES) as (keyof typeof NOMS_FAMILLES)[])
     h += `<tr><td>${NOMS_FAMILLES[f]}</td><td class="v">${nombre(100 * partFamille(e, "OCC", f), 0)} %</td><td class="v">${nombre(100 * partFamille(e, "CHN", f), 0)} %</td></tr>`;
   h += `<tr><td><strong>Puissance</strong></td><td class="v"><strong>${nombre(100 * puissance(e, "OCC"))} %</strong></td><td class="v"><strong>${nombre(100 * puissance(e, "CHN"))} %</strong></td></tr></table>
-    <h3>Décomptes annuels (positif = Occident)</h3>`;
+    <h3>Décomptes annuels (positif = bloc USA)</h3>`;
   h += e.decomptes.length ? `<table>${e.decomptes.map((d, i) => `<tr><td>Fin ${2000 + i}</td><td class="v ${d >= 0 ? "occ-t" : "chn-t"}">${signe(d)}</td></tr>`).join("")}
     <tr><td><strong>Moyenne = bilan</strong></td><td class="v"><strong>${signe(bilan(e))}</strong></td></tr></table>` : `<p class="note">Premier décompte fin 2000.</p>`;
-  h += `<p class="note">Chaque décompte mesure la progression depuis 2000 : écart de puissance entre les camps, plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour l'Occident, versée au prorata du temps. Égalité sous ${nombre(SEUIL_EGALITE)} point.</p>
+  h += `<p class="note">Chaque décompte mesure la progression depuis 2000 : écart de puissance entre les camps, plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour le bloc USA, versée au prorata du temps. Égalité sous ${nombre(SEUIL_EGALITE)} point.</p>
     <h3>Seuils de défaite</h3><ul class="conseillers"><li>Banqueroute : PIB du leader à moins de ${nombre(100 * SEUILS.banqueroute, 0)} % de son sommet.</li>
     <li>Effondrement démographique : population du leader sous ${nombre(100 * SEUILS.population, 0)} % de 2000.</li>
     <li>Catastrophe climatique (défaite commune) : réchauffement de ${nombre(SEUILS.climat)} °C (actuel ${nombre(e.ecartTemp, 2)} °C).</li></ul>
@@ -233,7 +258,7 @@ function afficher() {
   $("camp").textContent = `Tu joues : ${NOM_CAMP[monCamp]}`;
   $("camp").className = monCamp === "OCC" ? "occ-t" : "chn-t";
   $("jauges").innerHTML = [
-    `<span title="Bilan = moyenne des décomptes annuels (positif = Occident). Progression actuelle : ${signe(progression(e))}">Bilan <strong class="${b >= 0 ? "occ-t" : "chn-t"}">${signe(b)}</strong></span>`,
+    `<span title="Bilan = moyenne des décomptes annuels (positif = bloc USA). Progression actuelle : ${signe(progression(e))}">Bilan <strong class="${b >= 0 ? "occ-t" : "chn-t"}">${signe(b)}</strong></span>`,
     `<span title="Moyenne des 5 familles (économie, population, ressources, armée, environnement) contrôlées par chaque camp">Puissance <strong class="occ-t">${nombre(100 * puissance(e, "OCC"), 0)} %</strong> / <strong class="chn-t">${nombre(100 * puissance(e, "CHN"), 0)} %</strong></span>`,
     `<span title="Tension mondiale ${nombre(e.tension, 0)} / 100">Tension <strong>${cran(e)}/5</strong></span>`,
     `<span title="Capital politique (élections, coûts)">CP <strong>${nombre(c.cp, 0)}</strong></span>`,
@@ -308,5 +333,35 @@ $<HTMLInputElement>("fichier").onchange = async ev => {
   try { reprendre(await f.text(), "importée"); } catch (err) { message((err as Error).message); }
 };
 $("btnNouvelle").onclick = choisirCamp;
+$("btnAide").onclick = aide;
+document.addEventListener("keydown", ev => { if (ev.key === "?" && !fenetreOuverte()) aide(); });
+
+function aide() {
+  ouvrir(`<h2>Comment jouer</h2>
+    <h3>Le but</h3>
+    <p>Deux blocs s'affrontent pour attirer le reste du monde : le bloc USA et le bloc Chine. Tu ne gouvernes pas les autres pays : tu gagnes leur <strong>influence</strong>, qui décide de leur <strong>alignement</strong>. Le score compte la part du monde que contrôle chaque bloc dans 5 familles (économie, population, matières premières, puissance militaire, environnement local), avec un décompte chaque fin d'année.</p>
+    <h3>Un trimestre en 5 étapes</h3>
+    <ol class="conseillers">
+      <li><strong>Rapport</strong> : ce qui s'est passé, dont la carte et les actions de l'adversaire.</li>
+      <li><strong>Briefing</strong> (parfois) : une crise, l'avis des conseillers, 2 à 5 options. Les effets affichés sont des fourchettes ; certaines conséquences arrivent plus tard.</li>
+      <li><strong>Une carte</strong> de ta main (onglet Main) : soit son <em>événement</em>, soit ses <em>points d'action</em> (le chiffre rond). Une carte du camp adverse ne se joue que pour ses points, et son événement profite alors à l'adversaire.</li>
+      <li><strong>Points d'action</strong> : clique un pays sur la carte (onglet Pays) et agis : influence politique, culturelle, économique, présence militaire, contre-influence, développement. 2 points au plus par pays et par trimestre. Le budget peut acheter 2 points de plus.</li>
+      <li><strong>Fin du trimestre</strong> : l'adversaire joue, l'économie avance, les événements tombent.</li>
+    </ol>
+    <h3>Influence et alignement</h3>
+    <p>Chaque pays porte, pour chaque bloc, 4 influences de 0 à 100 : <strong>économique</strong> (commerce, investissements ; elle glisse vers le poids économique de chaque leader), <strong>politique</strong> (relations entre gouvernements), <strong>militaire</strong> (bases, traités, armes), <strong>culturelle</strong> (langue, médias, universités, diaspora). Elles pèsent 35, 30, 20 et 15 % et s'usent lentement vers leur niveau de départ. L'<strong>alignement</strong> va de −1 (bloc Chine) à +1 (bloc USA) : c'est l'écart d'influence totale divisé par 70. Sur la carte, bleu = bloc USA, rouge = bloc Chine, sable = neutre.</p>
+    <h3>Tes ressources</h3>
+    <ul class="conseillers">
+      <li><strong>Budget</strong> : versé chaque année, proportionnel au PIB de ton leader ; paie les cartes et certaines actions.</li>
+      <li><strong>Capital politique (CP)</strong> : ta marge de manœuvre intérieure (+1 par trimestre). Il paie les cartes risquées et décide des élections : sous 50, l'alternance menace.</li>
+      <li><strong>Tension</strong> (crans 1 à 5) : monte avec les bases, les embargos, les guerres ; elle ouvre certaines cartes et rend le monde plus dangereux.</li>
+    </ul>
+    <h3>Événements</h3>
+    <p><strong>Historiques</strong> : datés et réels. Certains peuvent ne pas avoir lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles. Seuls ceux qui touchent ton jeu sont détaillés dans le rapport. Chaque événement indique « ce que ça change ».</p>
+    <h3>Fin de partie</h3>
+    <p>Bilan = moyenne des décomptes annuels (onglet Score). Défaite immédiate en cas de banqueroute (PIB du leader à moins de 80 % de son sommet), d'effondrement démographique, ou pour les deux blocs si le réchauffement atteint 3 °C.</p>
+    <div class="actions-fenetre"><button id="okAide" class="principal">Compris</button></div>`,
+  b => { b.querySelector<HTMLButtonElement>("#okAide")!.onclick = () => { fermer(); if (etat && !etat.journal.length) rapport("Début de partie"); }; });
+}
 
 choisirCamp();

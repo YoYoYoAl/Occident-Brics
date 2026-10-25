@@ -43,6 +43,7 @@ export interface EtatCamp {
 export interface EntreeJournal {
   round: number; type: "historique" | "generique" | "carte" | "briefing" | "cache" | "politique" | "bilan" | "action";
   titre: string; texte: string; famille?: string; pays?: string[]; camp?: Camp; visiblePour: Camp[];
+  effets?: string[]; intensite?: number; joueParCamp?: Camp; // joueParCamp : qui a posé la carte (≠ camp quand l'événement adverse se déclenche) // effets lisibles (« ce que ça change ») et intensité 1-3 des événements génériques
 }
 interface EffetPrevu { round: number; effet: Effet; joueur: Camp | null; paysTire?: string; source: string; cache: boolean; facteur: number }
 
@@ -269,7 +270,7 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
     if (tirer(e) < p) {
       e.historiquesFaits.push(h.id);
       executer(e, h.effets, null, undefined, h.titre, () => 1);
-      noter(e, { type: "historique", titre: h.titre, texte: h.texte, famille: h.famille, pays: h.pays, visiblePour: [...CAMPS] });
+      noter(e, { type: "historique", titre: h.titre, texte: h.texte, famille: h.famille, pays: h.pays, visiblePour: [...CAMPS], effets: decrire(e, h.effets, null) });
     } else {
       if (h.compensationSiAbsent) executer(e, h.compensationSiAbsent, null, undefined, h.titre, () => 1);
       noter(e, { type: "historique", titre: `L'histoire dévie : ${h.titre.toLowerCase()} n'a pas lieu`, texte: "Les conditions réelles de cet événement ne sont plus réunies dans votre partie.", famille: h.famille, pays: h.pays, visiblePour: [...CAMPS] });
@@ -338,7 +339,8 @@ function tirerGeneriques(e: EtatPartie) {
       const avant = e.round < 92; // avant 2023 : la trajectoire réelle contient déjà les chocs, l'écart est temporaire
       if (f.monde || m.risque.includes("monde")) {
         executer(e, rebond(m.effets, avant, intensite), null, undefined, m.titre, () => intensite);
-        noter(e, { type: "generique", titre: m.titre, texte: m.texte, famille: f.id, visiblePour: [...CAMPS] });
+        noter(e, { type: "generique", titre: m.titre, texte: m.texte, famille: f.id, visiblePour: [...CAMPS], intensite,
+          effets: decrire(e, rebond(m.effets, false, intensite).map(ef => fois(ef, intensite)), null) });
         continue;
       }
       if (tirer(e) < PART_HORS_50) {
@@ -348,7 +350,8 @@ function tirerGeneriques(e: EtatPartie) {
       const iso = choisirPondere(e, ISO, ISO.map(i => poidsRisque(e, m, i)));
       executer(e, rebond(m.effets, avant, intensite, resilience(e, iso)), null, iso, m.titre, () => intensite);
       noter(e, { type: "generique", titre: m.titre.replace("{pays}", nomPays(iso)) + (intensite > 1 ? ` (intensité ${intensite})` : ""),
-        texte: m.texte.split("{pays}").join(nomPays(iso)), famille: f.id, pays: [iso], visiblePour: visibleDans(e, [iso]) });
+        texte: m.texte.split("{pays}").join(nomPays(iso)), famille: f.id, pays: [iso], visiblePour: visibleDans(e, [iso]), intensite,
+        effets: decrire(e, rebond(m.effets, false, intensite, resilience(e, iso)).map(ef => fois(ef, intensite)), null, iso) });
     }
   }
 }
@@ -395,7 +398,7 @@ export function jouerCarte(e0: EtatPartie, camp: Camp, choix: ChoixCarte): EtatP
     declencherCarte(e, camp, carteJ, choix.mode ?? 0, choix.pays);
   } else {
     c.pa += carteJ.valeur;
-    noter(e, { type: "carte", titre: `${carteJ.titre} jouée pour ${carteJ.valeur} point${carteJ.valeur > 1 ? "s" : ""}`, texte: carteJ.texte, camp, visiblePour: [camp] });
+    noter(e, { type: "carte", titre: `${carteJ.titre} jouée pour ${carteJ.valeur} point${carteJ.valeur > 1 ? "s" : ""} d'action`, texte: carteJ.texte, camp, visiblePour: [...CAMPS] });
     if (carteJ.camp === adversaire(camp)) { // l'événement adverse se déclenche quand même
       const best = meilleurMode(e, adversaire(camp), carteJ);
       if (best) declencherCarte(e, adversaire(camp), carteJ, best.mode, best.pays, true);
@@ -413,8 +416,8 @@ function declencherCarte(e: EtatPartie, camp: Camp, c: Carte, mode: number, pays
   executer(e, m.effets, camp, pays, c.titre, () => 0.7 + 0.6 * tirer(e));
   programmerCaches(e, m.caches, camp, pays, c.titre);
   noter(e, { type: "carte", titre: `${c.titre} : ${m.nom}${pays ? ` (${nomPays(pays)})` : ""}`, camp,
-    texte: parAdversaire ? "Carte jouée pour ses points par l'adversaire : son événement se déclenche à votre profit." : c.texte,
-    pays: pays ? [pays] : undefined, visiblePour: [...CAMPS] });
+    texte: parAdversaire ? "Carte jouée pour ses points par l'adversaire : son événement se déclenche quand même au profit de son camp." : c.texte,
+    pays: pays ? [pays] : undefined, visiblePour: [...CAMPS], joueParCamp: parAdversaire ? adversaire(camp) : camp, effets: decrire(e, m.effets, camp, pays, 0.3).concat(m.caches?.length ? ["Conséquences cachées possibles"] : []) });
 }
 
 export type TypeAction = "politique" | "culturelle" | "economique" | "militaire" | "contre" | "developpement";
@@ -448,6 +451,7 @@ export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string):
   if (type === "militaire") { gain("m", 10); e.tension = borne(e.tension + 1, 0, 100); }
   if (type === "contre") { const adv = e.pays[iso].influence[adversaire(camp)]; adv.p = Math.max(0, adv.p - 5); }
   if (type === "developpement") { e.pays[iso].bonus.push({ points: 0.5, reste: 4 }); inf.e = borne(inf.e + 3, 0, 100); }
+  noter(e, { type: "action", titre: `${a.nom} : ${nomPays(iso)}`, texte: "", camp, pays: [iso], visiblePour: [...CAMPS] });
   return e;
 }
 
@@ -642,8 +646,8 @@ export function finRound(e0: EtatPartie): EtatPartie {
   if (e.round + 1 >= ROUNDS_TRANCHE || e.round + 1 >= NB_ROUNDS) {
     e.termine = true;
     const b = bilan(e);
-    e.resultat = Math.abs(b) < SEUIL_EGALITE ? "Égalité" : b > 0 ? "Victoire de l'Occident" : "Victoire de la Chine";
-    noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Bilan ${b >= 0 ? "+" : ""}${b.toFixed(1)} points (positif = Occident), moyenne de ${e.decomptes.length} décomptes annuels. Puissance Occident ${(100 * puissance(e, "OCC")).toFixed(1)} %, Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
+    e.resultat = Math.abs(b) < SEUIL_EGALITE ? "Égalité" : b > 0 ? "Victoire du bloc USA" : "Victoire du bloc Chine";
+    noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Bilan ${b >= 0 ? "+" : ""}${b.toFixed(1)} points (positif = bloc USA), moyenne de ${e.decomptes.length} décomptes annuels. Puissance bloc USA ${(100 * puissance(e, "OCC")).toFixed(1)} %, bloc Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
     return e;
   }
   e.round += 1;
@@ -656,9 +660,9 @@ export const SEUILS = { population: 0.9, banqueroute: 0.8, climat: 3 };
 function seuilAtteint(e: EtatPartie): { titre: string; texte: string } | null {
   if (e.ecartTemp >= SEUILS.climat) return { titre: "Catastrophe climatique : défaite des deux camps", texte: `Le réchauffement atteint ${e.ecartTemp.toFixed(2)} °C : le système international s'effondre.` };
   for (const camp of CAMPS) {
-    const l = e.pays[camp === "OCC" ? "USA" : "CHN"], nom = camp === "OCC" ? "l'Occident" : "la Chine";
-    if (l.population < SEUILS.population * TRAJ[l.iso3].population[0]) return { titre: `Défaite de ${nom} : effondrement démographique`, texte: "La population du leader a perdu plus de 10 % depuis 2000." };
-    if (l.pib < SEUILS.banqueroute * l.pibMax) return { titre: `Défaite de ${nom} : banqueroute`, texte: "Le PIB du leader a chuté de plus de 20 % sous son sommet : l'État ne peut plus payer." };
+    const l = e.pays[camp === "OCC" ? "USA" : "CHN"], nom = camp === "OCC" ? "du bloc USA" : "du bloc Chine";
+    if (l.population < SEUILS.population * TRAJ[l.iso3].population[0]) return { titre: `Défaite ${nom} : effondrement démographique`, texte: "La population du leader a perdu plus de 10 % depuis 2000." };
+    if (l.pib < SEUILS.banqueroute * l.pibMax) return { titre: `Défaite ${nom} : banqueroute`, texte: "Le PIB du leader a chuté de plus de 20 % sous son sommet : l'État ne peut plus payer." };
   }
   return null;
 }
@@ -679,12 +683,16 @@ export function roundAutomatique(e: EtatPartie): EtatPartie {
 }
 
 // ---------- Description lisible d'un effet ----------
+const fois = (ef: Effet, k: number): Effet => ef.type === "influence" || ef.type === "stabilite" || ef.type === "tension" || ef.type === "cp" || ef.type === "budget" ? { ...ef, valeur: ef.valeur * k }
+  : ef.type === "croissance" ? { ...ef, points: ef.points * k } : ef.type === "co2" ? { ...ef, pourcent: ef.pourcent * k } : ef;
+const decrire = (e: EtatPartie, efs: Effet[], joueur: Camp | null, paysTire?: string, fourchette = 0) =>
+  efs.filter(ef => ef.type !== "drapeau").map(ef => decrireEffet(e, ef, joueur, paysTire, fourchette));
 const NOMS_CANAUX: Record<Canal, string> = { e: "économique", p: "politique", m: "militaire", c: "culturelle" };
 // fourchette : demi-amplitude du tirage (0,3 pour les cartes, 0,5 pour les briefings), 0 = valeur exacte.
 export function decrireEffet(e: EtatPartie, ef: Effet, joueur: Camp | null, paysTire?: string, fourchette = 0): string {
   const v = (x: number) => fourchette ? `${signe(x * (1 - fourchette))} à ${signe(x * (1 + fourchette))}` : signe(x);
   const ou = (c: CiblePays) => c === "tous" ? "tous les pays" : paysCibles(c, paysTire).map(nomPays).join(", ");
-  const qui = (c: CampRel) => campReel(c, joueur, paysTire, e) === "OCC" ? "Occident" : "Chine";
+  const qui = (c: CampRel) => campReel(c, joueur, paysTire, e) === "OCC" ? "bloc USA" : "bloc Chine";
   const apres = ef.delai ? ` (dans ${ef.delai} trimestre${ef.delai > 1 ? "s" : ""})` : "";
   switch (ef.type) {
     case "influence": return `Influence ${NOMS_CANAUX[ef.canal]} ${qui(ef.camp)} ${v(ef.valeur)} : ${ou(ef.pays)}${apres}`;
