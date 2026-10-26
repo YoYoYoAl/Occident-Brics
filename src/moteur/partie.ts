@@ -230,7 +230,7 @@ export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
 // Compensation (komi, comme au go) mesurée en IA contre IA pour viser 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
-export const KOMI = 4.5, SEUIL_EGALITE = 0.3;
+export const KOMI = 5.5, SEUIL_EGALITE = 0.3;
 // Progression depuis 2000 (sans jugement sur l'écart à l'histoire), komi au prorata du temps écoulé.
 export const progression = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE;
 // Bilan : moyenne des décomptes annuels (fin de chaque T4) ; avant le premier décompte, la progression courante.
@@ -300,13 +300,16 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
     e.pays[iso].influence[camp].e = v; e.pays[iso].ancre[camp].e = v;
   }
   e.pioche = melanger(e, CARTES_ERE1.map(c => c.id));
-  for (const camp of CAMPS) e.camps[camp].budget = budgetAnnuel(e, camp);
+  for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
   return debutRound(e, true);
 }
 
-const budgetAnnuel = (e: EtatPartie, camp: Camp) => Math.round(e.pays[camp === "OCC" ? "USA" : "CHN"].pib / 1e12);
+// Budget versé chaque trimestre : socle + racine du PIB du leader (en milliers de milliards), estimation de jeu calée pour couvrir
+// 4 à 5 des 7 actions du trimestre ; l'épargne est plafonnée à 2 trimestres de revenu, assez pour un levier lourd.
+export const BUDGET = { socle: 3.5, k: 0.7, report: 2 };
+export const budgetTrimestre = (e: EtatPartie, camp: Camp) => arrondi(BUDGET.socle + BUDGET.k * Math.sqrt(e.pays[camp === "OCC" ? "USA" : "CHN"].pib / 1e12));
 
 // ---------- Conditions et effets ----------
 function campReel(rel: CampRel, joueur: Camp | null, paysTire: string | undefined, e: EtatPartie): Camp {
@@ -424,9 +427,9 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   if (e.reglages.generiques) { tirerGeneriques(e); declencherChaines(e); }
   rumeurs(e);
   if (trimestre === 2) ouvrirSessionOnu(e);
-  // 4. budget et main en début d'année
+  // 4. budget du trimestre (épargne plafonnée) et main en début d'année
+  if (e.round > 0) for (const camp of CAMPS) { const q = budgetTrimestre(e, camp); e.camps[camp].budget = arrondi(Math.min(e.camps[camp].budget, BUDGET.report * q) + q); }
   if (trimestre === 1) for (const camp of CAMPS) {
-    if (e.round > 0) e.camps[camp].budget = Math.min(e.camps[camp].budget, Math.floor(budgetAnnuel(e, camp) / 2)) + budgetAnnuel(e, camp);
     // main annuelle : 2 cartes de son camp, 2 adverses, 2 neutres ; les cartes non jouées de l'an passé sont défaussées
     const c = e.camps[camp];
     e.defausse.push(...c.main); c.main = []; c.typesJoues = [];

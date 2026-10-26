@@ -11,7 +11,7 @@ import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, KOMI, SEUIL_EGALITE, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
   decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, reagir, peutReagir, REACTIONS, MAX_REACTIONS, fluxActif, lienFlux,
-  peutJouerCarte, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
+  peutJouerCarte, budgetTrimestre, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
   type EtatPartie, type TypeAction, type EntreeJournal, type TypeReaction,
 } from "../moteur/partie";
 import { CANAUX, adversaire, type Camp } from "../moteur/types";
@@ -242,75 +242,122 @@ function finDePartie() {
 // ---------- Panneau ----------
 const cout = (c: { budget?: number; cp?: number }) => [c.budget ? `${c.budget} budget` : "", c.cp ? `${c.cp} CP` : ""].filter(Boolean).join(", ") || "gratuit";
 
+// Tour guidé : le trimestre se déroule par étapes (événements, carte, économie, diplomatie, défense, secret, bilan) ;
+// un domaine en automatique ou sans action restante est sauté ; la barre d'étapes permet de revenir ou de sauter.
+const CLE_GUIDE = "occident-brics-tour-guide";
+let guide = (() => { try { return localStorage.getItem(CLE_GUIDE) !== "non"; } catch { return true; } })();
+let etape = 0, etapeRound = -1;
+type Etape = "evenements" | "carte" | Domaine | "bilan";
+const ETAPES: Etape[] = ["evenements", "carte", "eco", "diplo", "defense", "secret", "bilan"];
+const NOM_ETAPE = (x: Etape) => x === "evenements" ? "Événements" : x === "carte" ? "Carte" : x === "bilan" ? "Bilan" : DOMAINES[x].nom;
+const aReagirDe = (e: EtatPartie) => e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (j.type === "historique" || campTouche(j) !== null || importance(j) >= 3));
+const ripostesDe = (e: EtatPartie) => e.journal.filter(j => j.contestable && j.camp === adversaire(joueur()) && j.round >= e.round - 1 && j.visiblePour.includes(joueur()));
+// Une étape est utile s'il y a quelque chose à y décider.
+function etapeUtile(x: Etape): boolean {
+  const e = etat!, c = e.camps[joueur()];
+  if (x === "evenements") return aReagirDe(e).length > 0 || ripostesDe(e).length > 0 || e.proposition?.de === adversaire(joueur());
+  if (x === "carte") return !c.carteJouee && c.main.length > 0;
+  if (x === "bilan") return true;
+  return modeDe(e, joueur(), x) !== "auto" && (c.points?.[x] ?? 0) > 0;
+}
+const etapeSuivante = (i: number) => { for (let k = i + 1; k < ETAPES.length; k++) if (etapeUtile(ETAPES[k])) return k; return ETAPES.length - 1; };
+
 function panneauMain(): string {
   const e = etat!, c = e.camps[joueur()];
   const manque = typesManquants(e, joueur()), oblig = carteObligatoire(e, joueur());
   const suivi = (["camp", "adverse", "neutre"] as const).map(t => `<span class="${c.typesJoues.includes(t) ? "fait" : manque.includes(t) ? "manque" : ""}">${c.typesJoues.includes(t) ? "✓" : "○"} carte ${NOMS_TYPES[t]}</span>`).join("");
-  let h = `<div class="suivi-cartes" title="Chaque année : 6 cartes (2 de ton camp, 2 adverses, 2 neutres). Tu en joues une par trimestre, au moins une de chaque type. Les 2 restantes sont défaussées.">Cette année : ${suivi}</div>
+  const sEntete = () => {
+    return `<div class="suivi-cartes" title="Chaque année : 6 cartes (2 de ton camp, 2 adverses, 2 neutres). Tu en joues une par trimestre, au moins une de chaque type. Les 2 restantes sont défaussées.">Cette année : ${suivi}</div>
     ${oblig ? `<p class="alerte">Obligatoire ce trimestre : une carte ${manque.map(t => NOMS_TYPES[t]).join(" ou ")}.</p>` : ""}
     <p class="note">${c.carteJouee ? "Carte jouée ce trimestre." : "Une carte par trimestre : son événement, ou ses points d'action."} Les cartes ciblées s'appliquent au pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : " (aucun choisi)"}.</p>`;
-  const aReagir = e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (j.type === "historique" || campTouche(j) !== null || importance(j) >= 3));
-  if (aReagir.length) h += `<details class="a-reagir" ${c.reactions.length < MAX_REACTIONS ? "open" : ""}><summary>Réagir aux événements du trimestre (${c.reactions.length}/${MAX_REACTIONS})</summary><ul class="journal">${aReagir.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
-  h += blocStrategie();
-  const ripostes = e.journal.filter(j => j.contestable && j.camp === adversaire(joueur()) && j.round >= e.round - 1 && j.visiblePour.includes(joueur()));
-  if (ripostes.length) h += `<details class="a-reagir"><summary>Riposter aux actions de l'adversaire (${ripostes.length})</summary><p class="note">${esc(REACTIONS.riposter.texte)} Compte dans tes ${MAX_REACTIONS} réactions du trimestre.</p><ul class="journal">${ripostes.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
-  h += blocDiplomatie();
-  if (!c.main.length) h += `<p class="note">Main vide : nouvelle main au premier trimestre.</p>`;
-  for (const id of c.main) {
-    const k = carteDe(id), adverse = k.camp === adversaire(joueur()), ouverte = carteOuverte === id, img = imageCarte(id);
-    const errCarte = peutJouerCarte(e, joueur(), id), t = typeCarte(joueur(), id);
-    h += `<article class="carte-jeu ${k.camp === "OCC" ? "occ" : k.camp === "CHN" ? "chn" : "neutre"} ${ouverte ? "ouverte" : ""} ${errCarte && !c.carteJouee ? "bloquee" : ""}" data-carte="${id}">
-      <header>${img ? `<img src="${img}" alt="">` : ""}<div><strong>${esc(k.titre)}</strong><small class="type-carte">carte ${NOMS_TYPES[t]}</small></div><span class="valeur" title="Points d'action">${k.valeur}</span></header>
-      <p>${esc(k.texte)}</p>`;
-    if (ouverte && errCarte && !c.carteJouee) h += `<p class="alerte">${esc(errCarte)}</p>`;
-    if (ouverte) {
-      if (adverse) {
-        const prev = previsionAdverse(e, joueur(), id);
-        h += `<p class="alerte">Carte adverse : tu peux la jouer pour ses points, mais son événement se déclenche alors au profit de l'adversaire.</p>
-          ${prev ? `<div class="mode prevision"><div><strong>Ce que l'adversaire en tirerait :</strong> ${esc(prev.titre)}</div><small>${prev.effets.map(esc).join("<br>")}</small></div>` : ""}`;
-      } else k.modes.forEach((m, i) => {
-        const eligibles = m.cible === "pays" ? paysEligibles(e, joueur(), id, i) : [];
-        const pays = m.cible === "pays" ? (paysChoisi && eligibles.includes(paysChoisi) ? paysChoisi : undefined) : undefined;
-        if (m.cible === "pays") h += eligibles.length
-          ? `<label class="cible">Pays cible : <select data-cible>${pays ? "" : `<option value="">choisir (${eligibles.length} possibles)</option>`}${eligibles.map(x => `<option value="${x}" ${x === pays ? "selected" : ""}>${esc(nomPays(x))}</option>`).join("")}</select></label>`
-          : `<p class="alerte">Aucun pays ne remplit la condition en ce moment.</p>`;
-        const err = c.carteJouee ? "Carte déjà jouée ce trimestre." : errCarte ?? peutJouerMode(e, joueur(), id, i, pays);
-        h += `<div class="mode"><div><strong>${esc(m.nom)}</strong> <em>${cout(m.cout)}${m.cible === "pays" ? " · cible un pays" : ""}</em></div>
-          <small>${m.effets.map(ef => esc(decrireEffet(e, ef, joueur(), pays, 0.3))).join("<br>")}${m.caches?.length ? "<br><i>Conséquences incertaines possibles.</i>" : ""}</small>
-          <button data-jouer="${i}" ${err ? `disabled title="${esc(err)}"` : ""}>Jouer l'événement</button>${err ? `<small class="erreur">${esc(err)}</small>` : ""}</div>`;
-      });
-      h += `<button data-points ${c.carteJouee || errCarte ? "disabled" : ""}>Jouer pour ${k.valeur} point${k.valeur > 1 ? "s" : ""} d'action</button>`;
+  };
+  const sEvenements = () => {
+    let h = "";
+    const aReagir = aReagirDe(e);
+    if (aReagir.length) h += `<details class="a-reagir" ${c.reactions.length < MAX_REACTIONS ? "open" : ""}><summary>Réagir aux événements du trimestre (${c.reactions.length}/${MAX_REACTIONS})</summary><ul class="journal">${aReagir.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
+    const ripostes = ripostesDe(e);
+    if (ripostes.length) h += `<details class="a-reagir"><summary>Riposter aux actions de l'adversaire (${ripostes.length})</summary><p class="note">${esc(REACTIONS.riposter.texte)} Compte dans tes ${MAX_REACTIONS} réactions du trimestre.</p><ul class="journal">${ripostes.map(j => ligneJournal(j, true)).join("")}</ul></details>`;
+    return h;
+  };
+  const sCartes = () => {
+    let h = "";
+    if (!c.main.length) h += `<p class="note">Main vide : nouvelle main au premier trimestre.</p>`;
+    for (const id of c.main) {
+      const k = carteDe(id), adverse = k.camp === adversaire(joueur()), ouverte = carteOuverte === id, img = imageCarte(id);
+      const errCarte = peutJouerCarte(e, joueur(), id), t = typeCarte(joueur(), id);
+      h += `<article class="carte-jeu ${k.camp === "OCC" ? "occ" : k.camp === "CHN" ? "chn" : "neutre"} ${ouverte ? "ouverte" : ""} ${errCarte && !c.carteJouee ? "bloquee" : ""}" data-carte="${id}">
+        <header>${img ? `<img src="${img}" alt="">` : ""}<div><strong>${esc(k.titre)}</strong><small class="type-carte">carte ${NOMS_TYPES[t]}</small></div><span class="valeur" title="Points d'action">${k.valeur}</span></header>
+        <p>${esc(k.texte)}</p>`;
+      if (ouverte && errCarte && !c.carteJouee) h += `<p class="alerte">${esc(errCarte)}</p>`;
+      if (ouverte) {
+        if (adverse) {
+          const prev = previsionAdverse(e, joueur(), id);
+          h += `<p class="alerte">Carte adverse : tu peux la jouer pour ses points, mais son événement se déclenche alors au profit de l'adversaire.</p>
+            ${prev ? `<div class="mode prevision"><div><strong>Ce que l'adversaire en tirerait :</strong> ${esc(prev.titre)}</div><small>${prev.effets.map(esc).join("<br>")}</small></div>` : ""}`;
+        } else k.modes.forEach((m, i) => {
+          const eligibles = m.cible === "pays" ? paysEligibles(e, joueur(), id, i) : [];
+          const pays = m.cible === "pays" ? (paysChoisi && eligibles.includes(paysChoisi) ? paysChoisi : undefined) : undefined;
+          if (m.cible === "pays") h += eligibles.length
+            ? `<label class="cible">Pays cible : <select data-cible>${pays ? "" : `<option value="">choisir (${eligibles.length} possibles)</option>`}${eligibles.map(x => `<option value="${x}" ${x === pays ? "selected" : ""}>${esc(nomPays(x))}</option>`).join("")}</select></label>`
+            : `<p class="alerte">Aucun pays ne remplit la condition en ce moment.</p>`;
+          const err = c.carteJouee ? "Carte déjà jouée ce trimestre." : errCarte ?? peutJouerMode(e, joueur(), id, i, pays);
+          h += `<div class="mode"><div><strong>${esc(m.nom)}</strong> <em>${cout(m.cout)}${m.cible === "pays" ? " · cible un pays" : ""}</em></div>
+            <small>${m.effets.map(ef => esc(decrireEffet(e, ef, joueur(), pays, 0.3))).join("<br>")}${m.caches?.length ? "<br><i>Conséquences incertaines possibles.</i>" : ""}</small>
+            <button data-jouer="${i}" ${err ? `disabled title="${esc(err)}"` : ""}>Jouer l'événement</button>${err ? `<small class="erreur">${esc(err)}</small>` : ""}</div>`;
+        });
+        h += `<button data-points ${c.carteJouee || errCarte ? "disabled" : ""}>Jouer pour ${k.valeur} point${k.valeur > 1 ? "s" : ""} d'action</button>`;
+      }
+      h += `</article>`;
     }
-    h += `</article>`;
-  }
+    return h;
+  };
   const cibles = Object.keys(e.pays).filter(i => i !== "USA" && i !== "CHN").sort((a, b) => nomPays(a).localeCompare(nomPays(b), "fr"));
   const isoA = paysAction || paysChoisi && cibles.includes(paysChoisi) && paysChoisi || "";
-  h += blocMinisteres();
-  h += `<details class="agir"><summary>Agir toi-même sur un pays (actions manuelles)</summary>
+  const sAgir = () => `<details class="agir"><summary>Agir toi-même sur un pays (actions manuelles)</summary>
     <label class="cible">Pays : <select id="paysAction"><option value="">choisir un pays</option>${cibles.map(x => `<option value="${x}" ${x === isoA ? "selected" : ""}>${esc(nomPays(x))}</option>`).join("")}</select></label>
     ${isoA ? blocActions(isoA) : `<p class="note">Choisis un pays ici ou clique-le sur la carte : influence, actions militaires, opérations secrètes.</p>`}
     ${blocCampagnes()}${blocZonesStrategiques()}</details>`;
-  const errAchat = peutAcheterPA(e, joueur());
-  h += `<div class="achat"><button id="acheter" ${errAchat ? `disabled title="${esc(errAchat)}"` : ""}>Acheter 1 point de crise (${PRIX_PA} budget)</button> <span class="note">2 par trimestre au plus.</span></div>`;
+  const sAchat = () => {
+    const errAchat = peutAcheterPA(e, joueur());
+    return `<div class="achat"><button id="acheter" ${errAchat ? `disabled title="${esc(errAchat)}"` : ""}>Acheter 1 point de crise (${PRIX_PA} budget)</button> <span class="note">2 par trimestre au plus.</span></div>`;
+  };
+  const bascule = `<p class="note bascule-guide"><button id="basculeGuide">${guide ? "Vue complète" : "Tour guidé"}</button> ${guide ? "Le trimestre se joue étape par étape." : "Toutes les décisions sur une page."}</p>`;
+  if (!guide) return bascule + sEntete() + sEvenements() + blocStrategie() + blocDiplomatie() + sCartes() + blocMinisteres() + sAgir() + sAchat();
+  if (etapeRound !== e.round) { etapeRound = e.round; etape = etapeUtile(ETAPES[0]) ? 0 : etapeSuivante(0); }
+  const x = ETAPES[etape];
+  let h = bascule + `<ol class="etapes">${ETAPES.map((y, k) => `<li><button data-etape="${k}" class="${k === etape ? "actif" : ""} ${etapeUtile(y) ? "" : "inutile"}" title="${etapeUtile(y) ? "" : y === "carte" ? "Carte jouée" : y === "evenements" ? "Rien à décider" : modeDe(e, joueur(), y as Domaine) === "auto" ? "Ministre automatique" : "Actions jouées"}">${k + 1}. ${NOM_ETAPE(y)}</button></li>`).join("")}</ol>`;
+  if (x === "evenements") h += (sEvenements() || `<p class="note">Aucun événement ne te concerne directement ce trimestre.</p>`) + blocDiplomatie();
+  else if (x === "carte") h += sEntete() + sCartes();
+  else if (x === "bilan") {
+    const restes = LISTE_DOMAINES.filter(d => (c.points?.[d] ?? 0) > 0);
+    h += `<p>${restes.length ? `Actions encore disponibles : ${restes.map(d => `${DOMAINES[d].nom.toLowerCase()} ${c.points![d]}${modeDe(e, joueur(), d) === "auto" ? " (le ministre les jouera)" : ""}`).join(", ")}.` : "Toutes les actions du trimestre sont jouées."} Budget restant : ${nombre(c.budget, 1)}.</p>`;
+    h += blocStrategie() + sAgir() + sAchat() + `<p><button id="finGuide" class="principal">Fin du trimestre</button></p>`;
+  } else h += blocDomaine(x) + sAgir();
+  if (x !== "bilan") h += `<p class="suite-guide"><button id="etapeSuivante" class="principal">${NOM_ETAPE(ETAPES[etapeSuivante(etape)])} ›</button></p>`;
   return h;
 }
 
-// Ministères : un domaine par carte, son mode (automatique, conseiller, manuel) et, en mode conseiller, 4 options prêtes à jouer.
-const NOMS_MODES: Record<ModeDomaine, string> = { auto: "Automatique", conseiller: "Conseiller", manuel: "Manuel" };
-function blocMinisteres(): string {
+// Un ministère : son mode et, en mode conseiller (ou dans le tour guidé), 4 options prêtes à jouer.
+function blocDomaine(d: Domaine): string {
   const e = etat!, c = e.camps[joueur()];
-  let h = `<details class="agir" open><summary>Tes ministères ce trimestre</summary><p class="note">Chaque domaine a ses actions du trimestre (non reportées). En automatique, le ministre les joue à la fin du trimestre selon ta priorité et tes orientations ; en conseiller, il te propose 4 options ; en manuel, tu choisis. Points de crise (cartes jouées pour leurs points) : ${nombre(c.pa, 0)}, utilisables partout.</p><div class="ministeres">`;
-  for (const d of LISTE_DOMAINES) {
+  let h = "";
     const m = modeDe(e, joueur(), d), reste = c.points?.[d] ?? 0;
     h += `<div class="ministere"><div><strong>${DOMAINES[d].nom}</strong> <span class="note">${reste}/${DOMAINES[d].points} action${DOMAINES[d].points > 1 ? "s" : ""}</span>
       <select data-mode="${d}">${(Object.keys(NOMS_MODES) as ModeDomaine[]).map(k => `<option value="${k}" ${k === m ? "selected" : ""}>${NOMS_MODES[k]}</option>`).join("")}</select></div>`;
-    if (m === "conseiller" && reste > 0) {
+    if ((m === "conseiller" || guide && onglet === "main" && ETAPES[etape] === d) && reste > 0) {
       const opts = conseils(e, joueur(), d);
       h += opts.length ? `<div class="grille-actions">${opts.map(o => `<button data-agir="${o.type}" data-iso="${o.iso}">${esc(ACTIONS[o.type].nom)} : ${esc(nomPays(o.iso))}<small>${ACTIONS[o.type].pa} action · ${ACTIONS[o.type].budget} budget${c.orientations?.[o.iso] ? ` · ${ORIENTATIONS[c.orientations[o.iso]].toLowerCase()}` : ""}</small></button>`).join("")}</div>` : `<p class="note">Aucune option utile ce trimestre.</p>`;
     } else if (m === "auto") h += `<p class="note">${reste ? "Le ministre agira en fin de trimestre." : "Actions jouées."}</p>`;
     else h += `<p class="note">${reste ? "Choisis un pays ci-dessous ou sur la carte." : "Actions jouées."}</p>`;
     h += `</div>`;
-  }
+  return h;
+}
+// Ministères : un domaine par carte, son mode (automatique, conseiller, manuel) et, en mode conseiller, 4 options prêtes à jouer.
+const NOMS_MODES: Record<ModeDomaine, string> = { auto: "Automatique", conseiller: "Conseiller", manuel: "Manuel" };
+function blocMinisteres(): string {
+  const e = etat!, c = e.camps[joueur()];
+  let h = `<details class="agir" open><summary>Tes ministères ce trimestre</summary><p class="note">Chaque domaine a ses actions du trimestre (non reportées). En automatique, le ministre les joue à la fin du trimestre selon ta priorité et tes orientations ; en conseiller, il te propose 4 options ; en manuel, tu choisis. Points de crise (cartes jouées pour leurs points) : ${nombre(c.pa, 0)}, utilisables partout.</p><div class="ministeres">`;
+  for (const d of LISTE_DOMAINES) h += blocDomaine(d);
   const part = c.partOrientations ?? PART_ORIENTATIONS.defaut, nb = Object.keys(c.orientations ?? {}).length;
   return h + `</div><p>Orientations : ${nb} pays orienté${nb > 1 ? "s" : ""} (à régler dans la fiche de chaque pays). Part du budget consacrée chaque trimestre :
     <select id="partOrientations">${[0, 0.02, 0.05, 0.08, 0.1, 0.15].map(x => `<option value="${x}" ${Math.abs(x - part) < 1e-9 ? "selected" : ""}>${Math.round(x * 100)} %</option>`).join("")}</select></p></details>`;
@@ -475,6 +522,10 @@ function lierPanneau(zone: HTMLElement) {
       tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "points" }), "carte"); carteOuverte = null; afficher();
     });
   });
+  zone.querySelectorAll<HTMLButtonElement>("[data-etape]").forEach(b => b.onclick = () => { etape = Number(b.dataset.etape); afficher(); });
+  zone.querySelector<HTMLButtonElement>("#etapeSuivante")?.addEventListener("click", () => { etape = etapeSuivante(etape); afficher(); });
+  zone.querySelector<HTMLButtonElement>("#finGuide")?.addEventListener("click", () => finTrimestre());
+  zone.querySelector<HTMLButtonElement>("#basculeGuide")?.addEventListener("click", () => { guide = !guide; try { localStorage.setItem(CLE_GUIDE, guide ? "oui" : "non"); } catch { /* stockage indisponible */ } afficher(); });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
   lierReactions(zone, afficher);
   zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, b.dataset.iso ?? paysChoisi!)));
@@ -605,7 +656,7 @@ function afficher() {
     `<span title="Moyenne des 5 familles (économie, population, ressources, armée, environnement) contrôlées par chaque camp">Puissance <strong class="occ-t">${nombre(100 * puissance(e, "OCC"), 0)} %</strong> / <strong class="chn-t">${nombre(100 * puissance(e, "CHN"), 0)} %</strong></span>`,
     `<span title="Tension mondiale ${nombre(e.tension, 0)} / 100">Tension <strong>${cran(e)}/5</strong></span>`,
     `<span title="Capital politique (élections, coûts)">CP <strong>${nombre(c.cp, 0)}</strong></span>`,
-    `<span title="Budget annuel = PIB du leader / 1 000 Md">Budget <strong>${nombre(c.budget, 1)}</strong></span>`,
+    `<span title="Budget versé chaque trimestre : ${nombre(budgetTrimestre(e, monCamp), 1)} (socle + racine du PIB du leader) ; épargne plafonnée à 2 trimestres">Budget <strong>${nombre(c.budget, 1)}</strong></span>`,
     `<span title="Actions du trimestre par domaine, puis points de crise (cartes jouées pour leurs points)">${LISTE_DOMAINES.map(d => `${DOMAINES[d].nom.slice(0, d === "secret" ? 6 : 4)}. <strong>${c.points?.[d] ?? 0}</strong>`).join(" · ")} · Crise <strong>${nombre(c.pa, 0)}</strong></span>`,
     c.briefing ? `<button id="btnBriefing" class="alerte-btn">Briefing en attente</button>` : "",
   ].join("");
@@ -770,7 +821,7 @@ function aide() {
     </ul>
     <h3>Tes ressources</h3>
     <ul class="conseillers">
-      <li><strong>Budget</strong> : versé chaque année selon le PIB de ton leader ; paie cartes, actions, réactions.</li>
+      <li><strong>Budget</strong> : versé chaque trimestre (socle + racine du PIB de ton leader, estimation de jeu), de quoi financer 4 à 5 des 7 actions ; l'épargne est plafonnée à 2 trimestres de revenu. Il paie cartes, actions et réactions.</li>
       <li><strong>Capital politique (CP)</strong> : ta marge de manœuvre intérieure ; trop bas, l'alternance menace (élection américaine : sous 50 ; congrès chinois : sous 40).</li>
       <li><strong>Tension</strong> (crans 1 à 5) : monte avec les bases, embargos, guerres ; elle ouvre certaines cartes.</li>
     </ul>

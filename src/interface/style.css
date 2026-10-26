@@ -223,3 +223,6 @@ body.plein-ecran main { position: relative; }
 .zone-strat button small{display:block}
 .ministeres{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem}.ministere{border:1px solid #ffffff22;border-radius:6px;padding:.4rem}
 .ministere select{margin-left:.4rem}
+.etapes{display:flex;flex-wrap:wrap;gap:4px;list-style:none;padding:0;margin:0 0 .6rem}.etapes button{font-size:.8em;padding:.2rem .45rem}
+.etapes button.actif{background:var(--accent);color:#111;font-weight:600}.etapes button.inutile{opacity:.45}
+.suite-guide{text-align:right;margin-top:.6rem}.bascule-guide button{font-size:.8em;padding:.15rem .4rem}
