@@ -9,9 +9,9 @@ import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musiq
 import { ficheHtml } from "./fiche";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
-  repondreBriefing, KOMI, SEUIL_EGALITE, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
+  repondreBriefing, FORMATS, formatDe, peutProlonger, prolonger, type Format, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
   decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, reagir, peutReagir, REACTIONS, MAX_REACTIONS, fluxActif, lienFlux,
-  peutJouerCarte, budgetTrimestre, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
+  peutJouerCarte, budgetTrimestre, HISTORIQUES, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
   type EtatPartie, type TypeAction, type EntreeJournal, type TypeReaction,
 } from "../moteur/partie";
 import { CANAUX, adversaire, type Camp } from "../moteur/types";
@@ -72,16 +72,24 @@ function ouvrir(html: string, liaisons: (b: HTMLElement) => void = () => {}) {
 const fermer = () => { if (!$("fenetre").hidden) son("fermer", 0.3); $("fenetre").hidden = true; };
 const fenetreOuverte = () => !$("fenetre").hidden;
 
+let formatChoisi: Format = "2000-2008";
+const DESC_FORMAT: Record<Format, string> = {
+  "2000-2008": "36 trimestres, la tranche d'origine.",
+  "2000-2025": "104 trimestres : la crise de 2008, le Printemps arabe, la Crimée, le Covid, l'Ukraine.",
+  "2008-2025": "72 trimestres, départ réel au 1er trimestre 2008 : la Chine pèse déjà, les BRIC existent.",
+};
 function choisirCamp() {
   musique("menu");
   const titre = image("ecran_titre");
-  ouvrir(`${titre ? `<div class="bandeau titre-jeu" style="background-image:url(${titre})"><h2>Occident vs BRICS</h2><span>2000-2008 · la naissance des blocs</span></div>` : `<h2>Nouvelle partie</h2>`}<p class="note">Première partie ? Le bouton <strong>Règles</strong> (ou la touche ?) explique tout en 2 minutes.</p>
-    <p>De 2000 à 2008, 36 trimestres. Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le score compte, pour 5 familles (économie, population, ressources, armée, environnement), la part du monde que contrôle chaque camp ; un décompte a lieu chaque fin d'année.</p>
+  ouvrir(`${titre ? `<div class="bandeau titre-jeu" style="background-image:url(${titre})"><h2>Occident vs BRICS</h2><span>2000-2025 · la naissance des blocs</span></div>` : `<h2>Nouvelle partie</h2>`}<p class="note">Première partie ? Le bouton <strong>Règles</strong> (ou la touche ?) explique tout en 2 minutes.</p>
+    <div class="choix-format" role="radiogroup" aria-label="Période">${(Object.keys(FORMATS) as Format[]).map(f => `<label><input type="radio" name="format" value="${f}"${f === formatChoisi ? " checked" : ""}> <strong>${FORMATS[f].nom}</strong> <small>${DESC_FORMAT[f]}</small></label>`).join("")}</div>
+    <p>Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le score compte, pour 5 familles (économie, population, ressources, armée, environnement), la part du monde que contrôle chaque camp ; un décompte a lieu chaque fin d'année.</p>
     <div class="choix-camp">
       <button data-camp="OCC" class="occ"><strong>Bloc USA</strong><span>Les États-Unis et leurs alliés. Riche et influent partout, mais l'essor chinois grignote ta position.</span></button>
       <button data-camp="CHN" class="chn"><strong>Bloc Chine</strong><span>La Chine et ses partenaires. Croissance à deux chiffres, peu d'alliés. Transforme ton poids économique en influence.</span></button>
     </div>`, b => b.querySelectorAll<HTMLButtonElement>("[data-camp]").forEach(x => x.onclick = () => {
-    etat = creerPartie(Date.now() % 2147483647, x.dataset.camp as Camp);
+    formatChoisi = (b.querySelector<HTMLInputElement>("input[name=format]:checked")?.value as Format) ?? "2000-2008";
+    etat = creerPartie(Date.now() % 2147483647, x.dataset.camp as Camp, { generiques: true, ia: true, format: formatChoisi });
     journalVu = 0; briefingVuAuRound = -1; paysChoisi = null; carteOuverte = null; onglet = "main";
     fermer(); rapport("Début de partie"); afficher();
   }));
@@ -231,14 +239,15 @@ function proposerBriefing(forcer = false) {
 function finDePartie() {
   const b = bilan(etat!), fin = etat!.journal.filter(j => j.type === "bilan").pop();
   const gagne = (b > 0 && joueur() === "OCC") || (b < 0 && joueur() === "CHN");
-  const victoire = gagne && Math.abs(b) >= SEUIL_EGALITE;
+  const eg = formatDe(etat!).egalite, victoire = gagne && Math.abs(b) >= eg;
   son(victoire ? "victoire" : "defaite", 0.6); jouerJingle(victoire); musique(victoire ? "victoire" : "defaite");
   ouvrir(`<h2>${esc(etat!.resultat ?? "")}</h2>
-    <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < SEUIL_EGALITE ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : avance ${avance(b)} points (bloc USA).</p>
+    <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < eg ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : avance ${avance(b)} points (bloc USA).</p>
     <p>${esc(fin?.texte ?? "")}</p>
-    <p class="note">Le bilan est la moyenne des décomptes annuels : progression depuis 2000 de la puissance de chaque camp (5 familles de qualificatifs à poids égaux), plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour le bloc USA. Égalité sous ${nombre(SEUIL_EGALITE)} point. Détail dans l'onglet Score.</p>
-    <div class="actions-fenetre"><button id="rejouer" class="principal">Nouvelle partie</button><button id="voir">Voir la carte</button></div>`,
-  bt => { bt.querySelector<HTMLButtonElement>("#rejouer")!.onclick = choisirCamp; bt.querySelector<HTMLButtonElement>("#voir")!.onclick = fermer; });
+    <p class="note">Le bilan est la moyenne des décomptes annuels : progression depuis le début de la partie de la puissance de chaque camp (5 familles de qualificatifs à poids égaux), plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(formatDe(etat!).komi)} points pour le bloc USA. Égalité sous ${nombre(eg)} point. Détail dans l'onglet Score.</p>
+    <div class="actions-fenetre">${peutProlonger(etat!) ? `<button id="prolonger" class="principal">Continuer jusqu'en 2025</button>` : ""}<button id="rejouer"${peutProlonger(etat!) ? "" : ` class="principal"`}>Nouvelle partie</button><button id="voir">Voir la carte</button></div>`,
+  bt => { bt.querySelector<HTMLButtonElement>("#rejouer")!.onclick = choisirCamp;
+    const pr = bt.querySelector<HTMLButtonElement>("#prolonger"); if (pr) pr.onclick = () => { etat = prolonger(etat!); fermer(); rapport("Suite de la partie : 2009-2025"); afficher(); }; bt.querySelector<HTMLButtonElement>("#voir")!.onclick = fermer; });
 }
 
 // ---------- Panneau ----------
@@ -495,7 +504,7 @@ function panneauScore(): string {
     <h3>Décomptes annuels (bloc en avance)</h3>`;
   h += e.decomptes.length ? `<table>${e.decomptes.map((d, i) => `<tr><td>Fin ${2000 + i}</td><td class="v">${avance(d)}</td></tr>`).join("")}
     <tr><td><strong>Moyenne = bilan</strong></td><td class="v"><strong>${avance(bilan(e))}</strong></td></tr></table>` : `<p class="note">Premier décompte fin 2000.</p>`;
-  h += `<p class="note">Chaque décompte mesure la progression depuis 2000 : écart de puissance entre les camps, plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(KOMI)} points pour le bloc USA, versée au prorata du temps. Égalité sous ${nombre(SEUIL_EGALITE)} point.</p>
+  h += `<p class="note">Chaque décompte mesure la progression depuis le début de la partie : écart de puissance entre les camps, plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(formatDe(e).komi)} points pour le bloc USA, versée au prorata du temps. Égalité sous ${nombre(formatDe(e).egalite)} point.</p>
     <h3>Seuils de défaite</h3><ul class="conseillers"><li>Banqueroute : PIB du leader à moins de ${nombre(100 * SEUILS.banqueroute, 0)} % de son sommet.</li>
     <li>Effondrement démographique : population du leader sous ${nombre(100 * SEUILS.population, 0)} % de 2000.</li>
     <li>Catastrophe climatique (défaite commune) : réchauffement de ${nombre(SEUILS.climat)} °C (actuel ${nombre(e.ecartTemp, 2)} °C).</li></ul>
@@ -650,7 +659,8 @@ function afficher() {
   if (!etat) return;
   const e = etat, c = e.camps[joueur()], b = bilan(e), monCamp = joueur();
   $("date").textContent = libelle(e.round);
-  $("periode").textContent = e.round < 26 ? "Prologue 2000-2006 : le bloc rival n'existe pas encore" : "Ère des blocs (BRIC depuis 2006)";
+  $("format").textContent = formatDe(e).nom;
+  $("periode").textContent = e.round < 26 ? "Prologue 2000-2006 : le bloc rival n'existe pas encore" : e.round < 36 ? "Ère des blocs (BRIC depuis 2006)" : "Ère 2 : l'après-crise et le monde multipolaire";
   $("camp").textContent = `Tu joues : ${NOM_CAMP[monCamp]}`;
   $("camp").className = monCamp === "OCC" ? "occ-t" : "chn-t";
   $("jauges").innerHTML = [
@@ -828,7 +838,7 @@ function aide() {
       <li><strong>Tension</strong> (crans 1 à 5) : monte avec les bases, embargos, guerres ; elle ouvre certaines cartes.</li>
     </ul>
     <h3>Événements</h3>
-    <p><strong>Historiques</strong> : 83 événements réels datés de 2000 à 2008 ; certains n'ont pas lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles, avec leur ville et leur cause. Les événements mondiaux (récession, pétrole, climat) touchent tous les pays ; un bulletin climatique annuel pèse sur tous, davantage sur les pays exposés.</p>
+    <p><strong>Historiques</strong> : ${HISTORIQUES.length} événements réels datés de 2000 à 2024 ; certains n'ont pas lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles, avec leur ville et leur cause. Les événements mondiaux (récession, pétrole, climat) touchent tous les pays ; un bulletin climatique annuel pèse sur tous, davantage sur les pays exposés.</p>
     <h3>Fin de partie</h3>
     <p>Bilan = moyenne des décomptes annuels (onglet Score). Défaite immédiate en cas de banqueroute (PIB du leader à moins de 80 % de son sommet), d'effondrement démographique, ou pour les deux blocs si le réchauffement atteint 3 °C.</p>
     <p class="note">Sons d'interface : packs Kenney (CC0). Bruitages et musiques : CC0, OpenGameArt et Freesound (musiques de cynicmusic, artisticdude, yd, indieteur, eldritch-grim ; bruitages de joth, qubodup, tinyworlds et autres, liste complète dans musiques/LICENCES.md). Illustrations générées pour le jeu. Boutons 🔊 Son et ♪ Musique pour couper.</p>

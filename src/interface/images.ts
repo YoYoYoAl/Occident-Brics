@@ -10,6 +10,10 @@ const HISTORIQUES: Record<string, string> = {
   h_bric: "carte_creation_brics", h_subprimes: "carte_crise_2008", h_lehman: "carte_crise_2008", h_sras: "carte_covid", h_iran_nucleaire: "carte_iran_nucleaire",
   h_kyoto: "carte_accord_de_paris", h_chine_omc: "carte_route_de_la_soie", h_focac: "carte_route_de_la_soie", h_venezuela_coup: "carte_venezuela_crise",
   h_orenoque: "carte_venezuela_crise", h_ocs: "carte_creation_brics",
+  // ère 2 (2009-2025)
+  h_bric_sommet: "carte_creation_brics", h_afrique_sud_brics: "carte_creation_brics", h_brics_elargis: "carte_creation_brics", h_ndb: "carte_banque_ndb",
+  h_printemps_arabe: "carte_printemps_arabe", h_fukushima: "carte_seisme", h_crimee: "carte_crimee", h_euromaidan: "carte_crimee", h_ukraine: "carte_crimee",
+  h_covid: "carte_covid", h_accord_paris: "carte_accord_de_paris", h_ia_generative: "carte_intelligence_artificielle", h_jcpoa: "carte_iran_nucleaire",
 };
 export function imageEvenement(source: string | undefined, famille: string | undefined): string | undefined {
   return (source && HISTORIQUES[source] && image(HISTORIQUES[source])) || (famille ? image(`famille_${famille}`) : undefined);

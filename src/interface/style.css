@@ -233,3 +233,8 @@ body.plein-ecran main { position: relative; }
 .carte .graduations text, .carte .rose text { fill: #d9c79a; fill-opacity: .6; font-size: 6px; font-family: Georgia, serif; pointer-events: none; }
 .carte .rose { pointer-events: none; }
 .carte .rose path, .carte .rose circle { stroke-width: .8; }
+/* v14 : choix de la période */
+.choix-format { display: grid; gap: 6px; margin: 8px 0 10px; }
+.choix-format label { display: block; padding: 8px 10px; border: 1px solid var(--bord, #3a4656); border-radius: 8px; cursor: pointer; }
+.choix-format label:has(input:checked) { border-color: var(--accent, #d9a441); }
+.choix-format small { display: block; color: var(--doux); margin-left: 22px; }

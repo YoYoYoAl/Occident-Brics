@@ -8,6 +8,9 @@ import { INFLUENCE_2000 as INFLUENCE_50 } from "../data/influence2000";
 import { INFLUENCE_2000_MONDE } from "../data/influence2000_monde";
 const INFLUENCE_2000 = { ...INFLUENCE_50, ...INFLUENCE_2000_MONDE }; // 50 pays du jeu + 144 autres membres de l'ONU (estimation)
 import { HISTORIQUES_ERE1 } from "../contenu/historiques";
+import { HISTORIQUES_ERE2 } from "../contenu/historiques2";
+import { CARTES_ERE2 } from "../contenu/cartes2";
+import { BRIEFINGS_ERE2 } from "../contenu/briefings2";
 import { FAMILLES, MODELES_LOT1, EXPOSES_CLIMAT } from "../contenu/generiques";
 import { CONTEXTES, MINEURS, VILLES, enPays, duPays } from "../contenu/contextes";
 import { FLUX, DETROITS, type Flux } from "../data/flux";
@@ -27,7 +30,17 @@ import {
 } from "./types";
 
 export const VERSION_ETAT = 2;
-export const ROUNDS_TRANCHE = 36; // 2000 T1 à 2008 T4
+export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
+// Formules de partie : l'ère 1 seule, l'ère 1 prolongée jusqu'en 2025, ou un départ réel en 2008 jusqu'en 2025.
+export type Format = "2000-2008" | "2000-2025" | "2008-2025";
+export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
+  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 6.7, egalite: 0.3 }, // 200 parties IA : 41,5 / 18,5 / 40 %
+  "2000-2025": { debut: 0, fin: 103, nom: "Partie longue (2000-2025)", komi: 16.2, egalite: 0.3 }, // 200 parties IA : 39 / 18,5 / 41 %, 1,5 % banqueroute
+  "2008-2025": { debut: 32, fin: 103, nom: "Montée des BRICS (2008-2025)", komi: 13.6, egalite: 0.3 }, // 200 parties IA : 40 / 18 / 40,5 %, 1,5 % banqueroute USA
+};
+export const formatDe = (e: EtatPartie) => FORMATS[e.reglages.format ?? "2000-2008"];
+// Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
+export const partKomi = (f: { debut: number; fin: number }) => { const n = (f.fin - f.debut + 1) / 4; return (n + 1) / (2 * n); };
 export const POIDS: Record<Canal, number> = { e: 0.35, p: 0.3, m: 0.2, c: 0.15 };
 // Alignement linéaire : un point d'influence vaut autant pour les deux camps (la formule en ratio avantageait
 // le camp en retard d'un facteur 1,4 à 1,6 et donnait 87 % de victoires chinoises en IA contre IA).
@@ -35,7 +48,7 @@ export const ECHELLE_ALIGNEMENT = 70;
 const USURE = 0.02, DERIVE_E = 0.05, CIBLE_E = 70, MAX_PA_PAR_PAYS = 2;
 const PART_CO2_50 = 1, PART_HORS_50 = 0, // 194 pays : tout le monde est simulé (plus de part hors jeu)
   TCRE = 0.45 / 1000, ECART_2000 = 0.8;
-const ELECTIONS_USA = [2000, 2004, 2008], CONGRES_CHINE = [2002, 2007];
+const ELECTIONS_USA = [2000, 2004, 2008, 2012, 2016, 2020, 2024], CONGRES_CHINE = [2002, 2007, 2012, 2017, 2022];
 
 export interface EtatPays {
   iso3: string; population: number; pib: number; stabilite: number;
@@ -103,7 +116,7 @@ export interface EtatPartie {
 }
 export interface Conflit { iso: string; titre: string; fin: number }
 // Réglages de test : désactiver les génériques ou l'IA isole la trajectoire de référence.
-export interface Reglages { generiques: boolean; ia: boolean }
+export interface Reglages { generiques: boolean; ia: boolean; format?: Format }
 
 // ---------- Données de référence ----------
 const ISO = donnees.pays.map(p => p.iso3);
@@ -114,15 +127,19 @@ const TRAJ = trajectoires.pays as Record<string, { pib: number[]; population: nu
 const PETROLE: Record<string, number> = Object.fromEntries(donnees.pays.map(p => [p.iso3, p.indicateurs.prodPetrole ?? 0]));
 const POP_MOYENNE_2000 = ISO.reduce((s, i) => s + TRAJ[i].population[0], 0) / ISO.length;
 const PETROLE_TOTAL = Object.values(PETROLE).reduce((a, b) => a + b, 0);
-const CARTES: Record<string, Carte> = Object.fromEntries(CARTES_ERE1.map(c => [c.id, c]));
-const BRIEFINGS: Record<string, Briefing> = Object.fromEntries(BRIEFINGS_ERE1.map(b => [b.id, b]));
+const CARTES: Record<string, Carte> = Object.fromEntries([...CARTES_ERE1, ...CARTES_ERE2].map(c => [c.id, c]));
+const TOUS_BRIEFINGS = [...BRIEFINGS_ERE1, ...BRIEFINGS_ERE2];
+const BRIEFINGS: Record<string, Briefing> = Object.fromEntries(TOUS_BRIEFINGS.map(b => [b.id, b]));
+export const HISTORIQUES = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2];
+// Paquet de l'année : ère 1 jusqu'en 2008 ; ensuite les cartes de l'ère 2 et les cartes réutilisables de l'ère 1.
+const paquet = (annee: number) => annee <= 2008 ? CARTES_ERE1.map(c => c.id) : [...CARTES_ERE1.filter(c => c.type === "reutilisable"), ...CARTES_ERE2].map(c => c.id);
 export const carte = (id: string) => CARTES[id];
 export const briefing = (id: string) => BRIEFINGS[id];
 const MODELES_PAR_FAMILLE: Record<string, ModeleGenerique[]> = {};
 for (const m of MODELES_LOT1) (MODELES_PAR_FAMILLE[m.famille] ??= []).push(m);
 
 // L'IA travaille sur une seule copie de l'état : les actions qu'elle enchaîne la modifient sur place.
-let SUR_PLACE = false;
+let SUR_PLACE = false, REJEU = false;
 const copie = (e: EtatPartie) => SUR_PLACE ? e : structuredClone(e);
 
 // ---------- Aléa ----------
@@ -232,9 +249,9 @@ export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
 // Compensation (komi, comme au go) mesurée en IA contre IA pour viser 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
-export const KOMI = 6.3, SEUIL_EGALITE = 0.35;
+export const KOMI = FORMATS["2000-2008"].komi, SEUIL_EGALITE = FORMATS["2000-2008"].egalite;
 // Progression depuis 2000 (sans jugement sur l'écart à l'histoire), komi au prorata du temps écoulé.
-export const progression = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE;
+export const progression = (e: EtatPartie) => { const f = formatDe(e); return bilanBrut(e) - e.scoreDepart + f.komi * ((e.termine ? e.round + 1 : e.round) - f.debut) / (f.fin - f.debut + 1); };
 // Bilan : moyenne des décomptes annuels (fin de chaque T4) ; avant le premier décompte, la progression courante.
 export const bilan = (e: EtatPartie) => e.decomptes.length ? e.decomptes.reduce((a, b) => a + b, 0) / e.decomptes.length : progression(e);
 
@@ -280,6 +297,7 @@ function bloquerDetroit(e: EtatPartie, intensite: number, avant: boolean) {
 }
 
 export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglages: Reglages = { generiques: true, ia: true }): EtatPartie {
+  if (reglages.format === "2008-2025") return depart2008(graine, joueur, reglages);
   const pays: Record<string, EtatPays> = {};
   for (const p of donnees.pays) {
     const t = TRAJ[p.iso3];
@@ -301,11 +319,48 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
     const v = cibleEconomique(e, iso, camp);
     e.pays[iso].influence[camp].e = v; e.pays[iso].ancre[camp].e = v;
   }
-  e.pioche = melanger(e, CARTES_ERE1.map(c => c.id));
+  e.pioche = melanger(e, paquet(2000));
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
   return debutRound(e, true);
+}
+
+// ---------- Départ réel en 2008 ----------
+// L'histoire 2000-2008 est rejouée sans joueur, sans IA ni événements génériques, et tous les événements historiques ont lieu.
+// Les écarts que cette relecture ne produit pas sont corrigés par DELTAS_2008 (estimation de jeu, points d'influence ajoutés).
+export const DELTAS_2008: { iso: string; camp: Camp; canal: Canal; d: number; raison: string }[] = [
+  { iso: "VEN", camp: "OCC", canal: "p", d: -8, raison: "vague rose : Chávez" }, { iso: "BOL", camp: "OCC", canal: "p", d: -6, raison: "vague rose : Morales" },
+  { iso: "ECU", camp: "OCC", canal: "p", d: -5, raison: "vague rose : Correa" }, { iso: "NIC", camp: "OCC", canal: "p", d: -4, raison: "vague rose : Ortega" },
+  { iso: "VEN", camp: "CHN", canal: "e", d: 4, raison: "prêts contre pétrole" }, { iso: "AGO", camp: "CHN", canal: "e", d: 6, raison: "prêts contre pétrole" },
+  { iso: "SDN", camp: "CHN", canal: "e", d: 6, raison: "pétrole soudanais" }, { iso: "ZMB", camp: "CHN", canal: "e", d: 4, raison: "cuivre" },
+  { iso: "COD", camp: "CHN", canal: "e", d: 4, raison: "contrat mines contre infrastructures" }, { iso: "ZWE", camp: "CHN", canal: "p", d: 4, raison: "isolement occidental" },
+  { iso: "GEO", camp: "OCC", canal: "p", d: 5, raison: "révolution des Roses" }, { iso: "UKR", camp: "OCC", canal: "p", d: 4, raison: "révolution orange" },
+  { iso: "RUS", camp: "OCC", canal: "p", d: -6, raison: "discours de Munich" }, { iso: "PAK", camp: "CHN", canal: "m", d: 4, raison: "coopération militaire" },
+  { iso: "IND", camp: "OCC", canal: "p", d: 4, raison: "accord nucléaire civil" }, { iso: "VNM", camp: "CHN", canal: "e", d: 3, raison: "commerce frontalier" },
+];
+let BASE_2008: EtatPartie | null = null;
+function depart2008(graine: number, joueur: Camp | null, reglages: Reglages): EtatPartie {
+  if (!BASE_2008) {
+    let b = creerPartie(2008, null, { generiques: false, ia: false });
+    REJEU = true; try { while (b.round < FORMATS["2008-2025"].debut && !b.termine) b = finRound(b); } finally { REJEU = false; }
+    for (const x of DELTAS_2008) { const q = b.pays[x.iso]; if (!q) continue; const v = borne(q.influence[x.camp][x.canal] + x.d, 0, 100); q.influence[x.camp][x.canal] = v; q.ancre[x.camp][x.canal] = v; }
+    BASE_2008 = b;
+  }
+  const e = structuredClone(BASE_2008);
+  e.graine = graine; e.alea = graine | 0; e.joueur = joueur; e.reglages = reglages;
+  e.journal = e.journal.filter(j => j.round === e.round); e.decomptes = [];
+  for (const camp of CAMPS) { e.pioche.push(...e.camps[camp].main); e.camps[camp].main = []; }
+  e.pioche = melanger(e, [...e.pioche, ...e.defausse]); e.defausse = [];
+  for (const camp of CAMPS) { piocher(e, camp, camp, 2); piocher(e, camp, adversaire(camp), 2); piocher(e, camp, "NEUTRE", 2); tirerAgenda(e, camp); }
+  // briefings datés d'avant 2008 : réglés par l'histoire réelle, ils ne sont plus proposés
+  e.briefingsFaits.push(...TOUS_BRIEFINGS.filter(b => b.declencheur.annee !== undefined && b.declencheur.annee * 4 + (b.declencheur.trimestre ?? 1) < 2008 * 4 + 1 && !e.briefingsFaits.includes(b.id)).map(b => b.id));
+  for (const camp of CAMPS) { const b = e.camps[camp].briefing; if (b && e.briefingsFaits.includes(b)) e.camps[camp].briefing = TOUS_BRIEFINGS.find(x => x.camp === camp && !e.briefingsFaits.includes(x.id) && declenche(e, x))?.id ?? null; }
+  e.camps.OCC.cp = 50; e.camps.CHN.cp = 70; // estimation : usure de l'Irak et crise financière côté occidental
+  for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
+  e.scoreDepart = bilanBrut(e);
+  for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
+  return e;
 }
 
 // Budget versé chaque trimestre : socle + racine du PIB du leader (en milliers de milliards), estimation de jeu calée pour couvrir
@@ -352,7 +407,7 @@ export function expliquerCondition(e: EtatPartie, c: Condition, paysTire?: strin
     }
     case "cran": return `tension mondiale ${borne(c.min, c.max, x => `cran ${x}`)} (actuel : cran ${cran(e)})`;
     case "stabilite": return `stabilité de ${nomPays(c.pays)} ${borne(c.min, c.max)} (actuelle : ${Math.round(e.pays[c.pays].stabilite)})`;
-    case "evenement": { const h = HISTORIQUES_ERE1.find(x => x.id === c.id); return `${c.fait ? "il faut que" : "il ne faut pas que"} « ${h?.titre ?? c.id} » ait eu lieu`; }
+    case "evenement": { const h = HISTORIQUES.find(x => x.id === c.id); return `${c.fait ? "il faut que" : "il ne faut pas que"} « ${h?.titre ?? c.id} » ait eu lieu`; }
     case "drapeau": return `${c.present ? "il faut" : "il ne faut pas"} avoir fait le choix « ${c.id.replace(/_/g, " ")} »`;
   }
 }
@@ -411,9 +466,9 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   if (e.blocus && e.blocus.fin < e.round) e.blocus = null;
   for (const z of Object.values(e.zones)) for (const c of CAMPS) z[c] = Math.max(0, z[c] - 0.25); // usure : une présence s'entretient
   // 2. événements historiques du trimestre
-  for (const h of HISTORIQUES_ERE1.filter(h => h.annee === annee && h.trimestre === trimestre)) {
+  for (const h of HISTORIQUES.filter(h => h.annee === annee && h.trimestre === trimestre)) {
     const ok = conditionsVraies(e, h.conditions);
-    const p = !h.deviable ? 1 : ok ? 0.9 : 0.1;
+    const p = !h.deviable || REJEU ? 1 : ok ? 0.9 : 0.1; // le départ 2008 rejoue l'histoire réelle
     if (tirer(e) < p) {
       e.historiquesFaits.push(h.id);
       executer(e, h.effets, null, undefined, h.titre, () => 1);
@@ -431,6 +486,7 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   if (trimestre === 2) ouvrirSessionOnu(e);
   // 4. budget du trimestre (épargne plafonnée) et main en début d'année
   if (e.round > 0) for (const camp of CAMPS) { const q = budgetTrimestre(e, camp); e.camps[camp].budget = arrondi(Math.min(e.camps[camp].budget, BUDGET.report * q) + q); }
+  if (trimestre === 1 && annee === 2009) { e.pioche = melanger(e, paquet(2009).filter(id => !e.retirees.includes(id))); e.defausse = []; } // nouveau paquet de l'ère 2
   if (trimestre === 1) for (const camp of CAMPS) {
     // main annuelle : 2 cartes de son camp, 2 adverses, 2 neutres ; les cartes non jouées de l'an passé sont défaussées
     const c = e.camps[camp];
@@ -441,7 +497,7 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   // 5. briefings déclenchés
   for (const camp of CAMPS) {
     const c = e.camps[camp]; c.points = pointsDeBase(); c.pa = 0; c.paParPays = {}; c.paAchetes = 0; c.carteJouee = false; c.reactions = [];
-    c.briefing = BRIEFINGS_ERE1.find(b => b.camp === camp && !e.briefingsFaits.includes(b.id) && declenche(e, b))?.id ?? null;
+    c.briefing = TOUS_BRIEFINGS.find(b => b.camp === camp && !e.briefingsFaits.includes(b.id) && declenche(e, b))?.id ?? null;
   }
   return e;
 }
@@ -451,7 +507,7 @@ function declenche(e: EtatPartie, b: Briefing): boolean {
   if (d.annee !== undefined && (annee < d.annee || (annee === d.annee && trimestre < (d.trimestre ?? 1)))) return false;
   if (d.evenement && !e.historiquesFaits.includes(d.evenement)) return false;
   if (d.evenement && d.annee === undefined) {
-    const h = HISTORIQUES_ERE1.find(x => x.id === d.evenement)!;
+    const h = HISTORIQUES.find(x => x.id === d.evenement)!;
     if (annee * 4 + trimestre - (h.annee * 4 + h.trimestre) > 4) return false; // briefing périmé après un an
   }
   return conditionsVraies(e, d.conditions);
@@ -1019,7 +1075,7 @@ function iaJouerSurPlace(e: EtatPartie, camp: Camp): EtatPartie {
   if (e.guerre && !e.proposition) e = proposerPaix(e, camp);
   // ONU, élections, recherche, prêts : usage modéré
   if (e.onu && !peutLobbyOnu(e, camp) && tirer(e) < 0.4) e = lobbyOnu(e, camp);
-  for (const x of ELECTIONS_PAYS) { if (dispo(c(), "diplo") < 1) break; if (!e.pays[x.iso] || peutAgir(e, camp, "electorale", x.iso) || Math.abs(alignement(e, x.iso)) > 0.5 || tirer(e) >= 0.3) continue; e = agir(e, camp, "electorale", x.iso); }
+  for (const x of ELECTIONS_PAYS) { if (dispo(c(), "diplo") < 1) break; const r = roundDe(x.annee, x.trimestre); if (r < e.round || r > e.round + 4 || !e.pays[x.iso] || peutAgir(e, camp, "electorale", x.iso) || Math.abs(alignement(e, x.iso)) > 0.5 || tirer(e) >= 0.3) continue; e = agir(e, camp, "electorale", x.iso); }
   if (c().budget >= 10 && tirer(e) < 0.3) { const t = Object.keys(TECHNOLOGIES).find(k => !peutRechercher(e, camp, k)); if (t) e = rechercher(e, camp, t); }
   if (c().budget >= 14 && dispo(c(), "eco") >= 1 && tirer(e) < 0.1) {
     const iso = ISO.filter(i => !peutAgir(e, camp, "pret", i) && s * alignement(e, i) > -0.1 && s * alignement(e, i) < 0.4).sort((a, b) => e.pays[b].pib - e.pays[a].pib)[0];
@@ -1409,7 +1465,7 @@ export function progresAgenda(e: EtatPartie, camp: Camp): { texte: string; progr
   return { texte: a.texte(camp), progres: a.mesure(e, camp) - ag.depart, cible: a.cible };
 }
 
-// ---------- Élections dans les pays clés (dates réelles 2000-2008) ----------
+// ---------- Élections dans les pays clés (dates réelles 2000-2025) ----------
 export interface ElectionPays { iso: string; annee: number; trimestre: 1 | 2 | 3 | 4; nom: string }
 const el = (iso: string, annee: number, trimestre: 1 | 2 | 3 | 4, nom: string): ElectionPays => ({ iso, annee, trimestre, nom });
 export const ELECTIONS_PAYS: ElectionPays[] = [
@@ -1428,6 +1484,31 @@ export const ELECTIONS_PAYS: ElectionPays[] = [
   el("ARG", 2003, 2, "présidentielle"), el("ARG", 2007, 4, "présidentielle"), el("NGA", 2003, 2, "présidentielle"), el("NGA", 2007, 2, "présidentielle"),
   el("IND", 2004, 2, "législatives"), el("ZAF", 2004, 2, "législatives"), el("PHL", 2004, 2, "présidentielle"), el("IDN", 2004, 3, "présidentielle"),
   el("UKR", 2004, 4, "présidentielle"),
+  // 2009-2025
+  el("RUS", 2012, 1, "présidentielle"), el("RUS", 2018, 1, "présidentielle"), el("RUS", 2024, 1, "présidentielle"),
+  el("TWN", 2012, 1, "présidentielle"), el("TWN", 2016, 1, "présidentielle"), el("TWN", 2020, 1, "présidentielle"), el("TWN", 2024, 1, "présidentielle"),
+  el("ESP", 2011, 4, "législatives"), el("ESP", 2015, 4, "législatives"), el("ESP", 2016, 2, "législatives"), el("ESP", 2019, 4, "législatives"), el("ESP", 2023, 3, "législatives"),
+  el("MEX", 2012, 3, "présidentielle"), el("MEX", 2018, 3, "présidentielle"), el("MEX", 2024, 2, "présidentielle"),
+  el("VEN", 2012, 4, "présidentielle"), el("VEN", 2013, 2, "présidentielle"), el("VEN", 2018, 2, "présidentielle"), el("VEN", 2024, 3, "présidentielle"),
+  el("JPN", 2009, 3, "législatives"), el("JPN", 2012, 4, "législatives"), el("JPN", 2014, 4, "législatives"), el("JPN", 2017, 4, "législatives"), el("JPN", 2021, 4, "législatives"), el("JPN", 2024, 4, "législatives"),
+  el("CAN", 2011, 2, "fédérales"), el("CAN", 2015, 4, "fédérales"), el("CAN", 2019, 4, "fédérales"), el("CAN", 2021, 3, "fédérales"), el("CAN", 2025, 2, "fédérales"),
+  el("IRN", 2009, 2, "présidentielle"), el("IRN", 2013, 2, "présidentielle"), el("IRN", 2017, 2, "présidentielle"), el("IRN", 2021, 2, "présidentielle"), el("IRN", 2024, 3, "présidentielle"),
+  el("GBR", 2010, 2, "législatives"), el("GBR", 2015, 2, "législatives"), el("GBR", 2017, 2, "législatives"), el("GBR", 2019, 4, "législatives"), el("GBR", 2024, 3, "législatives"),
+  el("ITA", 2013, 1, "législatives"), el("ITA", 2018, 1, "législatives"), el("ITA", 2022, 3, "législatives"),
+  el("AUS", 2010, 3, "fédérales"), el("AUS", 2013, 3, "fédérales"), el("AUS", 2016, 3, "fédérales"), el("AUS", 2019, 2, "fédérales"), el("AUS", 2022, 2, "fédérales"), el("AUS", 2025, 2, "fédérales"),
+  el("FRA", 2012, 2, "présidentielle"), el("FRA", 2017, 2, "présidentielle"), el("FRA", 2022, 2, "présidentielle"),
+  el("DEU", 2009, 3, "fédérales"), el("DEU", 2013, 3, "fédérales"), el("DEU", 2017, 3, "fédérales"), el("DEU", 2021, 3, "fédérales"), el("DEU", 2025, 1, "fédérales"),
+  el("BRA", 2010, 4, "présidentielle"), el("BRA", 2014, 4, "présidentielle"), el("BRA", 2018, 4, "présidentielle"), el("BRA", 2022, 4, "présidentielle"),
+  el("TUR", 2011, 2, "législatives"), el("TUR", 2015, 4, "législatives"), el("TUR", 2018, 2, "présidentielle"), el("TUR", 2023, 2, "présidentielle"),
+  el("PAK", 2013, 2, "législatives"), el("PAK", 2018, 3, "législatives"), el("PAK", 2024, 1, "législatives"),
+  el("KOR", 2012, 4, "présidentielle"), el("KOR", 2017, 2, "présidentielle"), el("KOR", 2022, 1, "présidentielle"), el("KOR", 2025, 2, "présidentielle"),
+  el("ARG", 2011, 4, "présidentielle"), el("ARG", 2015, 4, "présidentielle"), el("ARG", 2019, 4, "présidentielle"), el("ARG", 2023, 4, "présidentielle"),
+  el("NGA", 2011, 2, "présidentielle"), el("NGA", 2015, 1, "présidentielle"), el("NGA", 2019, 1, "présidentielle"), el("NGA", 2023, 1, "présidentielle"),
+  el("IND", 2009, 2, "législatives"), el("IND", 2014, 2, "législatives"), el("IND", 2019, 2, "législatives"), el("IND", 2024, 2, "législatives"),
+  el("ZAF", 2009, 2, "législatives"), el("ZAF", 2014, 2, "législatives"), el("ZAF", 2019, 2, "législatives"), el("ZAF", 2024, 2, "législatives"),
+  el("PHL", 2010, 2, "présidentielle"), el("PHL", 2016, 2, "présidentielle"), el("PHL", 2022, 2, "présidentielle"),
+  el("IDN", 2009, 3, "présidentielle"), el("IDN", 2014, 3, "présidentielle"), el("IDN", 2019, 2, "présidentielle"), el("IDN", 2024, 1, "présidentielle"),
+  el("UKR", 2010, 1, "présidentielle"), el("UKR", 2014, 2, "présidentielle"), el("UKR", 2019, 2, "présidentielle"),
 ];
 const roundDe = (annee: number, trimestre: number) => (annee - 2000) * 4 + trimestre - 1;
 // Prochaine élection d'un pays dans l'année qui vient (ce trimestre compris).
@@ -1509,7 +1590,7 @@ function declencherChaines(e: EtatPartie) {
 // La moitié des événements historiques du trimestre suivant sont précédés d'une rumeur vague ; 15 % des trimestres, une fausse rumeur.
 function rumeurs(e: EtatPartie) {
   const { annee, trimestre } = date(e.round + 1), nomF = (f: string) => (FAMILLES.find(x => x.id === f)?.nom ?? f).toLowerCase();
-  for (const h of HISTORIQUES_ERE1.filter(h => h.annee === annee && h.trimestre === trimestre)) if (tirer(e) < 0.5)
+  for (const h of HISTORIQUES.filter(h => h.annee === annee && h.trimestre === trimestre)) if (tirer(e) < 0.5)
     noter(e, { type: "rumeur", titre: `Rumeurs : ${nomF(h.famille)} en vue`, texte: `Les chancelleries bruissent de rumeurs autour ${h.pays.length ? `de ${h.pays.slice(0, 3).map(nomPays).join(", ")}` : "du monde"}. Rien n'est sûr.`, pays: h.pays.slice(0, 3), visiblePour: [...CAMPS] });
   if (tirer(e) < 0.15) {
     const iso = ISO[Math.floor(tirer(e) * ISO.length)], f = FAMILLES[Math.floor(tirer(e) * FAMILLES.length)];
@@ -1742,7 +1823,7 @@ function rapprochement(e: EtatPartie) {
 // ---------- Fin de round : simulation, fin d'année, fin d'ère ----------
 function croissanceReference(iso: string, annee: number, e: EtatPartie): number {
   const t = TRAJ[iso].pib, k = annee - 2000;
-  if (k + 1 < t.length) return t[k + 1] / t[k] - 1;
+  if (k + 1 < t.length && Number.isFinite(t[k + 1]) && Number.isFinite(t[k])) return t[k + 1] / t[k] - 1; // séries lacunaires (ERI, SSD, LIE) : rattrapage ci-dessous
   const y = pibParHab(e.pays[iso]), yUSA = pibParHab(e.pays.USA);
   return Math.min(0.06, 0.015 + 0.01 * Math.max(0, Math.log(yUSA / y)));
 }
@@ -1752,7 +1833,8 @@ function populationReference(iso: string, annee: number): number {
 }
 const EMIS_2000: Record<string, number> = Object.fromEntries(ISO.map(i => [i, TRAJ[i].co2[0]]));
 function intensiteCo2(iso: string, annee: number): number {
-  const t = TRAJ[iso], k = Math.min(annee - 2000, t.pib.length - 1);
+  const t = TRAJ[iso]; let k = Math.min(annee - 2000, t.pib.length - 1);
+  while (k > 0 && !(Number.isFinite(t.pib[k]) && Number.isFinite(t.co2[k]))) k--; // dernière année renseignée
   return (t.co2[k] / t.pib[k]) * Math.pow(0.98, Math.max(0, annee - 2022));
 }
 
@@ -1835,14 +1917,24 @@ export function finRound(e0: EtatPartie): EtatPartie {
     if (ELECTIONS_USA.includes(annee)) election(e, "OCC", 1 / (1 + Math.exp(-(e.camps.OCC.cp - 50) / 10)), "Élection présidentielle américaine");
     if (CONGRES_CHINE.includes(annee)) election(e, "CHN", 1 - 1 / (1 + Math.exp(-(40 - e.camps.CHN.cp) / 8)), "Congrès du Parti communiste chinois");
   }
-  if (e.round + 1 >= ROUNDS_TRANCHE || e.round + 1 >= NB_ROUNDS) {
+  if (e.round >= formatDe(e).fin || e.round + 1 >= NB_ROUNDS) {
     e.termine = true;
     const b = bilan(e);
-    e.resultat = Math.abs(b) < SEUIL_EGALITE ? "Égalité" : b > 0 ? "Victoire du bloc USA" : "Victoire du bloc Chine";
-    noter(e, { type: "bilan", titre: `Bilan de l'ère 1 : ${e.resultat}`, texte: `Avance ${b >= 0 ? "bloc USA" : "bloc Chine"} : ${Math.abs(b).toFixed(1).replace(".", ",")} points, moyenne de ${e.decomptes.length} décomptes annuels. Puissance bloc USA ${(100 * puissance(e, "OCC")).toFixed(1)} %, bloc Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
+    e.resultat = Math.abs(b) < formatDe(e).egalite ? "Égalité" : b > 0 ? "Victoire du bloc USA" : "Victoire du bloc Chine";
+    noter(e, { type: "bilan", titre: `Bilan ${formatDe(e).fin > 35 ? "de la partie" : "de l'ère 1"} : ${e.resultat}`, texte: `Avance ${b >= 0 ? "bloc USA" : "bloc Chine"} : ${Math.abs(b).toFixed(1).replace(".", ",")} points, moyenne de ${e.decomptes.length} décomptes annuels. Puissance bloc USA ${(100 * puissance(e, "OCC")).toFixed(1)} %, bloc Chine ${(100 * puissance(e, "CHN")).toFixed(1)} %.`, visiblePour: [...CAMPS] });
     return e;
   }
   e.round += 1;
+  return debutRound(e, true);
+}
+
+// Prolonger une partie 2000-2008 terminée aux points jusqu'en 2025 : les décomptes passés sont convertis au komi du nouveau format.
+export const peutProlonger = (e: EtatPartie) => e.termine && formatDe(e).fin === FORMATS["2000-2008"].fin && !/Défaite|Catastrophe/.test(e.resultat ?? "");
+export function prolonger(e0: EtatPartie): EtatPartie {
+  if (!peutProlonger(e0)) return e0;
+  const e = structuredClone(e0), a = formatDe(e), b = FORMATS["2000-2025"];
+  e.decomptes = e.decomptes.map((d, i) => d + (b.komi / (b.fin - b.debut + 1) - a.komi / (a.fin - a.debut + 1)) * (4 * i + 4));
+  e.reglages = { ...e.reglages, format: "2000-2025" }; e.termine = false; e.resultat = null; e.round += 1;
   return debutRound(e, true);
 }
 
