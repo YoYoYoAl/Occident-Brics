@@ -35,7 +35,8 @@ describe("Retours du 3e test", () => {
     const e = avecPA(creerPartie(2, "OCC", { generiques: false, ia: false }), "OCC");
     const b0 = e.camps.OCC.budget, m0 = e.pays.POL.influence.OCC.m;
     const e1 = agir(e, "OCC", "armes", "POL");
-    expect(e1.camps.OCC.budget).toBe(b0 + 1); expect(e1.pays.POL.influence.OCC.m).toBeGreaterThan(m0);
+    expect(e1.camps.OCC.budget).toBeCloseTo(b0 + Math.round(Math.min(1, e.pays.POL.pib / 2e12) * 10) / 10, 9); // recette selon la taille du client expect(e1.pays.POL.influence.OCC.m).toBeGreaterThan(m0);
+    e.camps.OCC.crans = { IRN: { coop: 1, coer: 0, round: 0 } };
     expect(peutAgir(e, "OCC", "exercices", "IRN")).toMatch(/pencher vers ton bloc/);
     expect(apercuAction(e, "OCC", "politique", "BRA")!.alignement).toBeGreaterThan(0);
     let reveles = 0; const n = 400;
@@ -55,7 +56,7 @@ describe("Retours du 3e test", () => {
       const d = e1.pays[iso].influence.CHN.e - e.pays[iso].influence.CHN.e;
       expect(d).toBeGreaterThan(0); expect(d).toBeLessThanOrEqual(CAMPAGNE.gain.e);
     }
-    expect(e1.camps.CHN.pa).toBe(e.camps.CHN.pa - CAMPAGNE.pa);
+    expect(e1.camps.CHN.points!.diplo).toBe(e.camps.CHN.points!.diplo - CAMPAGNE.pa);
     expect(() => campagne(e1, "CHN", "afrique", "p")).toThrow(/une campagne par zone/i);
   });
 

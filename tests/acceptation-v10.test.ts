@@ -82,7 +82,9 @@ describe("v10", () => {
 
   it("7. escalade militaire : conditions de l'intimidation, du soutien, du putsch et de l'intervention ; blocus et course aux armements", () => {
     let e = avecPA(creerPartie(6, "OCC", SANS_ALEA));
-    expect(peutAgir(e, "OCC", "soutien", "BRA")).toMatch(/en conflit/);
+    expect(peutAgir(e, "OCC", "soutien", "BRA")).toMatch(/Échelle de coercition/);
+    e.camps.OCC.crans = { VEN: { coop: 0, coer: 2, round: 0 }, OMN: { coop: 3, coer: 0, round: 0 }, DEU: { coop: 0, coer: 1, round: 0 }, BRA: { coop: 0, coer: 1, round: 0 }, GBR: { coop: 0, coer: 2, round: 0 } };
+    expect(peutAgir(e, "OCC", "soutien", "GBR")).toMatch(/Échelle de coercition|en conflit/);
     expect(peutAgir(e, "OCC", "putsch", "DEU")).toMatch(/instable/);
     expect(peutAgir(e, "OCC", "intervention", "GBR")).toMatch(/allié/);
     const t0 = e.tension, x = agir(e, "OCC", "intervention", "VEN");

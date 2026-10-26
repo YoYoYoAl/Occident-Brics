@@ -64,7 +64,7 @@ describe("v9", () => {
       expect(r.journal.find(j => j.titre === op.titre)!.visiblePour).toContain("OCC");
       const rapport = r.journal.find(j => j.titre === "Rapport de renseignement")!;
       expect(rapport.visiblePour).toEqual(["OCC"]); expect(rapport.texte).toMatch(/Main adverse/); expect(rapport.texte).toMatch(/Agenda adverse/);
-      expect(r.camps.OCC.pa).toBe(e.camps.OCC.pa - 1);
+      expect(r.camps.OCC.points!.secret).toBe(e.camps.OCC.points!.secret - 1);
       expect(peutRenseigner(r, "OCC")).toMatch(/par trimestre/);
       return;
     }
@@ -99,7 +99,7 @@ describe("v9", () => {
     expect(b.camps.OCC.cp - a.camps.OCC.cp).toBeCloseTo(FATIGUE.cout * (10 - FATIGUE.seuil), 6);
     expect(a.camps.OCC.fatigue).toBeCloseTo(10 * (1 - FATIGUE.oubli), 9);
     let x = avecPA(creerPartie(7, "OCC", SANS_ALEA));
-    for (const iso of ["POL", "GBR", "JPN", "KOR", "AUS"]) x = agir(x, "OCC", "militaire", iso);
+    for (const iso of ["POL", "GBR", "JPN", "KOR", "AUS"]) { (x.camps.OCC.crans ??= {})[iso] = { coop: 2, coer: 0, round: 0 }; x = agir(x, "OCC", "militaire", iso); }
     expect(x.camps.OCC.fatigue).toBe(5);
     expect(finRound(x).journal.some(j => j.titre.startsWith("Sondages") && j.visiblePour.join() === "OCC")).toBe(true);
   });

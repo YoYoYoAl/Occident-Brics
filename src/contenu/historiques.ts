@@ -3,7 +3,7 @@
 // sont déjà dans la trajectoire de référence ; seul un événement évité est compensé.
 import type { EvenementHistorique } from "../moteur/types";
 
-const UE12 = ["DEU", "FRA", "ITA", "ESP", "NLD"]; // membres de la zone euro parmi les 50 pays
+const UE12 = ["DEU", "FRA", "ITA", "ESP", "NLD", "BEL", "AUT", "FIN", "IRL", "LUX", "PRT", "GRC"]; // les 12 membres de la zone euro en 2002
 const OTAN_ASIE = ["JPN", "KOR", "AUS", "PHL", "THA"];
 const MONDE_ARABE = ["SAU", "EGY", "ARE", "QAT", "DZA", "IRQ"];
 

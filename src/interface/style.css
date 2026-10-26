@@ -221,3 +221,5 @@ body.plein-ecran main { position: relative; }
 .barre-zone{display:flex;height:8px;background:#ffffff14;border-radius:4px;overflow:hidden;margin:.3rem 0}.barre-zone .occ-f{background:#3d78d6}.barre-zone .chn-f{background:#d4402f;margin-left:auto}
 .zone-strat button{margin:.2rem .3rem 0 0}
 .zone-strat button small{display:block}
+.ministeres{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem}.ministere{border:1px solid #ffffff22;border-radius:6px;padding:.4rem}
+.ministere select{margin-left:.4rem}

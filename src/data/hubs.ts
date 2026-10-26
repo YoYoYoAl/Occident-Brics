@@ -1,6 +1,5 @@
 // Grands ports à conteneurs et aéroports de 2000 : nœuds des flux, sur lesquels on peut investir.
 // Volumes : ESTIMATIONS en ordre de grandeur pour l'an 2000 (ports : millions d'EVP ; aéroports : millions de passagers).
-// Un hub situé hors des 50 pays du jeu (iso hors liste, ex. Anvers) est affiché mais ne peut pas recevoir d'investissement.
 // Rang : « majeur » au-dessus de 4 M EVP ou 40 M passagers, sinon « secondaire » (secondaire ne veut pas dire petit).
 export type TypeHub = "port" | "aeroport";
 export interface Hub { id: string; nom: string; type: TypeHub; iso: string; position: [number, number]; volume: number; rang: "majeur" | "secondaire" }
@@ -16,7 +15,7 @@ export const HUBS: Hub[] = [
   port("busan", "Busan", "KOR", [129.0, 35.1], 7.5), port("kaohsiung", "Kaohsiung", "TWN", [120.3, 22.6], 7.4),
   port("rotterdam", "Rotterdam", "NLD", [4.1, 51.95], 6.3), port("shanghai", "Shanghai", "CHN", [121.8, 31.2], 5.6),
   port("los_angeles", "Los Angeles et Long Beach", "USA", [-118.25, 33.75], 9.5), port("hambourg", "Hambourg", "DEU", [9.95, 53.55], 4.2),
-  port("anvers", "Anvers (Belgique, hors jeu)", "BEL", [4.4, 51.25], 4.1), port("shenzhen", "Shenzhen", "CHN", [113.9, 22.5], 4.0),
+  port("anvers", "Anvers", "BEL", [4.4, 51.25], 4.1), port("shenzhen", "Shenzhen", "CHN", [113.9, 22.5], 4.0),
   port("port_klang", "Port Klang", "MYS", [101.4, 3.0], 3.2), port("dubai", "Dubaï (Jebel Ali)", "ARE", [55.0, 25.0], 3.1),
   port("new_york", "New York et New Jersey", "USA", [-74.1, 40.65], 3.0), port("tokyo", "Tokyo et Yokohama", "JPN", [139.75, 35.5], 5.2),
   port("felixstowe", "Felixstowe", "GBR", [1.35, 51.95], 2.8), port("gioia_tauro", "Gioia Tauro", "ITA", [15.9, 38.45], 2.6),

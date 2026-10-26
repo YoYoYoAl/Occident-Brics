@@ -18,7 +18,7 @@ describe("v8", () => {
     const e = avecPA(creerPartie(1, "CHN", SANS_ALEA)), r0 = partFamille(e, "CHN", "ressources");
     const e1 = agirZone(e, "CHN", "arctique", "deploiement");
     expect(e1.zones.arctique.CHN).toBe(e.zones.arctique.CHN + ACTIONS_ZONE.deploiement.gain);
-    expect(e1.camps.CHN.pa).toBe(e.camps.CHN.pa - 2); expect(e1.camps.CHN.budget).toBe(e.camps.CHN.budget - 2);
+    expect(e1.camps.CHN.points!.defense).toBe(e.camps.CHN.points!.defense - 2); expect(e1.camps.CHN.budget).toBe(e.camps.CHN.budget - 2);
     expect(partFamille(e1, "CHN", "ressources")).toBeGreaterThan(r0);
     expect(peutAgirZone(e1, "CHN", "arctique", "mission")).toMatch(/par trimestre/);
     expect(finRound(e1).zones.arctique.CHN).toBeCloseTo(e1.zones.arctique.CHN - 0.25, 9);
@@ -44,7 +44,7 @@ describe("v8", () => {
 
   it("4. bras de fer : deux blocs sur le même pays au même trimestre, celui qui y met le plus de PA l'emporte", () => {
     let e = avecPA(creerPartie(2, null, SANS_ALEA));
-    e = agir(e, "OCC", "militaire", "BRA"); e = agir(e, "CHN", "politique", "BRA"); // 2 PA contre 1
+    e = agir(e, "OCC", "politique", "BRA"); e = agir(e, "OCC", "economique", "BRA"); e = agir(e, "CHN", "politique", "BRA"); // 2 PA contre 1
     const avant = e.pays.BRA.influence.CHN.p, x = finRound(e), j = x.journal.find(j => j.titre === "Bras de fer : Brésil")!;
     expect(j.texte).toMatch(/bloc USA l'emporte/);
     expect(x.pays.BRA.influence.CHN.p).toBeLessThan(avant);
