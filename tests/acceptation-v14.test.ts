@@ -83,3 +83,16 @@ describe("v14 — équilibre des nouveaux formats (contrôle léger ; calibrage 
     for (const k of ["Victoire du bloc USA", "Victoire du bloc Chine"]) { const p = (res[k] ?? 0) / n; expect(p).toBeGreaterThanOrEqual(0.15); expect(p).toBeLessThanOrEqual(0.65); }
   }, 300_000);
 });
+
+describe("v14 — illustrations de l'ère 2", () => {
+  it("8. chaque événement et chaque carte de l'ère 2 a une illustration existante", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/interface/images.ts", "utf8");
+    const ids = [...HISTORIQUES_ERE2.map(h => h.id), ...CARTES_ERE2.map(c => c.id)];
+    for (const id of ids) {
+      const m = src.match(new RegExp(`\\b${id}: "([a-z0-9_]+)"`));
+      expect(m, id).not.toBeNull();
+      expect(readFileSync(`src/images/${m![1]}.webp`, "utf8").length, id).toBeGreaterThan(1000);
+    }
+  });
+});
