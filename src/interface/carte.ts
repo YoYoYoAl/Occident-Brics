@@ -7,6 +7,8 @@ const NS = "http://www.w3.org/2000/svg";
 const LARGEUR = 1000, ZOOM_MAX = 24;
 // Carte rectangulaire (Miller) cadrée sur les pays du jeu : longitudes 128° O à 168° O en passant par l'Asie (Samoa et Tonga compris), latitudes 75° S à 80° N.
 // Sans le Pacifique vide, elle remplit l'écran ; Groenland et Antarctique restent mesurés.
+// Calottes glaciaires hors jeu (codes ISO numériques) : Antarctique, Groenland.
+const GLACES = new Set(["010", "304"]);
 const LON_OUEST = -128, LON_EST = 192, CENTRE = 32, LAT_SUD = -75, LAT_NORD = 80, SANS = new Set<string>();
 // Projection de Miller : rectangulaire comme Mercator mais moins étirée vers les pôles ; l'Antarctique tient dans une bande.
 const miller = (l: number, f: number): [number, number] => [l, 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * f))];
@@ -41,7 +43,15 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   let hauteurVue = HAUTEUR; // hauteur du viewBox, ajustée aux proportions de l'écran
   const svg = el("svg", { viewBox: `0 0 ${LARGEUR} ${HAUTEUR}`, preserveAspectRatio: "xMidYMid meet" });
   const fond = el("g", { class: "fond" });
-  fond.append(el("rect", { x: 0, y: 0, width: LARGEUR, height: HAUTEUR, class: "ocean" }), el("path", { d: chemin(geoGraticule().extent([[-180, -84], [180, 86]]).step([10, 10])()) ?? "", class: "graticule" }));
+  fond.append(el("rect", { x: 0, y: 0, width: LARGEUR, height: HAUTEUR, fill: "url(#mer)", class: "ocean-fond" }), el("rect", { x: 0, y: 0, width: LARGEUR, height: HAUTEUR, fill: "url(#houle)", class: "ocean-houle" }),
+    el("path", { d: chemin(geoGraticule().extent([[-180, -84], [180, 86]]).step([10, 10])()) ?? "", class: "graticule" }));
+  const littoral = el("g", { class: "littoral", filter: "url(#flou-cote)" });
+  fond.appendChild(littoral);
+  // Graduations en degrés sur les bords du cadre
+  const grad = el("g", { class: "graduations" });
+  for (let lon = -120; lon <= 180; lon += 30) { const pt = projection([lon, LAT_NORD]); if (!pt) continue; const t = el("text", { x: pt[0], y: 9 }); t.textContent = `${Math.abs(lon)}°${lon < 0 ? "O" : lon > 0 ? "E" : ""}`; grad.append(el("line", { x1: pt[0], x2: pt[0], y1: 0, y2: 4 }), t); }
+  for (let lat = -60; lat <= 60; lat += 30) { const pt = projection([LON_OUEST, lat]); if (!pt) continue; const t = el("text", { x: 6, y: pt[1] + 3 }); t.textContent = `${Math.abs(lat)}°${lat < 0 ? "S" : lat > 0 ? "N" : ""}`; grad.append(el("line", { x1: 0, x2: 4, y1: pt[1], y2: pt[1] }), t); }
+  fond.appendChild(grad);
   // Texture : grain de papier (bruit généré une fois) posé sur les terres, relief doux et halo des côtes.
   const defs = el("defs");
   const grain = document.createElement("canvas"); grain.width = grain.height = 96;
@@ -53,7 +63,21 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   halo.innerHTML = `<feMorphology in="SourceAlpha" operator="dilate" radius="1.2" result="d"/><feGaussianBlur in="d" stdDeviation="1.6" result="b"/><feFlood flood-color="#9fd3ff" flood-opacity=".28"/><feComposite in2="b" operator="in" result="h"/><feMerge><feMergeNode in="h"/><feMergeNode in="SourceGraphic"/></feMerge>`;
   const degrade = el("radialGradient", { id: "vignette", cx: "50%", cy: "45%", r: "75%" });
   degrade.innerHTML = `<stop offset="0" stop-color="#1e3a50" stop-opacity="0"/><stop offset="1" stop-color="#050b11" stop-opacity=".55"/>`;
-  defs.append(motif, halo, degrade);
+  // Relief : biseau éclairé du nord-ouest sur les terres (lumière spéculaire sur l'alpha flouté), en plus du halo des côtes.
+  halo.innerHTML = `<feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="flou"/>
+    <feSpecularLighting in="flou" surfaceScale="2.5" specularConstant=".55" specularExponent="16" lighting-color="#fff7e0" result="spec"><feDistantLight azimuth="225" elevation="42"/></feSpecularLighting>
+    <feComposite in="spec" in2="SourceAlpha" operator="in" result="spec2"/>
+    <feComposite in="SourceGraphic" in2="spec2" operator="arithmetic" k1="0" k2="1" k3=".32" k4="0" result="eclaire"/>
+    <feMorphology in="SourceAlpha" operator="dilate" radius="1.2" result="d"/><feGaussianBlur in="d" stdDeviation="1.6" result="b"/><feFlood flood-color="#9fd3ff" flood-opacity=".28"/><feComposite in2="b" operator="in" result="h"/>
+    <feMerge><feMergeNode in="h"/><feMergeNode in="eclaire"/></feMerge>`;
+  // Océan : dégradé des grands fonds vers les plateaux, houle discrète, eaux peu profondes autour des côtes.
+  const mer = el("linearGradient", { id: "mer", x1: "0", y1: "0", x2: "0", y2: "1" });
+  mer.innerHTML = `<stop offset="0" stop-color="#16324a"/><stop offset=".5" stop-color="#1b3d58"/><stop offset="1" stop-color="#10273a"/>`;
+  const houle = el("pattern", { id: "houle", width: 40, height: 14, patternUnits: "userSpaceOnUse" });
+  houle.innerHTML = `<path d="M0 7 Q10 3 20 7 T40 7" fill="none" stroke="#8fc8ee" stroke-opacity=".07" stroke-width=".8"/>`;
+  const flouCote = el("filter", { id: "flou-cote", x: "-10%", y: "-10%", width: "120%", height: "120%" });
+  flouCote.innerHTML = `<feGaussianBlur stdDeviation="3"/>`;
+  defs.append(motif, halo, degrade, mer, houle, flouCote);
   const zoom = el("g"), couchePays = el("g"), coucheFlux = el("g", { class: "flux" }), coucheNoms = el("g", { class: "noms" }), coucheMarques = el("g", { class: "marques" });
   const coucheGrain = el("g", { class: "grain" });
   couchePays.setAttribute("filter", "url(#halo)");
@@ -71,7 +95,7 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
       p.classList.add("jeu");
       p.dataset.iso = iso3;
       parIso.set(iso3, [...(parIso.get(iso3) ?? []), p]);
-    } else p.setAttribute("fill", "var(--pays-hors)");
+    } else p.setAttribute("fill", GLACES.has(String(f.id)) ? "url(#glace)" : "var(--pays-hors)");
     const polys: Polygon[] = f.geometry?.type === "MultiPolygon" ? (f.geometry as MultiPolygon).coordinates.map(c => ({ type: "Polygon", coordinates: c }))
       : f.geometry?.type === "Polygon" ? [f.geometry as Polygon] : [];
     for (const poly of polys) {
@@ -79,8 +103,18 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
       if (aire > (ancre.get(cle)?.aire ?? -1)) { const [x, y] = chemin.centroid(g); ancre.set(cle, { x, y, aire }); }
     }
     couchePays.appendChild(p);
+    littoral.appendChild(el("path", { d: p.getAttribute("d") ?? "", class: "eau-cotiere" }));
     coucheGrain.appendChild(el("path", { d: p.getAttribute("d") ?? "", fill: "url(#grain)" }));
   }
+  const glace = el("linearGradient", { id: "glace", x1: "0", y1: "0", x2: "1", y2: "1" });
+  glace.innerHTML = `<stop offset="0" stop-color="#e9f3fa"/><stop offset="1" stop-color="#b9d0e0"/>`;
+  defs.appendChild(glace);
+  // Rose des vents (décor, hors zoom)
+  const rose = el("g", { class: "rose", transform: `translate(${LARGEUR - 46} ${HAUTEUR - 52})` });
+  rose.innerHTML = `<circle r="22" fill="none" stroke="#d9c79a" stroke-opacity=".45"/><circle r="15" fill="none" stroke="#d9c79a" stroke-opacity=".25"/>
+    <path d="M0 -26 L5 0 L0 26 L-5 0 Z" fill="#d9c79a" fill-opacity=".55"/><path d="M-26 0 L0 5 L26 0 L0 -5 Z" fill="#d9c79a" fill-opacity=".3"/>
+    <path d="M0 -26 L5 0 L0 0 Z" fill="#f3e6c2"/><text y="-30" text-anchor="middle">N</text>`;
+  svg.insertBefore(rose, vignette);
   conteneur.appendChild(svg);
 
   // Fiche au survol, légende, boutons de zoom

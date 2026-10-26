@@ -5,7 +5,7 @@ import { organisations, SIGLES } from "../data/organisations";
 import { HUBS, hubsDe } from "../data/hubs";
 import { NOMS_BIENS } from "../data/commerce";
 import { FLUX, DETROITS } from "../data/flux";
-import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique } from "./sons";
+import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique, type Son } from "./sons";
 import { ficheHtml } from "./fiche";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
@@ -57,7 +57,9 @@ function message(texte: string) {
   setTimeout(() => m.classList.remove("visible"), 3000);
 }
 // Exécute une action du moteur : une règle refusée devient un message, jamais un plantage.
-function tenter(f: () => EtatPartie, s: "action" | "carte" | "clic" = "action") {
+// Son d'une action : un par domaine, plus lourd pour la coercition armée.
+const sonAction = (t: TypeAction): Son => t === "intervention" || t === "soutien" || t === "intimidation" ? "act_force" : `act_${DOMAINE_ACTION[t]}` as Son;
+function tenter(f: () => EtatPartie, s: Son = "action") {
   try { etat = f(); son(s); afficher(); } catch (err) { son("erreur"); message((err as Error).message); }
 }
 
@@ -248,7 +250,7 @@ const CLE_GUIDE = "occident-brics-tour-guide";
 let guide = (() => { try { return localStorage.getItem(CLE_GUIDE) !== "non"; } catch { return true; } })();
 let etape = 0, etapeRound = -1;
 type Etape = "evenements" | "carte" | Domaine | "bilan";
-const ETAPES: Etape[] = ["evenements", "carte", "eco", "diplo", "defense", "secret", "bilan"];
+const ETAPES: Etape[] = ["evenements", "carte", "defense", "eco", "diplo", "secret", "bilan"]; // défense d'abord : ventes d'armes et espionnage rapportent du budget
 const NOM_ETAPE = (x: Etape) => x === "evenements" ? "Événements" : x === "carte" ? "Carte" : x === "bilan" ? "Bilan" : DOMAINES[x].nom;
 const aReagirDe = (e: EtatPartie) => e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (j.type === "historique" || campTouche(j) !== null || importance(j) >= 3));
 const ripostesDe = (e: EtatPartie) => e.journal.filter(j => j.contestable && j.camp === adversaire(joueur()) && j.round >= e.round - 1 && j.visiblePour.includes(joueur()));
@@ -337,7 +339,7 @@ function panneauMain(): string {
   return h;
 }
 
-// Un ministère : son mode et, en mode conseiller (ou dans le tour guidé), 4 options prêtes à jouer.
+// Un ministère : son mode et, en mode conseiller (ou dans le tour guidé), 6 options prêtes à jouer.
 function blocDomaine(d: Domaine): string {
   const e = etat!, c = e.camps[joueur()];
   let h = "";
@@ -346,17 +348,17 @@ function blocDomaine(d: Domaine): string {
       <select data-mode="${d}">${(Object.keys(NOMS_MODES) as ModeDomaine[]).map(k => `<option value="${k}" ${k === m ? "selected" : ""}>${NOMS_MODES[k]}</option>`).join("")}</select></div>`;
     if ((m === "conseiller" || guide && onglet === "main" && ETAPES[etape] === d) && reste > 0) {
       const opts = conseils(e, joueur(), d);
-      h += opts.length ? `<div class="grille-actions">${opts.map(o => `<button data-agir="${o.type}" data-iso="${o.iso}">${esc(ACTIONS[o.type].nom)} : ${esc(nomPays(o.iso))}<small>${ACTIONS[o.type].pa} action · ${ACTIONS[o.type].budget} budget${c.orientations?.[o.iso] ? ` · ${ORIENTATIONS[c.orientations[o.iso]].toLowerCase()}` : ""}</small></button>`).join("")}</div>` : `<p class="note">Aucune option utile ce trimestre.</p>`;
+      h += opts.length ? `<div class="grille-actions">${opts.map(o => `<button data-agir="${o.type}" data-iso="${o.iso}">${esc(ACTIONS[o.type].nom)} : ${esc(nomPays(o.iso))}<small>${ACTIONS[o.type].pa} action · ${ACTIONS[o.type].budget} budget</small><small class="raison">${esc(o.raison)} · score ≈ ${signe(o.v, 2)}</small></button>`).join("")}</div>` : `<p class="note">Aucune option utile ce trimestre.</p>`;
     } else if (m === "auto") h += `<p class="note">${reste ? "Le ministre agira en fin de trimestre." : "Actions jouées."}</p>`;
     else h += `<p class="note">${reste ? "Choisis un pays ci-dessous ou sur la carte." : "Actions jouées."}</p>`;
     h += `</div>`;
   return h;
 }
-// Ministères : un domaine par carte, son mode (automatique, conseiller, manuel) et, en mode conseiller, 4 options prêtes à jouer.
+// Ministères : un domaine par carte, son mode (automatique, conseiller, manuel) et, en mode conseiller, 6 options prêtes à jouer.
 const NOMS_MODES: Record<ModeDomaine, string> = { auto: "Automatique", conseiller: "Conseiller", manuel: "Manuel" };
 function blocMinisteres(): string {
   const e = etat!, c = e.camps[joueur()];
-  let h = `<details class="agir" open><summary>Tes ministères ce trimestre</summary><p class="note">Chaque domaine a ses actions du trimestre (non reportées). En automatique, le ministre les joue à la fin du trimestre selon ta priorité et tes orientations ; en conseiller, il te propose 4 options ; en manuel, tu choisis. Points de crise (cartes jouées pour leurs points) : ${nombre(c.pa, 0)}, utilisables partout.</p><div class="ministeres">`;
+  let h = `<details class="agir" open><summary>Tes ministères ce trimestre</summary><p class="note">Chaque domaine a ses actions du trimestre (non reportées). En automatique, le ministre les joue à la fin du trimestre selon ta priorité et tes orientations ; en conseiller, il te propose 6 options ; en manuel, tu choisis. Points de crise (cartes jouées pour leurs points) : ${nombre(c.pa, 0)}, utilisables partout.</p><div class="ministeres">`;
   for (const d of LISTE_DOMAINES) h += blocDomaine(d);
   const part = c.partOrientations ?? PART_ORIENTATIONS.defaut, nb = Object.keys(c.orientations ?? {}).length;
   return h + `</div><p>Orientations : ${nb} pays orienté${nb > 1 ? "s" : ""} (à régler dans la fiche de chaque pays). Part du budget consacrée chaque trimestre :
@@ -522,13 +524,13 @@ function lierPanneau(zone: HTMLElement) {
       tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "points" }), "carte"); carteOuverte = null; afficher();
     });
   });
-  zone.querySelectorAll<HTMLButtonElement>("[data-etape]").forEach(b => b.onclick = () => { etape = Number(b.dataset.etape); afficher(); });
-  zone.querySelector<HTMLButtonElement>("#etapeSuivante")?.addEventListener("click", () => { etape = etapeSuivante(etape); afficher(); });
+  zone.querySelectorAll<HTMLButtonElement>("[data-etape]").forEach(b => b.onclick = () => { etape = Number(b.dataset.etape); son("etape", 0.35); afficher(); });
+  zone.querySelector<HTMLButtonElement>("#etapeSuivante")?.addEventListener("click", () => { etape = etapeSuivante(etape); son("etape", 0.35); afficher(); });
   zone.querySelector<HTMLButtonElement>("#finGuide")?.addEventListener("click", () => finTrimestre());
   zone.querySelector<HTMLButtonElement>("#basculeGuide")?.addEventListener("click", () => { guide = !guide; try { localStorage.setItem(CLE_GUIDE, guide ? "oui" : "non"); } catch { /* stockage indisponible */ } afficher(); });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
   lierReactions(zone, afficher);
-  zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, b.dataset.iso ?? paysChoisi!)));
+  zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, b.dataset.iso ?? paysChoisi!), sonAction(b.dataset.agir as TypeAction)));
   zone.querySelectorAll<HTMLSelectElement>("[data-cible]").forEach(sel => sel.onchange = () => { paysChoisi = sel.value || null; carteMonde.choisir(paysChoisi); afficher(); });
   zone.querySelector<HTMLSelectElement>("#paysAction")?.addEventListener("change", ev => { paysAction = (ev.target as HTMLSelectElement).value; if (paysAction) paysChoisi = paysAction; afficher(); });
   zone.querySelector<HTMLSelectElement>("#zoneCampagne")?.addEventListener("change", ev => { zoneCampagne = (ev.target as HTMLSelectElement).value; afficher(); });
@@ -791,7 +793,7 @@ function aide() {
     <h3>Flux et détroits</h3>
     <p>Routes maritimes, terrestres (routes, rail, oléoducs) et aériennes, régionales ou mondiales. Plus un pays partage de routes avec un leader, plus l'influence économique de ce leader y monte. Un <strong>détroit bloqué</strong> (Ormuz, Malacca, Suez…) coupe les routes qui le traversent et freine la croissance des pays qui en dépendent.</p>
     <h3>Ministères et points</h3>
-    <p>Chaque trimestre : <strong>2 actions en économie, 2 en diplomatie, 2 en défense, 1 pour les services secrets</strong>, non reportées. Chaque domaine se règle en <strong>automatique</strong> (le ministre joue en fin de trimestre, selon ta priorité et tes orientations), <strong>conseiller</strong> (4 options prêtes) ou <strong>manuel</strong>. Une carte jouée pour ses points donne des <strong>points de crise</strong>, utilisables dans n'importe quel domaine. <strong>Orientations</strong> : chaque pays peut être à cultiver, surveiller ou contester ; une petite part réglable du budget (5 % par défaut) s'y applique toute seule chaque trimestre. Le budget se compte au dixième.</p>
+    <p>Chaque trimestre : <strong>2 actions en économie, 2 en diplomatie, 2 en défense, 1 pour les services secrets</strong>, non reportées. Chaque domaine se règle en <strong>automatique</strong> (le ministre joue en fin de trimestre, selon ta priorité et tes orientations), <strong>conseiller</strong> (6 options prêtes, avec leur raison) ou <strong>manuel</strong>. Une carte jouée pour ses points donne des <strong>points de crise</strong>, utilisables dans n'importe quel domaine. <strong>Orientations</strong> : chaque pays peut être à cultiver, surveiller ou contester ; une petite part réglable du budget (5 % par défaut) s'y applique toute seule chaque trimestre. Le budget se compte au dixième.</p>
     <p><strong>Échelles militaires</strong> : coopération (vente d'armes, exercices, base, garantie de défense) pour un pays ami ou neutre ; coercition (intimidation, soutien armé, intervention) pour un pays qui ne penche pas vers toi. On monte cran par cran ; un cran non entretenu 2 ans redescend. Un putsch demande d'avoir intimidé le pays ; un blocus, une base chez un riverain du détroit.</p>
     <h3>Interactions entre blocs</h3>
     <ul class="conseillers">

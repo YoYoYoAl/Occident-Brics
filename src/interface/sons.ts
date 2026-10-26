@@ -2,7 +2,12 @@
 // Bruitages et musiques : CC0, détail dans public/musiques/LICENCES.md.
 const fichiers = import.meta.glob("../sons/*.mp3", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const URLS: Record<string, string> = Object.fromEntries(Object.entries(fichiers).map(([k, v]) => [k.split("/").pop()!.replace(".mp3", ""), v]));
-export type Son = "clic" | "carte" | "action" | "fin" | "ouvrir" | "fermer" | "briefing" | "evenement" | "erreur" | "reaction" | "victoire" | "defaite";
+export type Son = "clic" | "carte" | "action" | "fin" | "ouvrir" | "fermer" | "briefing" | "evenement" | "erreur" | "reaction" | "victoire" | "defaite" | "etape"
+  | "act_eco" | "act_diplo" | "act_defense" | "act_force" | "act_secret";
+// Variantes : « nom », « nom_2 », « nom_3 »… tirées au hasard pour éviter la répétition.
+const VARIANTES: Record<string, string[]> = {};
+for (const k of Object.keys(URLS)) (VARIANTES[k.replace(/_\d+$/, "")] ??= []).push(URLS[k]);
+const variante = (nom: string) => { const v = VARIANTES[nom]; return v?.length ? v[Math.floor(Math.random() * v.length)] : null; };
 const CLE = "occident-brics-son";
 let actif = (() => { try { return localStorage.getItem(CLE) !== "non"; } catch { return true; } })();
 export const sonActif = () => actif;
@@ -12,8 +17,8 @@ export function basculerSon(): boolean {
   return actif;
 }
 export function jouer(son: Son, volume = 0.5) {
-  if (!actif || !URLS[son]) return;
-  try { const a = new Audio(URLS[son]); a.volume = volume; void a.play().catch(() => {}); } catch { /* audio indisponible */ }
+  const url = actif ? variante(son) : null; if (!url) return;
+  try { const a = new Audio(url); a.volume = volume; void a.play().catch(() => {}); } catch { /* audio indisponible */ }
 }
 
 // Bruitages d'événements (CC0, OpenGameArt / Freesound via le fil « sons ») : un par famille d'événements.
@@ -35,8 +40,8 @@ const BRUITAGES: Record<string, string> = {
 export const bruitage = (famille?: string) => (famille && BRUITAGES[famille] ? `ev_${BRUITAGES[famille]}` : null);
 export function jouerEvenement(famille: string | undefined, volume = 0.4) {
   const nom = bruitage(famille);
-  if (!actif || !nom || !URLS[nom]) return false;
-  try { const a = new Audio(URLS[nom]); a.volume = volume; void a.play().catch(() => {}); return true; } catch { return false; }
+  const url = actif && nom ? variante(nom) : null; if (!url) return false;
+  try { const a = new Audio(url); a.volume = volume; baisserMusique(a); void a.play().catch(() => {}); return true; } catch { return false; }
 }
 export function jouerJingle(victoire: boolean) {
   if (!actif) return;
@@ -64,6 +69,13 @@ export function basculerMusique(): boolean {
   try { localStorage.setItem(CLE_MUSIQUE, musiqueActive ? "oui" : "non"); } catch { /* stockage indisponible */ }
   if (!musiqueActive) { lecteur?.pause(); morceau = null; } else if (voulu) musique(voulu);
   return musiqueActive;
+}
+// La musique s'efface pendant un bruitage d'événement, puis revient.
+function baisserMusique(a: HTMLAudioElement) {
+  if (!lecteur) return;
+  const l = lecteur; l.volume = 0.06;
+  const remonter = () => { if (lecteur === l) l.volume = 0.18; };
+  a.addEventListener("ended", remonter); setTimeout(remonter, 6000);
 }
 // Le navigateur bloque l'audio avant le premier geste : on relance la musique voulue au premier clic.
 export const relancerMusique = () => { if (musiqueActive && voulu && morceau !== voulu) musique(voulu); };

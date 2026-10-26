@@ -24,10 +24,10 @@ describe("v11", () => {
     expect(finRound(e).camps.OCC.points!.diplo).toBe(2); // non reporté, renouvelé
   });
 
-  it("2. conseiller : 4 options variées et jouables ; automatique : le ministre dépense ses points à la fin du trimestre", () => {
+  it("2. conseiller : jusqu'à 6 options variées et jouables ; automatique : le ministre dépense ses points à la fin du trimestre", () => {
     const e = prets(creerPartie(2, "OCC"));
     const o = conseils(e, "OCC", "eco");
-    expect(o.length).toBeGreaterThanOrEqual(3); expect(o.length).toBeLessThanOrEqual(4);
+    expect(o.length).toBeGreaterThanOrEqual(3); expect(o.length).toBeLessThanOrEqual(6);
     expect(new Set(o.map(x => x.iso)).size).toBe(o.length);
     for (const x of o) expect(peutAgir(e, "OCC", x.type, x.iso)).toBeNull();
     expect(modeDe(e, "OCC", "eco")).toBe("auto");

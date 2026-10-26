@@ -33,9 +33,9 @@ describe("v12", () => {
     expect(x.camps.OCC.budget).toBeGreaterThanOrEqual(8); // une intervention armée coûte 8
   });
 
-  it("4. tour guidé : étapes dans l'ordre événements, carte, 4 domaines, bilan ; domaines automatiques sautés ; vue complète possible", () => {
+  it("4. tour guidé : étapes dans l'ordre événements, carte, défense (qui peut rapporter du budget), économie, diplomatie, secret, bilan ; domaines automatiques sautés ; vue complète possible", () => {
     const src = readFileSync("src/interface/main.ts", "utf8");
-    expect(src).toMatch(/ETAPES: Etape\[\] = \["evenements", "carte", "eco", "diplo", "defense", "secret", "bilan"\]/);
+    expect(src).toMatch(/ETAPES: Etape\[\] = \["evenements", "carte", "defense", "eco", "diplo", "secret", "bilan"\]/);
     expect(src).toMatch(/modeDe\(e, joueur\(\), x\) !== "auto"/);
     expect(src).toMatch(/id="basculeGuide"/);
   });

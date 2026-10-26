@@ -158,7 +158,9 @@ export function alignement(e: EtatPartie, iso: string): number {
 }
 export const cran = (e: EtatPartie) => Math.min(5, 1 + Math.floor(e.tension / 20));
 const pibParHab = (p: EtatPays) => p.pib / p.population;
-const pibMonde = (e: EtatPartie) => ISO.reduce((s, i) => s + e.pays[i].pib, 0);
+// PIB mondial, mis en cache par objet « pays » (une copie de l'état le recalcule) ; invalidé quand les PIB changent sur place.
+let cacheMonde: { pays: object; v: number } | null = null;
+const pibMonde = (e: EtatPartie) => cacheMonde?.pays === e.pays ? cacheMonde.v : (cacheMonde = { pays: e.pays, v: ISO.reduce((s, i) => s + e.pays[i].pib, 0) }).v;
 
 // ---------- Score composite ----------
 // Cinq familles de qualificatifs à poids égaux. Chaque camp compte son leader (poids 1) et les autres pays pondérés
@@ -230,7 +232,7 @@ export function bilanBrut(e: EtatPartie): number {
   return 100 * (puissance(e, "OCC") - puissance(e, "CHN")) + (e.camps.OCC.cp - e.camps.CHN.cp) / 10;
 }
 // Compensation (komi, comme au go) mesurée en IA contre IA pour viser 40 % / 20 % / 40 %. À recalibrer à chaque lot de contenu (test 7).
-export const KOMI = 5.5, SEUIL_EGALITE = 0.3;
+export const KOMI = 6.3, SEUIL_EGALITE = 0.35;
 // Progression depuis 2000 (sans jugement sur l'écart à l'histoire), komi au prorata du temps écoulé.
 export const progression = (e: EtatPartie) => bilanBrut(e) - e.scoreDepart + KOMI * (e.termine ? e.round + 1 : e.round) / ROUNDS_TRANCHE;
 // Bilan : moyenne des décomptes annuels (fin de chaque T4) ; avant le premier décompte, la progression courante.
@@ -939,15 +941,15 @@ export function repondreBriefing(e0: EtatPartie, camp: Camp, options: number[]):
 // ---------- IA simple ----------
 // Valeur d'un effet pour un camp : gain de puissance attendu (PIB × alignement) et ressources.
 function valeurEffet(e: EtatPartie, camp: Camp, ef: Effet, joueur: Camp, paysTire?: string): number {
-  const s = camp === "OCC" ? 1 : -1, monde = pibMonde(e);
+  const s = camp === "OCC" ? 1 : -1; let m = -1; const monde = () => m < 0 ? (m = pibMonde(e)) : m; // calculé seulement si l'effet en a besoin
   switch (ef.type) {
     case "influence": { const cible = campReel(ef.camp, joueur, paysTire, e), signe = cible === camp ? 1 : -1;
-      return paysCibles(ef.pays, paysTire).reduce((v, i) => v + signe * (e.pays[i].pib / monde) * ef.valeur * POIDS[ef.canal] / 60 * 100, 0); }
+      return paysCibles(ef.pays, paysTire).reduce((v, i) => v + signe * (e.pays[i].pib / monde()) * ef.valeur * POIDS[ef.canal] / 60 * 100, 0); }
     case "cp": return (campReel(ef.camp, joueur, paysTire, e) === camp ? 1 : -1) * ef.valeur * 0.1;
     case "budget": return (campReel(ef.camp, joueur, paysTire, e) === camp ? 1 : -1) * ef.valeur * 0.3;
     case "tension": return -ef.valeur * 0.03;
     case "stabilite": return paysCibles(ef.pays, paysTire).reduce((v, i) => v + s * Math.sign(alignement(e, i)) * ef.valeur * 0.01, 0);
-    case "croissance": return paysCibles(ef.pays, paysTire).reduce((v, i) => v + s * alignement(e, i) * (e.pays[i].pib / monde) * ef.points * ef.duree * 0.5, 0);
+    case "croissance": return paysCibles(ef.pays, paysTire).reduce((v, i) => v + s * alignement(e, i) * (e.pays[i].pib / monde()) * ef.points * ef.duree * 0.5, 0);
     default: return 0;
   }
 }
@@ -1176,45 +1178,68 @@ export const RIVERAINS: Record<string, string[]> = {
 };
 
 // ---------- Candidats et conseillers ----------
-// Valeur d'une action : gain d'alignement attendu × PIB du pays, moins le coût en budget ; orientations et priorité la modulent.
+// Valeur d'une action en points de score : variation des poids des deux camps dans le pays (comme le score le compte)
+// × part mondiale du pays dans les 5 familles, moins le prix du budget dépensé ; bonus si le pays franchit un palier
+// (il entraîne alors ses voisins) ou s'il est au bord de la bascule ; orientations et priorité la modulent.
+// Réglages entraînés par parties IA contre IA (tests/acceptation-v13, essai 2) ; un jeu par camp pour l'entraînement.
 const IMPACT: Partial<Record<TypeAction, [Canal, number, boolean?]>> = {
   economique: ["e", 8], developpement: ["e", 5], infrastructure: ["e", 6], pret: ["e", 7],
   politique: ["p", 8], culturelle: ["c", 4], contre: ["p", 5, true], electorale: ["p", 4],
-  militaire: ["m", 10], armes: ["m", 7], exercices: ["m", 5], garantie: ["m", 14], intimidation: ["p", 3],
-  clandestin: ["p", 6], espionnage: ["e", 5],
+  militaire: ["m", 10], armes: ["m", 7], exercices: ["m", 5], garantie: ["m", 14], intimidation: ["p", 3], soutien: ["m", 8],
+  clandestin: ["p", 6], espionnage: ["e", 5], destabiliser: ["p", 6, true],
 };
-export function candidats(e: EtatPartie, camp: Camp, d: Domaine): { type: TypeAction; iso: string; v: number }[] {
-  const c = e.camps[camp], s = sensDe(camp), out: { type: TypeAction; iso: string; v: number }[] = [];
+export const CONSEIL = { prixBudget: 0.04, palier: 1.5, bord: 2 }; // entraîné : 11 réglages × 60 parties IA contre IA (26/10/2026)
+export const REGLAGES_CONSEIL: Record<Camp, typeof CONSEIL> = { OCC: { ...CONSEIL }, CHN: { ...CONSEIL } };
+// Part mondiale de chaque pays, moyenne des 5 familles du score.
+function poidsPays(e: EtatPartie): Record<string, number> {
+  const fams = Object.keys(NOMS_FAMILLES) as Famille[], w: Record<string, number> = Object.fromEntries(ISO.map(i => [i, 0]));
+  for (const f of fams) { let den = 0; for (const i of ISO) den += masse(e, f, i); for (const i of ISO) w[i] += masse(e, f, i) / den / fams.length; }
+  return w;
+}
+export type Option = { type: TypeAction; iso: string; v: number; raison: string };
+export function candidats(e: EtatPartie, camp: Camp, d: Domaine): Option[] {
+  const c = e.camps[camp], s = sensDe(camp), out: Option[] = [], W = poidsPays(e), r = REGLAGES_CONSEIL[camp];
+  const pos = (a: number) => Math.max(0, s * a) - Math.max(0, -s * a); // poids gagné par le camp, perdu par l'adversaire
   const types = (Object.keys(IMPACT) as TypeAction[]).filter(t => DOMAINE_ACTION[t] === d);
-  for (const iso of ISO) for (const type of types) {
-    if (peutAgir(e, camp, type, iso)) continue;
-    if (type === "intimidation" && s * alignement(e, iso) < -0.1) continue; // il se braquerait : jamais un bon choix automatique
-    const [canal, k0, adverse] = IMPACT[type]!, p = e.pays[iso], cible = adverse ? adversaire(camp) : camp;
+  for (const iso of ISO) {
+    const types2 = types.filter(t => !peutAgir(e, camp, t, iso)); if (!types2.length) continue;
+    const avant = alignement(e, iso), bord = auBord(e, iso)?.vers === camp, p = e.pays[iso], o = c.orientations?.[iso]; // une fois par pays
+    for (const type of types2) {
+    if (type === "intimidation" && s * avant < -0.1) continue; // il se braquerait : jamais un bon choix automatique
+    const [canal, k0, adverse] = IMPACT[type]!, cible = adverse ? adversaire(camp) : camp;
     const k = (adverse ? -1 : 1) * k0 * (adverse ? 1 : 1 - p.influence[cible][canal] / 100) * bonusPriorite(c, type) * boostCommerce(iso, camp, type);
-    const v0 = p.influence[cible][canal], avant = alignement(e, iso); p.influence[cible][canal] += k; const apres = alignement(e, iso); p.influence[cible][canal] = v0; // restauration exacte : l'état d'entrée reste intact
-    const o = c.orientations?.[iso], mult = o === "cultiver" && !adverse ? 1.5 : o === "contester" && (adverse || type === "clandestin") ? 1.5 : 1;
-    out.push({ type, iso, v: mult * s * (apres - avant) * p.pib / ACTIONS[type].pa - ACTIONS[type].budget * 1e10 * prixBudget(e, camp) });
-  }
+    const v0 = p.influence[cible][canal]; p.influence[cible][canal] = Math.max(0, v0 + k); const apres = alignement(e, iso); p.influence[cible][canal] = v0; // restauration exacte : l'état d'entrée reste intact
+    const mult = o === "cultiver" && !adverse ? 1.5 : o === "contester" && (adverse || type === "clandestin") ? 1.5 : 1;
+    const bascule = s * (palier(apres) - palier(avant)) > 0;
+    const gain = 100 * W[iso] * (pos(apres) - pos(avant)) * mult * (bascule ? r.palier : bord ? r.bord : 1);
+    const v = gain / ACTIONS[type].pa - ACTIONS[type].budget * r.prixBudget * prixBudget(e, camp);
+    const raison = bascule ? "fait basculer le pays d'un palier" : bord ? "pays au bord de la bascule" : o ? `orientation : ${ORIENTATIONS[o].toLowerCase()}`
+      : boostCommerce(iso, camp, type) >= BOOST_COMMERCE.reciproque ? "commerce complémentaire" : type === "electorale" ? "élection en vue"
+      : adverse ? "fait reculer l'adversaire" : W[iso] >= 0.01 ? "pays de poids" : "gain sûr et bon marché";
+    out.push({ type, iso, v, raison });
+  } }
   return out.sort((a, b) => b.v - a.v);
 }
-// Les conseillers proposent 4 options variées (pays et types différents) parmi les meilleures.
-export function conseils(e: EtatPartie, camp: Camp, d: Domaine): { type: TypeAction; iso: string; v: number }[] {
-  const res: { type: TypeAction; iso: string; v: number }[] = [], vusIso = new Set<string>(), vusType = new Map<string, number>();
+// Les conseillers proposent 6 options variées (6 pays distincts, au plus 2 du même type) parmi les meilleures.
+export const NB_CONSEILS = 6;
+export function conseils(e: EtatPartie, camp: Camp, d: Domaine): Option[] {
+  const res: Option[] = [], vusIso = new Set<string>(), vusType = new Map<string, number>();
   const reste = e.camps[camp].points?.[d] ?? 0;
-  for (const x of candidats(e, camp, d)) {
-    if (ACTIONS[x.type].pa > reste) continue; // le conseiller ne dépense pas les points de crise
-    if (vusIso.has(x.iso) || (vusType.get(x.type) ?? 0) >= 2) continue;
+  const liste = candidats(e, camp, d).filter(x => ACTIONS[x.type].pa <= reste && x.v > 0); // ni points de crise, ni action à perte
+  for (const maxType of [2, NB_CONSEILS]) for (const x of liste) { // d'abord la variété des types, puis on complète
+    if (res.length >= NB_CONSEILS) break;
+    if (vusIso.has(x.iso) || (vusType.get(x.type) ?? 0) >= maxType) continue;
     res.push(x); vusIso.add(x.iso); vusType.set(x.type, (vusType.get(x.type) ?? 0) + 1);
-    if (res.length >= 4) break;
   }
   return res;
 }
 // Un ministre en mode automatique dépense les points de son domaine (jamais les points de crise).
 export function jouerDomaine(e0: EtatPartie, camp: Camp, d: Domaine): EtatPartie {
   let e = e0;
+  const liste = candidats(e, camp, d).filter(x => x.v > 0); // évalué une fois par trimestre et par domaine
   for (let garde = 0; garde < 4; garde++) {
     const c = e.camps[camp], reste = c.points?.[d] ?? 0; if (reste <= 0) break;
-    const best = candidats(e, camp, d).find(x => ACTIONS[x.type].pa <= reste && x.v > 0); // le ministre ne touche pas aux points de crise
+    const best = liste.find(x => ACTIONS[x.type].pa <= reste && !peutAgir(e, camp, x.type, x.iso)); // le ministre ne touche pas aux points de crise
     if (!best) break;
     e = agir(e, camp, best.type, best.iso);
   }
@@ -1637,7 +1662,7 @@ function suiviGuerre(e: EtatPartie): { titre: string; texte: string } | null {
     for (const i of ISO) e.pays[i].stabilite = borne(e.pays[i].stabilite - 10, 0, 100);
     return { titre: "Guerre nucléaire : défaite des deux camps", texte: "L'escalade devient nucléaire. Les deux puissances perdent des dizaines de millions d'habitants ; famines et hiver nucléaire frappent le monde entier." };
   }
-  for (const l of ["USA", "CHN"]) { e.pays[l].pib *= 1 - GUERRE.pib; e.pays[l].population *= 1 - GUERRE.population; }
+  cacheMonde = null; for (const l of ["USA", "CHN"]) { e.pays[l].pib *= 1 - GUERRE.pib; e.pays[l].population *= 1 - GUERRE.population; }
   for (const c of CAMPS) { e.camps[c].budget = Math.max(0, e.camps[c].budget - 2); e.camps[c].cp = borne(e.camps[c].cp - (c === g.agresseur ? 2 : 1), 0, 100); }
   const mo = partFamille(e, "OCC", "militaire"), mc = partFamille(e, "CHN", "militaire"), fort: Camp = mo >= mc ? "OCC" : "CHN";
   for (const i of THEATRES[g.theatre].pays) if (e.pays[i]) { const p = e.pays[i]; p.influence[fort].m = borne(p.influence[fort].m + 3, 0, 100); p.stabilite = borne(p.stabilite - 3, 0, 100); }
@@ -1735,9 +1760,12 @@ export function finRound(e0: EtatPartie): EtatPartie {
   if (e0.termine) return e0;
   let e = e0;
   if (e.proposition && e.proposition.round < e.round) { e = structuredClone(e); const pr = e.proposition!; e.proposition = null; conclure(e, pr.de, pr.type, false); } // sans réponse : refusée
-  if (e.joueur && e.reglages.ia) for (const d of LISTE_DOMAINES) if (modeDe(e, e.joueur!, d) === "auto") e = jouerDomaine(e, e.joueur!, d); // sans IA (bac à sable, tests), rien ne joue seul
-  if (e.reglages.ia) for (const camp of CAMPS) if (camp !== e.joueur) e = iaJouer(e, camp);
+  // Ministres automatiques du joueur puis IA, sur une seule copie de l'état (modifiée sur place) ; sans IA (bac à sable, tests), rien ne joue seul
   e = structuredClone(e);
+  if (e.reglages.ia) { SUR_PLACE = true; try {
+    const j = e.joueur; if (j) for (const d of LISTE_DOMAINES) if (modeDe(e, j, d) === "auto") e = jouerDomaine(e, j, d);
+    for (const camp of CAMPS) if (camp !== e.joueur) e = iaJouerSurPlace(e, camp);
+  } finally { SUR_PLACE = false; } }
   for (const c of CAMPS) e.camps[c].budget = arrondi(e.camps[c].budget);
   const { annee, trimestre } = date(e.round);
   brasDeFer(e); programmerChaines(e); criseNucleaire(e);
@@ -1749,7 +1777,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
   for (const iso of ISO) {
     const p = e.pays[iso];
     const g = croissanceReference(iso, annee, e) + ecart[iso] + contagion;
-    p.pib *= Math.pow(1 + g, 0.25);
+    p.pib *= Math.pow(1 + g, 0.25); cacheMonde = null;
     // effet papillon : petit choc de niveau permanent, sans rebond, qui fait diverger chaque partie de l'histoire
     if (e.reglages.generiques) p.pib *= Math.exp(PAPILLON * normale(e));
     p.population *= Math.pow(1 + populationReference(iso, annee), 0.25);
@@ -1759,7 +1787,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
     emissions += emisPays / 4;
     // pollution locale : la qualité de l'environnement suit la racine quatrième de l'évolution des émissions du pays
     p.environnement = borne(ENV_2000[iso] * Math.pow(EMIS_2000[iso] / Math.max(1e-9, emisPays), 0.25), 0, 100);
-    p.pibMax = Math.max(p.pibMax, p.pib);
+    p.pibMax = Math.max(p.pibMax, p.pib); cacheMonde = null; // effet papillon compris
     p.co2Mod = p.co2Mod.map(m => ({ ...m, reste: m.reste - 1 })).filter(m => m.reste > 0);
   }
   e.co2Cumule += emissions / PART_CO2_50 / 1000; // Mt -> Gt
