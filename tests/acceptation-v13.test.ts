@@ -1,6 +1,6 @@
 // Tests d'acceptation de la v13 (26/10/2026) : conseillers à 6 options entraînés, défense avant économie, sons par domaine, carte enrichie.
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { creerPartie, finRound, agir, conseils, candidats, bilanBrut, NB_CONSEILS, LISTE_DOMAINES, type EtatPartie } from "../src/moteur/partie";
 
 const SANS_ALEA = { generiques: false, ia: false };
@@ -39,9 +39,9 @@ describe("v13", () => {
   });
 
   it("4. sons : un son par domaine d'action, des variantes pour éviter la répétition", () => {
-    const f = readdirSync("src/sons");
-    for (const d of ["act_eco", "act_diplo", "act_defense", "act_force", "act_secret", "etape"]) expect(f).toContain(`${d}.mp3`);
-    expect(f.filter(x => /^ev_explosion(_\d+)?\.mp3$/.test(x)).length).toBeGreaterThanOrEqual(3);
+    const existe = (n: string) => readFileSync(`src/sons/${n}.mp3`, "utf8").length > 500;
+    for (const d of ["act_eco", "act_diplo", "act_defense", "act_force", "act_secret", "etape"]) expect(existe(d), d).toBe(true);
+    for (const n of ["ev_explosion", "ev_explosion_2", "ev_explosion_3"]) expect(existe(n), n).toBe(true);
     expect(readFileSync("src/interface/sons.ts", "utf8")).toMatch(/baisserMusique/);
   });
 
