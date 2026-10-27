@@ -11,6 +11,7 @@ import { HISTORIQUES_ERE1 } from "../contenu/historiques";
 import { HISTORIQUES_ERE2 } from "../contenu/historiques2";
 import { HISTORIQUES_RECENTS } from "../contenu/historiques3";
 import { PROJECTIONS } from "../contenu/projections";
+import { HISTORIQUES_COMPLEMENTS } from "../contenu/historiques4";
 import { CROISSANCE_PROJETEE } from "../data/croissance-projetee";
 import { CARTES_ERE2 } from "../contenu/cartes2";
 import { BRIEFINGS_ERE2 } from "../contenu/briefings2";
@@ -37,9 +38,9 @@ export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
 // Formules de partie : l'ère 1 seule, l'ère 1 prolongée jusqu'en 2025, ou un départ réel en 2008 jusqu'en 2025.
 export type Format = "2000-2008" | "2000-2035" | "2008-2035";
 export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
-  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 6.8, egalite: 0.35 }, // 200 parties IA : 39,5 / 19 / 41,5 %
-  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 18.9, egalite: 0.25 }, // 200 parties IA : 39 / 19,5 / 41,5 %, aucune défaite
-  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 15.4, egalite: 0.25 }, // 200 parties IA : 38,5 / 20,5 / 41 %, aucune défaite
+  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 7.1, egalite: 0.35 }, // 200 parties IA : 39,5 / 20 / 40,5 %
+  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 18.9, egalite: 0.25 }, // 200 parties IA : 39,5 / 21,5 / 39 %, aucune défaite
+  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 16.1, egalite: 0.25 }, // 200 parties IA : 41 / 18,5 / 40 %, 0,5 % banqueroute USA
 };
 export const formatDe = (e: EtatPartie) => FORMATS[(e.reglages.format ?? "2000-2008").replace("2025", "2035") as Format]; // sauvegardes v14 : formats « -2025 » prolongés
 // Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
@@ -133,7 +134,7 @@ const PETROLE_TOTAL = Object.values(PETROLE).reduce((a, b) => a + b, 0);
 const CARTES: Record<string, Carte> = Object.fromEntries([...CARTES_ERE1, ...CARTES_ERE2].map(c => [c.id, c]));
 const TOUS_BRIEFINGS = [...BRIEFINGS_ERE1, ...BRIEFINGS_ERE2];
 const BRIEFINGS: Record<string, Briefing> = Object.fromEntries(TOUS_BRIEFINGS.map(b => [b.id, b]));
-export const HISTORIQUES = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_RECENTS, ...PROJECTIONS];
+export const HISTORIQUES = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_COMPLEMENTS, ...HISTORIQUES_RECENTS, ...PROJECTIONS];
 // Paquet de l'année : ère 1 jusqu'en 2008 ; ensuite les cartes de l'ère 2 et les cartes réutilisables de l'ère 1.
 const paquet = (annee: number) => annee <= 2008 ? CARTES_ERE1.map(c => c.id) : [...CARTES_ERE1.filter(c => c.type === "reutilisable"), ...CARTES_ERE2].map(c => c.id);
 export const carte = (id: string) => CARTES[id];

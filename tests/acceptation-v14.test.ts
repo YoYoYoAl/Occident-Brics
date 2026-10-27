@@ -41,7 +41,11 @@ describe("v14 — tranche 2008-2035", () => {
     const ids2 = new Set(CARTES_ERE2.map(c => c.id));
     expect([...e.pioche, ...e.camps.OCC.main, ...e.camps.CHN.main].some(id => ids2.has(id))).toBe(true);
     e = jusque(e, 48);
-    for (const id of ["h_bric_sommet", "h_printemps_arabe", "h_fukushima", "h_intervention_libye"]) expect(e.historiquesFaits).toContain(id);
+    // événements déviables (90 %) : au moins 3 des 4 sur cette graine, et chacun sur au moins une des graines 3 à 7
+    const ids = ["h_bric_sommet", "h_printemps_arabe", "h_fukushima", "h_intervention_libye"];
+    expect(ids.filter(id => e.historiquesFaits.includes(id)).length).toBeGreaterThanOrEqual(3);
+    const vus = new Set<string>(); for (let g = 3; g < 8; g++) jusque(creerPartie(g, null, { ...sansIA, format: "2008-2035" }), 48).historiquesFaits.forEach(id => vus.add(id));
+    for (const id of ids) expect(vus).toContain(id);
   });
 
   it("4. partie longue et départ 2008 vont jusqu'au 4e trimestre 2035 sans valeur manquante", () => {

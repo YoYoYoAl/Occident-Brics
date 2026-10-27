@@ -85,8 +85,9 @@ describe("Retours du 3e test", () => {
   });
 
   it("7. crise USA-Chine (Hainan) : on peut répondre par la fermeté ou l'apaisement, pas par l'aide", () => {
+    // h_hainan est déviable (90 %) : première graine où il a lieu
     let e = creerPartie(1, "CHN", { generiques: false, ia: false });
-    while (!e.historiquesFaits.includes("h_hainan") && e.round < 8) e = finRound(e);
+    for (let g = 1; g < 20; g++) { e = creerPartie(g, "CHN", { generiques: false, ia: false }); while (!e.historiquesFaits.includes("h_hainan") && e.round < 8) e = finRound(e); if (e.historiquesFaits.includes("h_hainan")) break; }
     const i = e.journal.findIndex(j => j.source === "h_hainan" && j.round === e.round);
     expect(i).toBeGreaterThanOrEqual(0);
     expect(peutReagir(e, "CHN", i, "fermete")).toBeNull();
