@@ -1,5 +1,5 @@
 // Événements projetés (fin 2026 à 2035) : échéances connues et scénarios plausibles, rédigés le 27/10/2026.
-// Environ 12 scénarios écrits par an (moyenne des probabilités voisine de 0,5).
+// Environ 12 scénarios écrits par an (probabilité moyenne 0,38 : environ 4 à 6 ont lieu par an).
 // Ce ne sont pas des faits : chacun a une probabilité (estimation de jeu) et des conditions ; s'il n'a pas lieu, rien n'est annoncé.
 import type { EvenementHistorique } from "../moteur/types";
 import { PJ, I, S, TN, CP, G, CO2, SI } from "./aides";
