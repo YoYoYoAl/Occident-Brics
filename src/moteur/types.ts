@@ -37,6 +37,7 @@ export interface EvenementHistorique {
   pays: string[];      // pays concernés (pour l'affichage)
   famille: string;     // famille d'images
   deviable: boolean;   // false : se produit toujours (catastrophes naturelles, chocs exogènes)
+  probabilite?: number; // projection (après octobre 2026) : chance d'avoir lieu si les conditions sont réunies, aucune sinon
   conditions: Condition[];
   effets: Effet[];
   // Effet déjà contenu dans la trajectoire réelle de croissance : appliqué à l'envers si l'événement n'a pas lieu.

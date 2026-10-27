@@ -9,6 +9,9 @@ import { INFLUENCE_2000_MONDE } from "../data/influence2000_monde";
 const INFLUENCE_2000 = { ...INFLUENCE_50, ...INFLUENCE_2000_MONDE }; // 50 pays du jeu + 144 autres membres de l'ONU (estimation)
 import { HISTORIQUES_ERE1 } from "../contenu/historiques";
 import { HISTORIQUES_ERE2 } from "../contenu/historiques2";
+import { HISTORIQUES_RECENTS } from "../contenu/historiques3";
+import { PROJECTIONS } from "../contenu/projections";
+import { CROISSANCE_PROJETEE } from "../data/croissance-projetee";
 import { CARTES_ERE2 } from "../contenu/cartes2";
 import { BRIEFINGS_ERE2 } from "../contenu/briefings2";
 import { FAMILLES, MODELES_LOT1, EXPOSES_CLIMAT } from "../contenu/generiques";
@@ -32,13 +35,13 @@ import {
 export const VERSION_ETAT = 2;
 export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
 // Formules de partie : l'ère 1 seule, l'ère 1 prolongée jusqu'en 2025, ou un départ réel en 2008 jusqu'en 2025.
-export type Format = "2000-2008" | "2000-2025" | "2008-2025";
+export type Format = "2000-2008" | "2000-2035" | "2008-2035";
 export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
-  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 6.7, egalite: 0.3 }, // 200 parties IA : 41,5 / 18,5 / 40 %
-  "2000-2025": { debut: 0, fin: 103, nom: "Partie longue (2000-2025)", komi: 16.2, egalite: 0.3 }, // 200 parties IA : 39 / 18,5 / 41 %, 1,5 % banqueroute
-  "2008-2025": { debut: 32, fin: 103, nom: "Montée des BRICS (2008-2025)", komi: 13.6, egalite: 0.3 }, // 200 parties IA : 40 / 18 / 40,5 %, 1,5 % banqueroute USA
+  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 6.8, egalite: 0.35 }, // 200 parties IA : 39,5 / 19 / 41,5 %
+  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 18.9, egalite: 0.25 }, // 200 parties IA : 39 / 19,5 / 41,5 %, aucune défaite
+  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 15.4, egalite: 0.25 }, // 200 parties IA : 38,5 / 20,5 / 41 %, aucune défaite
 };
-export const formatDe = (e: EtatPartie) => FORMATS[e.reglages.format ?? "2000-2008"];
+export const formatDe = (e: EtatPartie) => FORMATS[(e.reglages.format ?? "2000-2008").replace("2025", "2035") as Format]; // sauvegardes v14 : formats « -2025 » prolongés
 // Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
 export const partKomi = (f: { debut: number; fin: number }) => { const n = (f.fin - f.debut + 1) / 4; return (n + 1) / (2 * n); };
 export const POIDS: Record<Canal, number> = { e: 0.35, p: 0.3, m: 0.2, c: 0.15 };
@@ -48,7 +51,7 @@ export const ECHELLE_ALIGNEMENT = 70;
 const USURE = 0.02, DERIVE_E = 0.05, CIBLE_E = 70, MAX_PA_PAR_PAYS = 2;
 const PART_CO2_50 = 1, PART_HORS_50 = 0, // 194 pays : tout le monde est simulé (plus de part hors jeu)
   TCRE = 0.45 / 1000, ECART_2000 = 0.8;
-const ELECTIONS_USA = [2000, 2004, 2008, 2012, 2016, 2020, 2024], CONGRES_CHINE = [2002, 2007, 2012, 2017, 2022];
+const ELECTIONS_USA = [2000, 2004, 2008, 2012, 2016, 2020, 2024, 2028, 2032], CONGRES_CHINE = [2002, 2007, 2012, 2017, 2022, 2027, 2032];
 
 export interface EtatPays {
   iso3: string; population: number; pib: number; stabilite: number;
@@ -130,7 +133,7 @@ const PETROLE_TOTAL = Object.values(PETROLE).reduce((a, b) => a + b, 0);
 const CARTES: Record<string, Carte> = Object.fromEntries([...CARTES_ERE1, ...CARTES_ERE2].map(c => [c.id, c]));
 const TOUS_BRIEFINGS = [...BRIEFINGS_ERE1, ...BRIEFINGS_ERE2];
 const BRIEFINGS: Record<string, Briefing> = Object.fromEntries(TOUS_BRIEFINGS.map(b => [b.id, b]));
-export const HISTORIQUES = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2];
+export const HISTORIQUES = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_RECENTS, ...PROJECTIONS];
 // Paquet de l'année : ère 1 jusqu'en 2008 ; ensuite les cartes de l'ère 2 et les cartes réutilisables de l'ère 1.
 const paquet = (annee: number) => annee <= 2008 ? CARTES_ERE1.map(c => c.id) : [...CARTES_ERE1.filter(c => c.type === "reutilisable"), ...CARTES_ERE2].map(c => c.id);
 export const carte = (id: string) => CARTES[id];
@@ -297,7 +300,7 @@ function bloquerDetroit(e: EtatPartie, intensite: number, avant: boolean) {
 }
 
 export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglages: Reglages = { generiques: true, ia: true }): EtatPartie {
-  if (reglages.format === "2008-2025") return depart2008(graine, joueur, reglages);
+  if (reglages.format === "2008-2035") return depart2008(graine, joueur, reglages);
   const pays: Record<string, EtatPays> = {};
   for (const p of donnees.pays) {
     const t = TRAJ[p.iso3];
@@ -343,7 +346,7 @@ let BASE_2008: EtatPartie | null = null;
 function depart2008(graine: number, joueur: Camp | null, reglages: Reglages): EtatPartie {
   if (!BASE_2008) {
     let b = creerPartie(2008, null, { generiques: false, ia: false });
-    REJEU = true; try { while (b.round < FORMATS["2008-2025"].debut && !b.termine) b = finRound(b); } finally { REJEU = false; }
+    REJEU = true; try { while (b.round < FORMATS["2008-2035"].debut && !b.termine) b = finRound(b); } finally { REJEU = false; }
     for (const x of DELTAS_2008) { const q = b.pays[x.iso]; if (!q) continue; const v = borne(q.influence[x.camp][x.canal] + x.d, 0, 100); q.influence[x.camp][x.canal] = v; q.ancre[x.camp][x.canal] = v; }
     BASE_2008 = b;
   }
@@ -468,14 +471,14 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   // 2. événements historiques du trimestre
   for (const h of HISTORIQUES.filter(h => h.annee === annee && h.trimestre === trimestre)) {
     const ok = conditionsVraies(e, h.conditions);
-    const p = !h.deviable || REJEU ? 1 : ok ? 0.9 : 0.1; // le départ 2008 rejoue l'histoire réelle
+    const p = h.probabilite !== undefined ? (ok ? h.probabilite : 0) : !h.deviable || REJEU ? 1 : ok ? 0.9 : 0.1; // le départ 2008 rejoue l'histoire réelle
     if (tirer(e) < p) {
       e.historiquesFaits.push(h.id);
       executer(e, h.effets, null, undefined, h.titre, () => 1);
       if (h.conflit) for (const iso of h.conflit.pays) e.conflits.push({ iso, titre: h.titre, fin: e.round + h.conflit.duree - 1 });
       const reactif = h.pays.includes("USA") && h.pays.includes("CHN") || h.effets.some(ef => (ef.type === "stabilite" && ef.valeur < 0) || (ef.type === "croissance" && ef.points < 0));
       noter(e, { type: "historique", titre: h.titre, texte: h.texte, famille: h.famille, source: h.id, pays: h.pays, visiblePour: [...CAMPS], effets: decrire(e, h.effets, null), reactif });
-    } else {
+    } else if (h.probabilite === undefined) { // une projection qui n'a pas lieu passe inaperçue
       if (h.compensationSiAbsent) executer(e, h.compensationSiAbsent, null, undefined, h.titre, () => 1);
       noter(e, { type: "historique", source: h.id, titre: `L'histoire dévie : ${h.titre.toLowerCase()} n'a pas lieu`, texte: ok ? "Le hasard en a décidé autrement (10 % de chances de déviation même quand les conditions sont réunies)." : `Condition réelle qui manque dans votre partie : ${conditionsManquantes(e, h.conditions).join(" ; ")}.`, famille: h.famille, pays: h.pays, visiblePour: [...CAMPS] });
     }
@@ -1465,7 +1468,7 @@ export function progresAgenda(e: EtatPartie, camp: Camp): { texte: string; progr
   return { texte: a.texte(camp), progres: a.mesure(e, camp) - ag.depart, cible: a.cible };
 }
 
-// ---------- Élections dans les pays clés (dates réelles 2000-2025) ----------
+// ---------- Élections dans les pays clés (dates réelles jusqu'en 2026, projetées selon le calendrier légal ensuite) ----------
 export interface ElectionPays { iso: string; annee: number; trimestre: 1 | 2 | 3 | 4; nom: string }
 const el = (iso: string, annee: number, trimestre: 1 | 2 | 3 | 4, nom: string): ElectionPays => ({ iso, annee, trimestre, nom });
 export const ELECTIONS_PAYS: ElectionPays[] = [
@@ -1509,6 +1512,19 @@ export const ELECTIONS_PAYS: ElectionPays[] = [
   el("PHL", 2010, 2, "présidentielle"), el("PHL", 2016, 2, "présidentielle"), el("PHL", 2022, 2, "présidentielle"),
   el("IDN", 2009, 3, "présidentielle"), el("IDN", 2014, 3, "présidentielle"), el("IDN", 2019, 2, "présidentielle"), el("IDN", 2024, 1, "présidentielle"),
   el("UKR", 2010, 1, "présidentielle"), el("UKR", 2014, 2, "présidentielle"), el("UKR", 2019, 2, "présidentielle"),
+  // 2026 (réel) puis projections selon la durée légale des mandats
+  el("BRA", 2026, 4, "présidentielle"), el("BRA", 2030, 4, "présidentielle"), el("BRA", 2034, 4, "présidentielle"),
+  el("FRA", 2027, 2, "présidentielle"), el("FRA", 2032, 2, "présidentielle"), el("KOR", 2030, 2, "présidentielle"), el("KOR", 2035, 2, "présidentielle"),
+  el("TWN", 2028, 1, "présidentielle"), el("TWN", 2032, 1, "présidentielle"), el("RUS", 2030, 1, "présidentielle"),
+  el("ESP", 2027, 3, "législatives"), el("ESP", 2031, 3, "législatives"), el("MEX", 2030, 2, "présidentielle"), el("VEN", 2030, 3, "présidentielle"),
+  el("JPN", 2028, 3, "législatives"), el("JPN", 2032, 3, "législatives"), el("CAN", 2029, 4, "fédérales"), el("CAN", 2033, 4, "fédérales"),
+  el("IRN", 2028, 2, "présidentielle"), el("IRN", 2032, 2, "présidentielle"), el("GBR", 2029, 2, "législatives"), el("GBR", 2034, 2, "législatives"),
+  el("ITA", 2027, 3, "législatives"), el("ITA", 2032, 3, "législatives"), el("AUS", 2028, 2, "fédérales"), el("AUS", 2031, 2, "fédérales"), el("AUS", 2034, 2, "fédérales"),
+  el("DEU", 2029, 1, "fédérales"), el("DEU", 2033, 1, "fédérales"), el("TUR", 2028, 2, "présidentielle"), el("TUR", 2033, 2, "présidentielle"),
+  el("PAK", 2029, 1, "législatives"), el("PAK", 2034, 1, "législatives"), el("ARG", 2027, 4, "présidentielle"), el("ARG", 2031, 4, "présidentielle"), el("ARG", 2035, 4, "présidentielle"),
+  el("NGA", 2027, 1, "présidentielle"), el("NGA", 2031, 1, "présidentielle"), el("NGA", 2035, 1, "présidentielle"),
+  el("IND", 2029, 2, "législatives"), el("IND", 2034, 2, "législatives"), el("ZAF", 2029, 2, "législatives"), el("ZAF", 2034, 2, "législatives"),
+  el("PHL", 2028, 2, "présidentielle"), el("PHL", 2034, 2, "présidentielle"), el("IDN", 2029, 1, "présidentielle"), el("IDN", 2034, 1, "présidentielle"),
 ];
 const roundDe = (annee: number, trimestre: number) => (annee - 2000) * 4 + trimestre - 1;
 // Prochaine élection d'un pays dans l'année qui vient (ce trimestre compris).
@@ -1824,8 +1840,42 @@ function rapprochement(e: EtatPartie) {
 function croissanceReference(iso: string, annee: number, e: EtatPartie): number {
   const t = TRAJ[iso].pib, k = annee - 2000;
   if (k + 1 < t.length && Number.isFinite(t[k + 1]) && Number.isFinite(t[k])) return t[k + 1] / t[k] - 1; // séries lacunaires (ERI, SSD, LIE) : rattrapage ci-dessous
+  const fmi = tauxProjete(iso, annee); if (fmi !== null) return fmi;
+  // au-delà des données : moitié tendance des dix dernières années connues, moitié rattrapage (estimation de jeu)
   const y = pibParHab(e.pays[iso]), yUSA = pibParHab(e.pays.USA);
-  return Math.min(0.06, 0.015 + 0.01 * Math.max(0, Math.log(yUSA / y)));
+  return Math.min(0.06, 0.5 * tendancePib(iso) + 0.5 * (0.015 + 0.01 * Math.max(0, Math.log(yUSA / y))));
+}
+// Trajectoire de référence sans chocs : données réelles, puis croissance tendancielle constante (estimation de jeu).
+// Règle validée : le PIB suit la trajectoire de référence à 10 % près (35 % en 2035) ; au-delà, une force de rappel ramène vers la bande.
+export const RAPPEL_PIB = 0.5, RAPPEL_INTERNE = 0.25; // rappel : 50 % par an de l'excès hors bande ; 25 % par an de l'écart dans la bande (corrige la dérive moyenne des chocs, estimation de jeu)
+// Tolérance : 10 % jusqu'en 2026 (années réelles), puis élargie linéairement jusqu'à 35 % fin 2035 (années projetées).
+export function tolerancePib(round: number): number { return 0.1 + 0.25 * Math.max(0, Math.min(1, (round / 4 - 27) / 9)); }
+// Après 2022 : croissance projetée (FMI ou estimation) si le pays est renseigné et sa série complète jusqu'en 2022.
+function tauxProjete(iso: string, annee: number): number | null {
+  const c = CROISSANCE_PROJETEE[iso], t = TRAJ[iso].pib;
+  if (!c || annee < 2022 || t.length !== 23 || !Number.isFinite(t[22])) return null;
+  return c.g[Math.min(3, annee - 2022)] / 100;
+}
+export function pibReference(iso: string, round: number): number {
+  const t = TRAJ[iso].pib; let last = t.length - 1; while (last > 0 && !Number.isFinite(t[last])) last--;
+  const x = round / 4, k = Math.floor(x);
+  if (k < last) return t[k] * Math.pow(t[k + 1] / t[k], x - k);
+  if (tauxProjete(iso, 2022) !== null) { let v = t[last]; for (let a = 2022; a < 2000 + k; a++) v *= 1 + tauxProjete(iso, a)!; return v * Math.pow(1 + tauxProjete(iso, 2000 + k)!, x - k); }
+  const yUSA = TRAJ.USA.pib[TRAJ.USA.pib.length - 1] / TRAJ.USA.population[TRAJ.USA.population.length - 1];
+  const pop = TRAJ[iso].population[Math.min(last, TRAJ[iso].population.length - 1)], y = t[last] / pop;
+  const g = Math.min(0.06, 0.5 * tendancePib(iso) + 0.5 * (0.015 + 0.01 * Math.max(0, Math.log(yUSA / y))));
+  return t[last] * Math.pow(1 + g, x - last);
+}
+function rappel(iso: string, round: number, pib: number): number {
+  const d = Math.log(pib / pibReference(iso, round)), tol = tolerancePib(round);
+  return -RAPPEL_INTERNE * d - (Math.abs(d) <= tol ? 0 : RAPPEL_PIB * (d - Math.sign(d) * tol));
+}
+const TENDANCE: Record<string, number> = {};
+function tendancePib(iso: string): number {
+  if (TENDANCE[iso] !== undefined) return TENDANCE[iso];
+  const t = TRAJ[iso].pib; let k = t.length - 1; while (k > 0 && !Number.isFinite(t[k])) k--;
+  const k0 = Math.max(0, k - 10);
+  return TENDANCE[iso] = k > k0 && Number.isFinite(t[k0]) ? Math.max(-0.01, Math.min(0.06, Math.pow(t[k] / t[k0], 1 / (k - k0)) - 1)) : 0.02;
 }
 function populationReference(iso: string, annee: number): number {
   const t = TRAJ[iso].population, k = Math.min(annee - 2000, t.length - 2);
@@ -1858,7 +1908,8 @@ export function finRound(e0: EtatPartie): EtatPartie {
   const monde = pibMonde(e), contagion = CONTAGION * ISO.reduce((s, i) => s + ecart[i] * e.pays[i].pib / monde, 0);
   for (const iso of ISO) {
     const p = e.pays[iso];
-    const g = croissanceReference(iso, annee, e) + ecart[iso] + contagion;
+    // une guerre entre leaders sort leurs économies de la trajectoire de référence : pas de force de rappel pour eux
+    const g = croissanceReference(iso, annee, e) + ecart[iso] + contagion + (e.guerre && (iso === "USA" || iso === "CHN") ? 0 : rappel(iso, e.round, p.pib));
     p.pib *= Math.pow(1 + g, 0.25); cacheMonde = null;
     // effet papillon : petit choc de niveau permanent, sans rebond, qui fait diverger chaque partie de l'histoire
     if (e.reglages.generiques) p.pib *= Math.exp(PAPILLON * normale(e));
@@ -1932,9 +1983,9 @@ export function finRound(e0: EtatPartie): EtatPartie {
 export const peutProlonger = (e: EtatPartie) => e.termine && formatDe(e).fin === FORMATS["2000-2008"].fin && !/Défaite|Catastrophe/.test(e.resultat ?? "");
 export function prolonger(e0: EtatPartie): EtatPartie {
   if (!peutProlonger(e0)) return e0;
-  const e = structuredClone(e0), a = formatDe(e), b = FORMATS["2000-2025"];
+  const e = structuredClone(e0), a = formatDe(e), b = FORMATS["2000-2035"];
   e.decomptes = e.decomptes.map((d, i) => d + (b.komi / (b.fin - b.debut + 1) - a.komi / (a.fin - a.debut + 1)) * (4 * i + 4));
-  e.reglages = { ...e.reglages, format: "2000-2025" }; e.termine = false; e.resultat = null; e.round += 1;
+  e.reglages = { ...e.reglages, format: "2000-2035" }; e.termine = false; e.resultat = null; e.round += 1;
   return debutRound(e, true);
 }
 

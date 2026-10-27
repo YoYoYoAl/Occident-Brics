@@ -75,13 +75,13 @@ const fenetreOuverte = () => !$("fenetre").hidden;
 let formatChoisi: Format = "2000-2008";
 const DESC_FORMAT: Record<Format, string> = {
   "2000-2008": "36 trimestres, la tranche d'origine.",
-  "2000-2025": "104 trimestres : la crise de 2008, le Printemps arabe, la Crimée, le Covid, l'Ukraine.",
-  "2008-2025": "72 trimestres, départ réel au 1er trimestre 2008 : la Chine pèse déjà, les BRIC existent.",
+  "2000-2035": "144 trimestres : l'histoire réelle jusqu'en octobre 2026 (crise de 2008, Crimée, Covid, Ukraine, guerre contre l'Iran), puis des scénarios projetés jusqu'en 2035.",
+  "2008-2035": "112 trimestres, départ réel au 1er trimestre 2008 : la Chine pèse déjà, les BRIC existent. Histoire réelle jusqu'en 2026, projections ensuite.",
 };
 function choisirCamp() {
   musique("menu");
   const titre = image("ecran_titre");
-  ouvrir(`${titre ? `<div class="bandeau titre-jeu" style="background-image:url(${titre})"><h2>Occident vs BRICS</h2><span>2000-2025 · la naissance des blocs</span></div>` : `<h2>Nouvelle partie</h2>`}<p class="note">Première partie ? Le bouton <strong>Règles</strong> (ou la touche ?) explique tout en 2 minutes.</p>
+  ouvrir(`${titre ? `<div class="bandeau titre-jeu" style="background-image:url(${titre})"><h2>Occident vs BRICS</h2><span>2000-2035 · la naissance des blocs</span></div>` : `<h2>Nouvelle partie</h2>`}<p class="note">Première partie ? Le bouton <strong>Règles</strong> (ou la touche ?) explique tout en 2 minutes.</p>
     <div class="choix-format" role="radiogroup" aria-label="Période">${(Object.keys(FORMATS) as Format[]).map(f => `<label><input type="radio" name="format" value="${f}"${f === formatChoisi ? " checked" : ""}> <strong>${FORMATS[f].nom}</strong> <small>${DESC_FORMAT[f]}</small></label>`).join("")}</div>
     <p>Chaque trimestre : joue une carte (son événement ou ses points d'action), dépense tes points d'action sur la carte, réponds aux briefings de crise. Le score compte, pour 5 familles (économie, population, ressources, armée, environnement), la part du monde que contrôle chaque camp ; un décompte a lieu chaque fin d'année.</p>
     <div class="choix-camp">
@@ -245,9 +245,9 @@ function finDePartie() {
     <p class="gros">${/Défaite|Catastrophe/.test(etat!.resultat ?? "") ? "Fin de partie anticipée" : Math.abs(b) < eg ? "Égalité" : gagne ? "Tu l'emportes" : "Tu perds"} : avance ${avance(b)} points (bloc USA).</p>
     <p>${esc(fin?.texte ?? "")}</p>
     <p class="note">Le bilan est la moyenne des décomptes annuels : progression depuis le début de la partie de la puissance de chaque camp (5 familles de qualificatifs à poids égaux), plus un dixième de l'écart de capital politique, plus une compensation de ${nombre(formatDe(etat!).komi)} points pour le bloc USA. Égalité sous ${nombre(eg)} point. Détail dans l'onglet Score.</p>
-    <div class="actions-fenetre">${peutProlonger(etat!) ? `<button id="prolonger" class="principal">Continuer jusqu'en 2025</button>` : ""}<button id="rejouer"${peutProlonger(etat!) ? "" : ` class="principal"`}>Nouvelle partie</button><button id="voir">Voir la carte</button></div>`,
+    <div class="actions-fenetre">${peutProlonger(etat!) ? `<button id="prolonger" class="principal">Continuer jusqu'en 2035</button>` : ""}<button id="rejouer"${peutProlonger(etat!) ? "" : ` class="principal"`}>Nouvelle partie</button><button id="voir">Voir la carte</button></div>`,
   bt => { bt.querySelector<HTMLButtonElement>("#rejouer")!.onclick = choisirCamp;
-    const pr = bt.querySelector<HTMLButtonElement>("#prolonger"); if (pr) pr.onclick = () => { etat = prolonger(etat!); fermer(); rapport("Suite de la partie : 2009-2025"); afficher(); }; bt.querySelector<HTMLButtonElement>("#voir")!.onclick = fermer; });
+    const pr = bt.querySelector<HTMLButtonElement>("#prolonger"); if (pr) pr.onclick = () => { etat = prolonger(etat!); fermer(); rapport("Suite de la partie : 2009-2035"); afficher(); }; bt.querySelector<HTMLButtonElement>("#voir")!.onclick = fermer; });
 }
 
 // ---------- Panneau ----------
@@ -660,7 +660,7 @@ function afficher() {
   const e = etat, c = e.camps[joueur()], b = bilan(e), monCamp = joueur();
   $("date").textContent = libelle(e.round);
   $("format").textContent = formatDe(e).nom;
-  $("periode").textContent = e.round < 26 ? "Prologue 2000-2006 : le bloc rival n'existe pas encore" : e.round < 36 ? "Ère des blocs (BRIC depuis 2006)" : "Ère 2 : l'après-crise et le monde multipolaire";
+  $("periode").textContent = e.round < 26 ? "Prologue 2000-2006 : le bloc rival n'existe pas encore" : e.round < 36 ? "Ère des blocs (BRIC depuis 2006)" : e.round < 80 ? "Ère 2 : l'après-crise et le monde multipolaire" : e.round < 108 ? "Ère 3 : la rivalité des blocs" : "Ère 3 : la rivalité des blocs · au-delà d'octobre 2026, tout est projection";
   $("camp").textContent = `Tu joues : ${NOM_CAMP[monCamp]}`;
   $("camp").className = monCamp === "OCC" ? "occ-t" : "chn-t";
   $("jauges").innerHTML = [
@@ -838,7 +838,7 @@ function aide() {
       <li><strong>Tension</strong> (crans 1 à 5) : monte avec les bases, embargos, guerres ; elle ouvre certaines cartes.</li>
     </ul>
     <h3>Événements</h3>
-    <p><strong>Historiques</strong> : ${HISTORIQUES.length} événements réels datés de 2000 à 2024 ; certains n'ont pas lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles, avec leur ville et leur cause. Les événements mondiaux (récession, pétrole, climat) touchent tous les pays ; un bulletin climatique annuel pèse sur tous, davantage sur les pays exposés.</p>
+    <p><strong>Historiques</strong> : ${HISTORIQUES.filter(h => h.probabilite === undefined).length} événements réels datés de 2000 à octobre 2026, puis ${HISTORIQUES.filter(h => h.probabilite !== undefined).length} scénarios projetés jusqu'en 2035 qui n'ont lieu qu'avec une certaine probabilité ; certains n'ont pas lieu si la partie a dévié. <strong>Mondiaux</strong> : crises, catastrophes, coups d'État, tirés selon les fréquences réelles, avec leur ville et leur cause. Les événements mondiaux (récession, pétrole, climat) touchent tous les pays ; un bulletin climatique annuel pèse sur tous, davantage sur les pays exposés.</p>
     <h3>Fin de partie</h3>
     <p>Bilan = moyenne des décomptes annuels (onglet Score). Défaite immédiate en cas de banqueroute (PIB du leader à moins de 80 % de son sommet), d'effondrement démographique, ou pour les deux blocs si le réchauffement atteint 3 °C.</p>
     <p class="note">Sons d'interface : packs Kenney (CC0). Bruitages et musiques : CC0, OpenGameArt et Freesound (musiques de cynicmusic, artisticdude, yd, indieteur, eldritch-grim ; bruitages de joth, qubodup, tinyworlds et autres, liste complète dans musiques/LICENCES.md). Illustrations générées pour le jeu. Boutons 🔊 Son et ♪ Musique pour couper.</p>
