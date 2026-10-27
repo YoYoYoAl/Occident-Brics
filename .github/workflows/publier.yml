@@ -6,6 +6,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+# deux poussées rapprochées : la publication la plus récente annule la précédente (évite le conflit sur gh-pages)
+concurrency:
+  group: publier
+  cancel-in-progress: true
 jobs:
   publier:
     runs-on: ubuntu-latest
