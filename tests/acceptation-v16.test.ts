@@ -31,14 +31,14 @@ describe("v16 — densité des événements historiques", () => {
     expect(recents.flatMap(h => h.effets).filter(e => e.type === "croissance")).toEqual([]);
   });
 
-  it("4. scénarios projetés : 10 à 14 écrits par an de 2027 à 2035, probabilité moyenne entre 0,3 et 0,7", () => {
+  it("4. scénarios projetés : 10 à 14 écrits par an de 2027 à 2035, probabilité moyenne entre 0,6 et 0,9 (8 à 10 ont lieu par an)", () => {
     for (let a = 2027; a <= 2035; a++) {
       const n = HISTORIQUES.filter(h => h.annee === a && h.probabilite !== undefined).length;
       expect(n, String(a)).toBeGreaterThanOrEqual(10); expect(n, String(a)).toBeLessThanOrEqual(14);
     }
     const p = HISTORIQUES.filter(h => h.probabilite !== undefined).map(h => h.probabilite!);
     const m = p.reduce((a, b) => a + b, 0) / p.length;
-    expect(m).toBeGreaterThan(0.3); expect(m).toBeLessThan(0.7);
+    expect(m).toBeGreaterThan(0.6); expect(m).toBeLessThan(0.9);
     expect(HISTORIQUES.filter(h => h.probabilite !== undefined).every(h => h.texte.startsWith("Scénario projeté. "))).toBe(true);
   });
 });

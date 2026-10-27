@@ -30,10 +30,10 @@ describe("v15 — 2025 à 2035", () => {
     expect(e.journal.some(j => silencieuses.some(p => j.source === p.id))).toBe(false);
   }, 60_000);
 
-  it("3. sur 40 parties, la fréquence d'une projection suit sa probabilité (Lune chinoise, p = 0,6, à ±0,25)", () => {
+  it("3. sur 40 parties, la fréquence d'une projection suit sa probabilité (grand séisme au Japon, p = 0,5, à ±0,25)", () => {
     let n = 0;
-    for (let g = 1; g <= 40; g++) { const e = jusque(creerPartie(g, null, { generiques: false, ia: false, format: "2008-2035" }), 200); if (e.historiquesFaits.includes("p_lune_chine")) n++; }
-    expect(Math.abs(n / 40 - 0.6)).toBeLessThanOrEqual(0.25);
+    for (let g = 1; g <= 40; g++) { const e = jusque(creerPartie(g, null, { generiques: false, ia: false, format: "2008-2035" }), 200); if (e.historiquesFaits.includes("p_seisme_japon")) n++; }
+    expect(Math.abs(n / 40 - 0.5)).toBeLessThanOrEqual(0.25);
   }, 300_000);
 
   it("4. élections : présidentielle brésilienne d'octobre 2026, calendrier projeté jusqu'en 2035", () => {

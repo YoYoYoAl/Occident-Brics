@@ -39,8 +39,8 @@ export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
 export type Format = "2000-2008" | "2000-2035" | "2008-2035";
 export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
   "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 7.1, egalite: 0.35 }, // 200 parties IA : 39,5 / 20 / 40,5 %
-  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 18.9, egalite: 0.25 }, // 200 parties IA : 39,5 / 21,5 / 39 %, aucune défaite
-  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 16.1, egalite: 0.25 }, // 200 parties IA : 41 / 18,5 / 40 %, 0,5 % banqueroute USA
+  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 18.9, egalite: 0.25 }, // 200 parties IA : 39 / 20 / 41 %, aucune défaite
+  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 16.1, egalite: 0.25 }, // 200 parties IA : 40,5 / 20 / 39 %, 0,5 % banqueroute USA
 };
 export const formatDe = (e: EtatPartie) => FORMATS[(e.reglages.format ?? "2000-2008").replace("2025", "2035") as Format]; // sauvegardes v14 : formats « -2025 » prolongés
 // Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
