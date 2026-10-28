@@ -41,4 +41,13 @@ describe("v16 — densité des événements historiques", () => {
     expect(m).toBeGreaterThan(0.6); expect(m).toBeLessThan(0.9);
     expect(HISTORIQUES.filter(h => h.probabilite !== undefined).every(h => h.texte.startsWith("Scénario projeté. "))).toBe(true);
   });
+
+  it("5. illustrations du lot ob_7 : chaque image associée existe", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/interface/images.ts", "utf8"), bloc = src.slice(src.indexOf("lot ob_7"));
+    const paires = [...bloc.matchAll(/\b(h_[a-z0-9_]+): "([a-z0-9_]+)"/g)];
+    expect(paires.length).toBeGreaterThanOrEqual(38);
+    const ids = new Set(HISTORIQUES.map(h => h.id));
+    for (const [, id, img] of paires) { expect(ids.has(id), id).toBe(true); expect(existsSync(`src/images/${img}.webp`), img).toBe(true); }
+  });
 });

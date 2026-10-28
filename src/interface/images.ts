@@ -17,6 +17,16 @@ const HISTORIQUES: Record<string, string> = {
   h_relance_russie: "carte_relance_russie", h_crise_grecque: "carte_crise_grecque", h_intervention_libye: "carte_intervention_libye", h_syrie: "carte_syrie",
   h_ben_laden: "carte_ben_laden", h_snowden: "carte_snowden", h_etat_islamique: "carte_etat_islamique", h_russie_syrie: "carte_russie_syrie", h_brexit: "carte_brexit",
   h_arbitrage_mcs: "carte_mer_de_chine", h_hong_kong: "carte_hong_kong", h_kaboul: "carte_kaboul", h_7_octobre: "carte_gaza", h_mer_rouge: "carte_mer_rouge", h_chute_assad: "carte_chute_assad",
+  // lot ob_7 (2026-10-28) : 2009-2026
+  h_alaska: "carte_alaska", h_beyrouth: "carte_beyrouth", h_birmanie_coup: "carte_birmanie_coup", h_brics_delhi: "carte_brics_delhi", h_brics_rio: "carte_brics_rio",
+  h_busan: "carte_busan", h_capitole: "carte_capitole", h_cessez_feu_gaza: "carte_cessez_feu_gaza", h_coup_turquie: "carte_coup_turquie",
+  h_crise_refugies: "carte_crise_refugies", h_deepseek: "carte_deepseek", h_ebola: "carte_ebola", h_galwan: "carte_galwan", h_gilets_jaunes: "carte_gilets_jaunes",
+  h_guerre_douze_jours: "carte_guerre_douze_jours", h_guerre_iran: "carte_guerre_iran", h_haiti_seisme: "carte_haiti_seisme", h_hezbollah: "carte_hezbollah",
+  h_hwasong: "carte_hwasong", h_liberation_day: "carte_liberation_day", h_maduro: "carte_maduro", h_mh17: "carte_mh17", h_nord_stream: "carte_nord_stream",
+  h_ormuz: "carte_ormuz", h_otan_cinq: "carte_otan_cinq", h_pelosi: "carte_pelosi", h_pourparlers_ukraine: "carte_pourparlers_ukraine",
+  h_seisme_turquie: "carte_seisme_turquie", h_sindoor: "carte_sindoor", h_snapback: "carte_snapback", h_soudan_guerre: "carte_soudan_guerre",
+  h_terres_rares_chine: "carte_terres_rares_chine", h_tianjin: "carte_tianjin", h_treve_geneve: "carte_treve_geneve", h_treve_iran: "carte_treve_iran",
+  h_trump_pekin: "carte_trump_pekin", h_wagner: "carte_wagner", h_retrait_oms: "carte_covid",
 };
 export function imageEvenement(source: string | undefined, famille: string | undefined): string | undefined {
   return (source && HISTORIQUES[source] && image(HISTORIQUES[source])) || (famille ? image(`famille_${famille}`) : undefined);
