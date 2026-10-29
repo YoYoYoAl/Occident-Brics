@@ -32,7 +32,7 @@ import { CARTES_GENEREES } from "../contenu/cartes-generees";
 import { type Plan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
 import { date, libelle, NB_ROUNDS } from "./temps";
 import { type Dirigeant, tirerDirigeants, suiviDirigeants, apresScrutin, maintienAvecPopularite, multDiplomatie, multIntendance, multRisque, bonusPutsch, aTrait } from "./dirigeants";
-import { type CasusBelli, type Coalition, type Intervention, majCasusBelli, suiviExpansion, suiviGuerres, justifier, gagnerAE, facteurAE, coalitionContre, aeDuPays, nucleaire, casusBelliDe, AE, CASUS_BELLI } from "./guerre";
+import { type CasusBelli, type Coalition, type Intervention, type Controle, suiviRegions, partAnnexee, majCasusBelli, suiviExpansion, suiviGuerres, justifier, gagnerAE, facteurAE, coalitionContre, aeDuPays, nucleaire, casusBelliDe, AE, CASUS_BELLI } from "./guerre";
 import { resolutionAuto } from "./plans";
 import {
   type Camp, type Canal, type Effet, type Condition, type CiblePays, type CampRel, type Carte, type Briefing,
@@ -125,6 +125,7 @@ export interface EtatPartie {
   rapprochements: { iso: string; camp: Camp; restant: number }[]; // entraînements en cours (trimestres restants)
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
   plans?: Plan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
+  controles?: Controle[]; // régions gardées après une guerre
   ae?: Record<Camp, Record<string, number>>; casusBelli?: CasusBelli[]; coalitions?: Coalition[]; // expansion agressive par région, justifications, coalitions
   dirigeants?: Record<Camp, Dirigeant>; succession?: { camp: Camp; candidats: Dirigeant[]; round: number } | null; // dirigeants et succession à arbitrer par le joueur
   zones: Record<string, Record<Camp, number>>; // présence des blocs dans les zones stratégiques (0-100) // ports et aéroports sous concession d'un bloc
@@ -214,8 +215,14 @@ function masse(e: EtatPartie, f: Famille, iso: string): number {
     default: return QUALITE[f][iso];                                   // ressources et armée : scores 2000
   }
 }
-export const poidsCamp = (e: EtatPartie, camp: Camp, iso: string) =>
-  iso === "USA" || iso === "CHN" ? (iso === (camp === "OCC" ? "USA" : "CHN") ? 1 : 0) : Math.max(0, (camp === "OCC" ? 1 : -1) * alignement(e, iso));
+// Régions annexées : leur part de population compte entièrement pour le bloc qui les a annexées (estimation, même part pour toutes les familles).
+export const poidsCamp = (e: EtatPartie, camp: Camp, iso: string) => {
+  if (iso === "USA" || iso === "CHN") return iso === (camp === "OCC" ? "USA" : "CHN") ? 1 : 0;
+  const libre = Math.max(0, (camp === "OCC" ? 1 : -1) * alignement(e, iso));
+  if (!e.controles?.length) return libre;
+  const moi = partAnnexee(e, camp, iso), lui = partAnnexee(e, adversaire(camp), iso);
+  return moi + (1 - moi - lui) * libre;
+};
 export function partFamille(e: EtatPartie, camp: Camp, f: Famille): number {
   let num = 0, den = 0;
   for (const i of ISO) { const m = masse(e, f, i); num += m * poidsCamp(e, camp, i); den += m; }
@@ -341,7 +348,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
-  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
+  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return debutRound(e, true);
 }
 
@@ -379,7 +386,7 @@ function depart2008(graine: number, joueur: Camp | null, reglages: Reglages): Et
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
-  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
+  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return e;
 }
 
@@ -1957,7 +1964,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
     for (const canal of ["p", "m", "c"] as Canal[]) inf[canal] = borne(inf[canal] - USURE * (inf[canal] - p.ancre[camp][canal]), 0, 100);
     inf.e = borne(inf.e + DERIVE_E * (cibleEconomique(e, iso, camp) - inf.e), 0, 100);
   }
-  appliquerOrientations(e); rapprochement(e); effetMemoire(e); usureOpinion(e); resoudreElections(e); echeancesPrets(e); suiviGuerres(e, av => resolutionAuto(e, av)); majCasusBelli(e); suiviExpansion(e); suiviDirigeants(e);
+  appliquerOrientations(e); rapprochement(e); effetMemoire(e); usureOpinion(e); resoudreElections(e); echeancesPrets(e); suiviGuerres(e, av => resolutionAuto(e, av)); majCasusBelli(e); suiviExpansion(e); suiviRegions(e); suiviDirigeants(e);
   if (trimestre === 3) cloreSessionOnu(e);
   // forces de rappel : la tension retombe de 8 % de son excès sur 10 par trimestre, la stabilité revient vers 50 (5 %),
   // le capital politique se reconstitue de 1 point ; sans elles, les événements génériques saturaient tension et instabilité.
@@ -2080,6 +2087,6 @@ export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
-  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= [];
+  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= []; e.controles ??= [];
   return e;
 }

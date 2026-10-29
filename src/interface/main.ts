@@ -8,7 +8,8 @@ import { FLUX, DETROITS } from "../data/flux";
 import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique, type Son } from "./sons";
 import { ficheHtml } from "./fiche";
 import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur } from "./plans-ui";
-import { panneauDirigeant, panneauGuerre, lierGuerre } from "./guerre-ui";
+import { panneauDirigeant, panneauGuerre, lierGuerre, tableauRegions } from "./guerre-ui";
+import { regionsCles } from "../moteur/guerre";
 import { jouerDuel } from "./duel-ui";
 import { salleDuels } from "./salle-duels";
 import { conclureDuel, paysDuPlan as paysDuPlanUi } from "../moteur/plans";
@@ -501,6 +502,7 @@ function panneauPays(): string {
   } else h += `<p class="note">Leader de camp : pas de cible d'influence.</p>`;
   // Données 2000 et qualificatifs de la v0.1 (attributs en 5 familles)
   const etatV01 = { pays: { [iso]: { population: p.population } }, round: e.round } as unknown as EtatJeu;
+  if (regionsCles(iso) || (e.controles ?? []).some(c => c.iso === iso) || e.interventions.some(i => i.iso === iso)) h += `<details class="qualificatifs" open><summary>Régions</summary>${tableauRegions(e, iso, e.interventions.find(i => i.iso === iso))}</details>`;
   h += `<details class="qualificatifs"><summary>Qualificatifs du pays (données 2000)</summary>${ficheHtml(iso, etatV01).replace(/<h2>.*?<\/h2>/, "")}</details>`;
   return h;
 }
@@ -825,6 +827,7 @@ function aide() {
     <p>Chaque bloc a un <strong>dirigeant</strong> (nom fictif) : quatre aptitudes de 0 à 10 et deux traits. <strong>Diplomatie</strong> : gains d'influence politique, culturelle et économique ±3 % par point autour de 5. <strong>Stratégie militaire</strong> : score de guerre +1,5 par trimestre et par point. <strong>Intendance</strong> : budget ±2 % par point. <strong>Intrigue</strong> : risque d'être démasqué −5 % par point, putschs +2 points. La <strong>popularité</strong> pèse sur la réélection ; la <strong>santé</strong> baisse avec l'âge. À chaque alternance, fin de mandats (8 ans aux États-Unis, 10 en Chine) ou décès, tu choisis le successeur parmi 3 candidats.</p>
     <h3>Guerre, casus belli et expansion agressive</h3>
     <p>Une <strong>intervention armée</strong> a un <strong>but</strong> (changement de régime, base permanente, expédition punitive) et un <strong>score de guerre</strong> de −100 à +100, qui suit chaque trimestre ton avantage militaire dans le pays et la stratégie de ton dirigeant ; deux <strong>batailles décisives</strong> se jouent en duel (±30). Tu signes la paix quand tu veux : chaque terme se paie en points de score (régime ami 60, base 40, expédition punitive 25, démilitarisation 20, réparations 20, influence 15), la paix blanche est toujours possible. À l'échéance, tes conseillers signent pour toi, ou c'est l'enlisement si le score est négatif. Pas d'intervention chez une puissance nucléaire.</p>
+    <p><strong>Régions</strong> : 30 pays clés (Ukraine, Taïwan, Irak, Iran, Syrie, Corées…) sont découpés en 2 à 5 régions (population, ressources, valeur stratégique, bases ; estimation), visibles sur leur fiche ; les autres pays sont découpés en 3 régions seulement en cas de guerre. Pendant une intervention, tu occupes des régions à mesure que le score monte (les plus stratégiques d'abord). À la paix, une région occupée peut être <strong>occupée</strong> (recettes, le pays s'agite, révolte possible s'il penche vers l'adversaire, tu peux la rendre) ou <strong>annexée</strong> (1,5 fois plus cher, expansion agressive double, définitive : sa population compte pour ton bloc dans le score).</p>
     <p>Un <strong>casus belli</strong> justifie l'intervention : défense d'un allié (×0,25), incident frontalier ou lutte antiterroriste (×0,5), crise humanitaire ou dossier d'armes de destruction massive fabriqué (×0,75, 30 % de risque de scandale), changement de régime (×1, dirigeant belliciste), rivalité ouverte (tension 80, seule justification d'une guerre contre l'autre puissance). Sans casus belli, c'est une <strong>agression</strong> : capital politique −10 et expansion ×3.</p>
     <p>L'<strong>expansion agressive</strong> se compte par région (pleine dans la région visée, moitié dans les voisines, quart ailleurs). À 25, tes actions d'influence y perdent 15 % ; à 50, l'adversaire y gagne de l'influence ; à 75, les trois plus grands pays forment une <strong>coalition</strong> : plus d'intervention ni de putsch chez eux, tes plans dans la région −30 %. Elle baisse de 4 par trimestre sans intervention dans la région (2 sinon).</p>
     <h3>Les cartes</h3>

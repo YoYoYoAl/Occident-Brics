@@ -9,6 +9,8 @@ import { outils, alignement, nomPays, prochesDe } from "./partie";
 import { ZONES } from "./zones";
 import { aTrait, bonusStrategie, multRisque } from "./dirigeants";
 import type { IdDuel } from "../duels/catalogue";
+import { REGIONS_CLES, type Region } from "../data/regions";
+import { PROFILS } from "../data/commerce";
 
 export type TypeCB = "defense" | "incident" | "antiterrorisme" | "humanitaire" | "adm" | "regime" | "rivalite";
 export const CASUS_BELLI: Record<TypeCB, { nom: string; mult: number; duree: number; aide: string }> = {
@@ -154,14 +156,67 @@ export const BUTS: Record<ButGuerre, { nom: string; cout: number; aide: string }
   base: { nom: "Base permanente", cout: 40, aide: "Base et garantie de défense : influence militaire +15." },
   punitive: { nom: "Expédition punitive", cout: 25, aide: "Briser l'influence adverse : influence militaire et politique adverses −15." },
 };
-export type TermePaix = ButGuerre | "reparations" | "influence" | "demilitarisation";
-export const TERMES: Record<TermePaix, { nom: string; cout: number }> = {
+export type TermeFixe = ButGuerre | "reparations" | "influence" | "demilitarisation";
+export type TermePaix = TermeFixe | `region:${string}` | `annexe:${string}`; // garder une région occupée, ou l'annexer
+export const TERMES: Record<TermeFixe, { nom: string; cout: number }> = {
   regime: { nom: "Régime ami", cout: 60 }, base: { nom: "Base militaire et garantie", cout: 40 }, punitive: { nom: "Influence adverse brisée", cout: 25 },
   reparations: { nom: "Réparations (budget +3)", cout: 20 }, influence: { nom: "Influence politique +10", cout: 15 }, demilitarisation: { nom: "Démilitarisation (militaire adverse −15)", cout: 20 },
 };
 export const SCORE = { base: 4, forces: 20, strategie: 1.5, alea: 16, usure: 3, bataille: 60, batailles: [1, 4], fin: 100 };
 export const TYPES_BATAILLE: IdDuel[] = ["memoire44", "stratego", "streetfighter"];
-export interface Intervention { iso: string; camp: Camp; fin: number; debut?: number; score?: number; but?: ButGuerre; cb?: TypeCB | null }
+export interface Intervention { iso: string; camp: Camp; fin: number; debut?: number; score?: number; but?: ButGuerre; cb?: TypeCB | null; occupees?: string[] }
+
+// ---------- Régions : 30 pays clés découpés en permanence, les autres seulement en cas de guerre ----------
+export interface Controle { iso: string; region: string; camp: Camp; depuis: number; annexion?: boolean } // annexion : définitive, la région compte pour le bloc dans le score
+export const REGION = { budgetRessource: 0.1, budgetStrat: 0.05, stabilite: 1, revolte: 0.1, seuilRevolte: -0.2, baseM: 1, plafondM: 80, rendreAE: 10, rendreMemoire: 3, annexion: 1.5, aeAnnexion: 2 };
+// Découpage générique : région de la capitale (50 % de la population), nord (30 %), sud (20 %) ; les ressources du pays réparties en tourniquet.
+export function decoupageGenerique(iso: string): Region[] {
+  const l: Region[] = [{ id: "capitale", nom: "Capitale et centre", pop: 0.5, ressources: [], strat: 2 }, { id: "nord", nom: "Nord", pop: 0.3, ressources: [], strat: 1 }, { id: "sud", nom: "Sud", pop: 0.2, ressources: [], strat: 1 }];
+  (PROFILS[iso]?.offre ?? []).forEach((b, k) => l[(k + 1) % 3].ressources.push(b));
+  return l;
+}
+export const regionsCles = (iso: string) => REGIONS_CLES[iso] ?? null;
+export const regionsDe = (iso: string): Region[] => REGIONS_CLES[iso] ?? decoupageGenerique(iso);
+export const regionDe = (iso: string, id: string) => regionsDe(iso).find(r => r.id === id) ?? null;
+export const coutRegion = (r: Region) => Math.round(10 + 30 * r.pop + 5 * r.strat);
+export const controleur = (e: EtatPartie, iso: string, id: string) => (e.controles ?? []).find(c => c.iso === iso && c.region === id)?.camp ?? null;
+export const coutTerme = (t: TermePaix, iso: string) => t.startsWith("region:") ? coutRegion(regionDe(iso, t.slice(7))!) : t.startsWith("annexe:") ? Math.round(REGION.annexion * coutRegion(regionDe(iso, t.slice(7))!)) : TERMES[t as TermeFixe].cout;
+export const nomTerme = (t: TermePaix, iso: string) => t.startsWith("region:") ? `occuper ${regionDe(iso, t.slice(7))?.nom ?? t.slice(7)}` : t.startsWith("annexe:") ? `annexer ${regionDe(iso, t.slice(7))?.nom ?? t.slice(7)}` : TERMES[t as TermeFixe].nom;
+// Part de la population d'un pays annexée par un camp (somme des régions annexées).
+export function partAnnexee(e: EtatPartie, camp: Camp, iso: string): number {
+  if (!e.controles?.length) return 0;
+  let s = 0; for (const c of e.controles) if (c.annexion && c.iso === iso && c.camp === camp) s += regionDe(iso, c.region)?.pop ?? 0;
+  return Math.min(1, s);
+}
+// Occupation : la part des régions tenues suit le score de guerre (aucune à 0, toutes à 100), les plus stratégiques d'abord.
+function majOccupation(e: EtatPartie, it: Intervention) {
+  const l = regionsDe(it.iso).slice().sort((a, b) => b.strat - a.strat || b.pop - a.pop), k = Math.min(l.length, Math.floor(l.length * Math.max(0, it.score ?? 0) / 100 + 0.5));
+  const avant = it.occupees ?? [], apres = l.slice(0, k).map(r => r.id);
+  for (const id of apres.filter(x => !avant.includes(x))) outils.noter(e, { type: "action", titre: `${nomPays(it.iso)} : prise de la région « ${regionDe(it.iso, id)!.nom} »`, camp: it.camp, pays: [it.iso], visiblePour: [...CAMPS], texte: `Les troupes du ${it.camp === "OCC" ? "bloc USA" : "bloc Chine"} tiennent désormais cette région.` });
+  for (const id of avant.filter(x => !apres.includes(x))) outils.noter(e, { type: "action", titre: `${nomPays(it.iso)} : la région « ${regionDe(it.iso, id)!.nom} » est reprise`, camp: it.camp, pays: [it.iso], visiblePour: [...CAMPS], texte: "Les défenseurs regagnent du terrain." });
+  it.occupees = apres;
+}
+// Régions gardées après une paix : recettes (ressources, valeur stratégique), base, instabilité du pays, révolte possible.
+export function suiviRegions(e: EtatPartie) {
+  for (const c of [...(e.controles ?? [])]) {
+    const r = regionDe(c.iso, c.region), p = e.pays[c.iso]; if (!r || !p) continue;
+    e.camps[c.camp].budget += REGION.budgetRessource * r.ressources.length + REGION.budgetStrat * r.strat;
+    p.stabilite = borne(p.stabilite - REGION.stabilite, 0, 100);
+    if (r.base) p.influence[c.camp].m = Math.min(REGION.plafondM, p.influence[c.camp].m + REGION.baseM);
+    if (!c.annexion && vers(e, c.camp, c.iso) < REGION.seuilRevolte && outils.tirer(e) < REGION.revolte) {
+      e.controles = e.controles!.filter(x => x !== c);
+      outils.noter(e, { type: "action", titre: `${nomPays(c.iso)} : révolte, la région « ${r.nom} » chasse l'occupant`, camp: c.camp, pays: [c.iso], visiblePour: [...CAMPS], texte: "Le pays penche trop vers l'autre bloc : l'occupation n'est plus tenable." });
+    }
+  }
+}
+export function rendreRegion(e0: EtatPartie, camp: Camp, iso: string, id: string): EtatPartie {
+  if (controleur(e0, iso, id) !== camp) throw new Error("Ton bloc ne contrôle pas cette région.");
+  const e = structuredClone(e0); e.controles = e.controles!.filter(c => !(c.iso === iso && c.region === id));
+  outils.memoriser(e, iso, camp, REGION.rendreMemoire);
+  const z = zoneDe(iso), a = e.ae?.[camp]; if (z && a) a[z] = Math.max(0, (a[z] ?? 0) - REGION.rendreAE);
+  outils.noter(e, { type: "action", titre: `${nomPays(iso)} : la région « ${regionDe(iso, id)!.nom} » est rendue`, camp, pays: [iso], visiblePour: [...CAMPS], texte: `Geste de détente : gratitude du pays, expansion agressive −${REGION.rendreAE} dans la région.` });
+  return e;
+}
 const forces = (e: EtatPartie, it: Intervention) => (e.pays[it.iso].influence[it.camp].m - e.pays[it.iso].influence[adversaire(it.camp)].m) / 100;
 export const avantageBataille = (e: EtatPartie, it: Intervention) => borne(2 * forces(e, it) + 0.08 * (bonusStrategie(e, it.camp) - bonusStrategie(e, adversaire(it.camp))), -1, 1);
 
@@ -180,8 +235,10 @@ function appliquerTermes(e: EtatPartie, it: Intervention, termes: TermePaix[]) {
     if (t === "reparations") e.camps[it.camp].budget += 3;
     if (t === "influence") moi.p = borne(moi.p + 10, 0, 100);
     if (t === "demilitarisation") adv.m = Math.max(0, adv.m - 15);
+    if (t.startsWith("region:")) (e.controles ??= []).push({ iso: it.iso, region: t.slice(7), camp: it.camp, depuis: e.round });
+    if (t.startsWith("annexe:")) (e.controles ??= []).push({ iso: it.iso, region: t.slice(7), camp: it.camp, depuis: e.round, annexion: true });
   }
-  const cout = termes.reduce((s, t) => s + TERMES[t].cout, 0);
+  const cout = termes.reduce((s, t) => s + coutTerme(t, it.iso) * (t.startsWith("annexe:") ? REGION.aeAnnexion : 1), 0); // une annexion pèse double
   if (cout) gagnerAE(e, it.camp, it.iso, AE.victoire * cout);
 }
 // Paix signée par le camp qui intervient : termes achetés avec le score de guerre (paix blanche toujours possible).
@@ -189,14 +246,16 @@ export function peutSignerPaix(e: EtatPartie, camp: Camp, iso: string, termes: T
   const it = e.interventions.find(i => i.iso === iso && i.camp === camp) as Intervention | undefined;
   if (!it) return "Aucune intervention de ton camp dans ce pays.";
   if (new Set(termes).size !== termes.length) return "Un terme ne peut figurer qu'une fois.";
-  const cout = termes.reduce((s, t) => s + TERMES[t].cout, 0);
+  const r = termes.find(t => (t.startsWith("region:") || t.startsWith("annexe:")) && !(it.occupees ?? []).includes(t.slice(7))); if (r) return "On ne peut garder ou annexer qu'une région occupée.";
+  if (termes.some(t => t.startsWith("region:") && termes.includes(`annexe:${t.slice(7)}`))) return "Une région est soit occupée, soit annexée.";
+  const cout = termes.reduce((s, t) => s + coutTerme(t, iso), 0);
   if (cout > termesPossibles(e, it)) return `Score de guerre insuffisant (${cout} demandés, ${termesPossibles(e, it)} disponibles).`;
   return null;
 }
 export function signerPaix(e0: EtatPartie, camp: Camp, iso: string, termes: TermePaix[]): EtatPartie {
   const err = peutSignerPaix(e0, camp, iso, termes); if (err) throw new Error(err);
   const e = structuredClone(e0), it = e.interventions.find(i => i.iso === iso && i.camp === camp) as Intervention;
-  appliquerTermes(e, it, termes); terminer(e, it, termes.length ? `Paix signée : ${termes.map(t => TERMES[t].nom.toLowerCase()).join(", ")}` : "Paix blanche : retrait sans conditions");
+  appliquerTermes(e, it, termes); terminer(e, it, termes.length ? `Paix signée : ${termes.map(t => nomTerme(t, iso).toLowerCase()).join(", ")}` : "Paix blanche : retrait sans conditions");
   return e;
 }
 function terminer(e: EtatPartie, it: Intervention, titre: string) {
@@ -207,7 +266,8 @@ function terminer(e: EtatPartie, it: Intervention, titre: string) {
 // Termes que l'IA (ou les conseillers à l'échéance) exigent : le but d'abord, puis le reste par coût décroissant.
 export function termesAuto(e: EtatPartie, it: Intervention): TermePaix[] {
   let reste = termesPossibles(e, it); const l: TermePaix[] = [];
-  for (const t of [it.but ?? "regime", "base", "punitive", "demilitarisation", "reparations", "influence"] as TermePaix[]) if (!l.includes(t) && TERMES[t].cout <= reste) { l.push(t); reste -= TERMES[t].cout; }
+  const regions = (it.occupees ?? []).map(id => `region:${id}` as TermePaix); // les régions occupées, les plus stratégiques d'abord
+  for (const t of [it.but ?? "regime", "base", ...regions, "punitive", "demilitarisation", "reparations", "influence"] as TermePaix[]) if (!l.includes(t) && coutTerme(t, it.iso) <= reste) { l.push(t); reste -= coutTerme(t, it.iso); }
   return l;
 }
 // Bataille décisive : duel si le joueur intervient (attaquant) ou soutient la défense (influence militaire ≥ 20), sinon réglée d'office.
@@ -232,10 +292,11 @@ export function suiviGuerres(e: EtatPartie, resolution: (av: number) => number) 
       it.score = borne(it.score + d, -100, 100);
     }
     if (SCORE.batailles.includes(duree)) bataille(e, it, resolution);
+    majOccupation(e, it);
     const c = e.camps[it.camp]; c.budget = Math.max(0, c.budget - 1); c.fatigue = (c.fatigue ?? 0) + 0.5;
     if (Math.abs(it.score) >= SCORE.fin || it.fin <= e.round) {
       if (it.camp === e.joueur && it.score > 0 && it.fin > e.round) continue; // le joueur choisit lui-même ses termes tant que l'intervention dure
-      if (it.score > 0) { const t = termesAuto(e, it); appliquerTermes(e, it, t); terminer(e, it, t.length ? `victoire, ${t.map(x => TERMES[x].nom.toLowerCase()).join(", ")}` : "paix blanche"); }
+      if (it.score > 0) { const t = termesAuto(e, it); appliquerTermes(e, it, t); terminer(e, it, t.length ? `victoire, ${t.map(x => nomTerme(x, it.iso).toLowerCase()).join(", ")}` : "paix blanche"); }
       else { const p = e.pays[it.iso].influence[it.camp]; p.p = borne(p.p - 10, 0, 100); c.cp = borne(c.cp - 8, 0, 100); terminer(e, it, "enlisement et retrait (influence politique −10, capital politique −8)"); }
     }
   }

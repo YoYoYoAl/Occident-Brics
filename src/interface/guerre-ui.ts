@@ -5,9 +5,11 @@ import { ZONES } from "../moteur/zones";
 import { APTITUDES, LISTE_APTITUDES, TRAITS_DIRIGEANT, aptitude, ageDe, choisirSuccesseur, type Dirigeant } from "../moteur/dirigeants";
 import {
   CASUS_BELLI, AE, BUTS, TERMES, LISTE_ZONES, aeDe, changerBut, signerPaix, peutSignerPaix, fabriquerCasusBelli, peutFabriquer, termesPossibles, FABRIQUER,
+  regionsDe, regionsCles, regionDe, controleur, coutTerme, nomTerme, rendreRegion, REGION,
   type ButGuerre, type TermePaix, type Intervention,
 } from "../moteur/guerre";
 import { date } from "../moteur/temps";
+import { NOMS_BIENS } from "../data/commerce";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 export interface HoteGuerre { etat: () => EtatPartie; camp: () => Camp; tenter: (f: () => EtatPartie) => void }
@@ -35,13 +37,27 @@ export function panneauDirigeant(e: EtatPartie, camp: Camp): string {
 function jauge(v: number): string {
   return `<span class="g-jauge" title="Expansion agressive ${Math.round(v)} / 100 (seuils 25, 50, 75)"><i style="width:${v}%" class="${v >= 75 ? "rouge" : v >= 50 ? "orange" : v >= 25 ? "jaune" : ""}"></i><u style="left:25%"></u><u style="left:50%"></u><u style="left:75%"></u></span>`;
 }
+// Régions d'un pays : population, ressources, valeur stratégique, base, occupation ou contrôle.
+export function tableauRegions(e: EtatPartie, iso: string, it?: Intervention): string {
+  const l = it ? regionsDe(iso) : regionsCles(iso); if (!l) return "";
+  return `<table class="g-regions"><tr><th>Région${regionsCles(iso) ? "" : " (découpage de guerre)"}</th><th>Pop.</th><th>Ressources</th><th>Strat.</th></tr>${l.map(r => { const occ = it?.occupees?.includes(r.id), ctl = controleur(e, iso, r.id);
+    return `<tr class="${occ ? "occupee" : ""}"><td>${esc(r.nom)}${r.base ? `<small> · ${esc(r.base)}</small>` : ""}${occ ? `<small> · occupée</small>` : ""}${ctl ? `<small> · ${(e.controles ?? []).find(c => c.iso === iso && c.region === r.id)?.annexion ? "annexée" : "occupée"} par le ${nomBloc(ctl)}</small>` : ""}</td><td>${Math.round(100 * r.pop)} %</td><td>${r.ressources.map(b => NOMS_BIENS[b]).join(", ") || "–"}</td><td>${"★".repeat(r.strat) || "–"}</td></tr>`; }).join("")}</table>
+    <p class="note">Découpage et parts de population : estimation.</p>`;
+}
+// Régions contrôlées par le joueur, avec la possibilité de les rendre.
+export function blocControles(e: EtatPartie, camp: Camp): string {
+  const l = (e.controles ?? []).filter(c => c.camp === camp); if (!l.length) return "";
+  return `<p><strong>Régions que tu contrôles</strong> <span class="note">(une région annexée compte pour ton bloc dans le score et ne se révolte pas ; recettes : ${REGION.budgetRessource} de budget par ressource et ${REGION.budgetStrat} par étoile chaque trimestre ; le pays s'agite ; révolte possible s'il penche vers l'adversaire)</span></p>
+    <ul class="g-cb">${l.map(c => `<li><strong>${esc(regionDe(c.iso, c.region)?.nom ?? c.region)}</strong> (${esc(nomPays(c.iso))}, ${c.annexion ? "annexée" : "occupée"}) <button data-rendre="${c.iso}:${c.region}">Rendre la région</button></li>`).join("")}</ul>`;
+}
 function ficheIntervention(e: EtatPartie, camp: Camp, it: Intervention): string {
   const score = Math.round(it.score ?? 0), dispo = termesPossibles(e, it), reste = it.fin - e.round;
   return `<article class="plan g-guerre" data-iso="${it.iso}"><header><strong>Intervention ${esc(nomPays(it.iso))}</strong><small>${it.cb ? `casus belli : ${CASUS_BELLI[it.cb].nom.toLowerCase()}` : "agression sans casus belli"} · ${reste > 0 ? `${reste} trimestre${reste > 1 ? "s" : ""} avant l'échéance` : "échéance"}</small></header>
     <div class="g-score"><span>−100</span><span class="g-axe"><i style="left:${50 + score / 2}%"></i></span><span>+100</span><b>${score > 0 ? "+" : ""}${score}</b></div>
     <div class="p-choix">But de guerre : ${(Object.keys(BUTS) as ButGuerre[]).map(b => `<button data-but="${b}" title="${esc(BUTS[b].aide)}" class="${it.but === b ? "actif" : ""}">${BUTS[b].nom} (${BUTS[b].cout})</button>`).join("")}</div>
     <p class="note">Le score monte avec ton avantage militaire dans le pays et la stratégie de ton dirigeant, baisse avec l'usure après 4 trimestres ; deux batailles décisives (duels) le font varier de ±30. À l'échéance, tes conseillers signent selon le but, ou c'est l'enlisement si le score est négatif.</p>
-    <div class="g-termes">${(Object.keys(TERMES) as TermePaix[]).map(t => `<label><input type="checkbox" data-terme="${t}" ${TERMES[t].cout > dispo ? "disabled" : ""}> ${TERMES[t].nom} <small>${TERMES[t].cout}</small></label>`).join("")}</div>
+    ${tableauRegions(e, it.iso, it)}
+    <div class="g-termes">${[...Object.keys(TERMES) as TermePaix[], ...(it.occupees ?? []).flatMap(id => [`region:${id}`, `annexe:${id}`] as TermePaix[])].map(t => `<label><input type="checkbox" data-terme="${t}" ${coutTerme(t, it.iso) > dispo ? "disabled" : ""}> ${esc(nomTerme(t, it.iso))} <small>${coutTerme(t, it.iso)}</small></label>`).join("")}</div>
     <div class="d-boutons"><button data-signer class="principal">Signer la paix (${dispo} points de score disponibles)</button></div></article>`;
 }
 // Guerres en cours, casus belli, expansion agressive des deux blocs par région, coalitions, dossier fabriqué.
@@ -51,6 +67,7 @@ export function panneauGuerre(e: EtatPartie, camp: Camp): string {
   const coal = e.coalitions ?? [], cibles = Object.keys(e.pays).filter(i => !peutFabriquer(e, camp, i)).sort((a, b) => nomPays(a).localeCompare(nomPays(b), "fr"));
   return `<details class="agir g-bloc" ${mes.length ? "open" : ""}><summary>Guerre, casus belli et expansion agressive${mes.length ? ` · ${mes.length} intervention${mes.length > 1 ? "s" : ""}` : ""}</summary>
     ${mes.map(it => ficheIntervention(e, camp, it)).join("")}
+    ${blocControles(e, camp)}
     ${e.interventions.filter(i => i.camp === adv).map(i => `<p class="note">Le ${nomBloc(adv)} intervient ${esc(nomPays(i.iso))} (score de guerre caché).</p>`).join("")}
     <p><strong>Tes casus belli</strong> <span class="note">(une intervention justifiée coûte moins d'expansion agressive ; sans casus belli : ×${AE.agression} et capital politique −${AE.cpAgression})</span></p>
     ${cb.length ? `<ul class="g-cb">${cb.map(c => `<li><strong>${esc(nomPays(c.iso))}</strong> : ${CASUS_BELLI[c.type].nom} <small>×${String(CASUS_BELLI[c.type].mult).replace(".", ",")} · jusqu'en ${date(c.fin).annee} T${date(c.fin).trimestre}</small></li>`).join("")}</ul>` : `<p class="note">Aucun pour l'instant. Ils naissent des attentats, incidents, crises humanitaires, attaques contre tes alliés, d'une tension à 80 ou d'un dirigeant belliciste.</p>`}
@@ -71,6 +88,7 @@ export function lierGuerre(zone: HTMLElement, h: HoteGuerre) {
     art.querySelectorAll<HTMLInputElement>("[data-terme]").forEach(x => x.onchange = maj); maj();
     signer.onclick = () => h.tenter(() => signerPaix(h.etat(), h.camp(), iso, termes()));
   });
+  zone.querySelectorAll<HTMLButtonElement>("[data-rendre]").forEach(b => b.onclick = () => { const [iso, id] = b.dataset.rendre!.split(":"); h.tenter(() => rendreRegion(h.etat(), h.camp(), iso, id)); });
   const btn = zone.querySelector<HTMLButtonElement>("#cbFabriquer");
   if (btn) btn.onclick = () => h.tenter(() => fabriquerCasusBelli(h.etat(), h.camp(), zone.querySelector<HTMLSelectElement>("#cbCible")!.value));
 }
