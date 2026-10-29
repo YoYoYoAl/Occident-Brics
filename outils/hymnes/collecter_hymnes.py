@@ -33,27 +33,58 @@ def commons(params):
 
 def wikidata(isos):
     valeurs = " ".join(f'"{i}"' for i in isos)
-    q = f"""SELECT ?iso ?hymneLabel ?audio ?paysEn WHERE {{
+    q = f"""SELECT ?iso ?hymneLabel ?hymneEn ?audio ?paysEn WHERE {{
       VALUES ?iso {{ {valeurs} }} ?pays wdt:P298 ?iso.
       OPTIONAL {{ ?pays rdfs:label ?paysEn FILTER(lang(?paysEn) = "en") }}
-      OPTIONAL {{ ?pays wdt:P85 ?hymne. OPTIONAL {{ ?hymne wdt:P51 ?audio. }} }}
+      OPTIONAL {{ ?pays p:P85 ?st. ?st ps:P85 ?hymne. FILTER NOT EXISTS {{ ?st pq:P582 ?fin. }}
+                 OPTIONAL {{ ?hymne rdfs:label ?hymneEn FILTER(lang(?hymneEn) = "en") }}
+                 OPTIONAL {{ ?hymne wdt:P51 ?audio. }} }}
       SERVICE wikibase:label {{ bd:serviceParam wikibase:language "fr,en". }} }}"""
     d = json.loads(get("https://query.wikidata.org/sparql", {"query": q, "format": "json"}))
     res = {}
     for b in d["results"]["bindings"]:
-        iso = b["iso"]["value"]; e = res.setdefault(iso, {"titre": "", "audios": [], "en": ""})
+        iso = b["iso"]["value"]; e = res.setdefault(iso, {"titre": "", "titreEn": "", "audios": [], "en": ""})
         if "hymneLabel" in b and not e["titre"]: e["titre"] = b["hymneLabel"]["value"]
         if "paysEn" in b: e["en"] = b["paysEn"]["value"]
+        if "hymneEn" in b and not e["titreEn"]: e["titreEn"] = b["hymneEn"]["value"]
         if "audio" in b:
             nom = "File:" + urllib.parse.unquote(b["audio"]["value"].rsplit("/", 1)[-1]).replace("_", " ")
             if nom not in e["audios"]: e["audios"].append(nom)
     return res
 
 
-def recherche_navy(en):
-    d = commons({"action": "query", "list": "search", "srnamespace": 6, "srlimit": 10,
-                 "srsearch": f'intitle:"Navy Band" {en} anthem'})
-    return [r["title"] for r in d["query"]["search"] if AUDIO.search(r["title"]) and en.split()[0].lower() in r["title"].lower()]
+# Contrôle d'appariement : le pays le plus long cité dans le nom du fichier doit être le bon
+# (« South Korea » ≠ South Africa, « Equatorial Guinea » ≠ Guinea), le nom de l'orchestre étant retiré.
+ORCHESTRE = re.compile(r"(united states|u\.\s?s\.|us|royal australian) (navy|army)[^,.()-]*band|navy band southwest", re.I)
+EXCLUS = re.compile(r"former|imperial|soviet|new mexico|\(19\d\d|19\d\d[–-]|march\b.*sousa", re.I)
+
+
+def pays_cite(titre, noms_en):
+    t = ORCHESTRE.sub(" ", titre.lower())
+    trouves = [(len(n), iso) for iso, n in noms_en.items() if n and re.search(r"\b" + re.escape(n.lower()), t)]
+    return max(trouves)[1] if trouves else None
+
+
+def mots(texte):
+    return {m for m in re.findall(r"\w{4,}", texte.lower())}
+
+
+def convient(titre, iso, e, noms_en, strict):
+    if EXCLUS.search(titre): return False
+    cite = pays_cite(titre, noms_en)
+    if cite: return cite == iso
+    if not strict: return True  # fichier donné par Wikidata pour cet hymne, sans nom de pays
+    titres = mots(e["titreEn"]) | mots(e["titre"])
+    return bool(titres and len(titres & mots(ORCHESTRE.sub(" ", titre))) >= min(2, len(titres)))
+
+
+def recherche(e):
+    vus = []
+    for q in (f'"{e["en"]}" national anthem', f'intitle:"{e["en"]}" anthem', f'"{e["titreEn"]}" anthem' if e["titreEn"] else ""):
+        if not q: continue
+        d = commons({"action": "query", "list": "search", "srnamespace": 6, "srlimit": 15, "srsearch": q})
+        vus += [r["title"] for r in d["query"]["search"] if AUDIO.search(r["title"]) and r["title"] not in vus]
+    return vus
 
 
 def infos(titre):
@@ -73,21 +104,38 @@ def preference(t):
 def main():
     pays = json.loads((RACINE / "src" / "data" / "pays2000.json").read_text("utf8"))["pays"]
     isos = [p["iso3"] for p in pays]; noms = {p["iso3"]: p["nom"] for p in pays}
+    SORTIE.mkdir(parents=True, exist_ok=True)
+    # fusion : on garde les lignes déjà collectées, sauf celles à refaire (a_refaire.txt : code ISO3 [titre Commons imposé])
+    csv_existant = SORTIE / "hymnes.csv"
+    gardees = {l["iso3"]: l for l in csv.DictReader(open(csv_existant, encoding="utf8"), delimiter=";")} if csv_existant.exists() else {}
+    imposes = {}
+    fichier_refaire = Path(__file__).with_name("a_refaire.txt")
+    if fichier_refaire.exists():
+        for ligne in fichier_refaire.read_text("utf8").splitlines():
+            ligne = ligne.split("#")[0].strip()
+            if not ligne: continue
+            iso, _, titre = ligne.partition(" "); gardees.pop(iso, None)
+            if titre.strip(): imposes[iso] = titre.strip()
+    a_faire = [i for i in isos if i not in gardees]
+    print(f"{len(gardees)} gardés, {len(a_faire)} à collecter : {' '.join(a_faire)}")
     wd = {}
     for k in range(0, len(isos), 50): wd.update(wikidata(isos[k:k + 50])); time.sleep(1)
-    SORTIE.mkdir(parents=True, exist_ok=True)
-    lignes, manquants = [], []
-    for iso in isos:
-        e = wd.get(iso, {"titre": "", "audios": [], "en": ""})
-        candidats = sorted(e["audios"], key=preference)
-        if not any("navy band" in c.lower() for c in candidats) and e["en"]:
-            try: candidats = sorted(recherche_navy(e["en"]), key=preference) + candidats
-            except Exception as err: print(iso, "recherche", err, file=sys.stderr)
+    noms_en = {i: wd.get(i, {}).get("en", "") for i in isos}
+    lignes, manquants = dict(gardees), []
+    for iso in a_faire:
+        e = wd.get(iso, {"titre": "", "titreEn": "", "audios": [], "en": ""})
+        if iso in imposes: candidats = [(imposes[iso], False)]
+        else:
+            candidats = [(c, False) for c in sorted(e["audios"], key=preference) if convient(c, iso, e, noms_en, False)]
+            if not any("navy band" in c.lower() for c, _ in candidats) and e["en"]:
+                try: candidats = [(c, True) for c in sorted(recherche(e), key=preference) if convient(c, iso, e, noms_en, True)] + candidats
+                except Exception as err: print(iso, "recherche", err, file=sys.stderr)
         choisi = None
-        for c in candidats:
-            i = infos(c)
+        for c, _ in candidats:
+            try: i = infos(c)
+            except Exception as err: print(iso, c, err); continue
             if i and LIBRES.search(i["licence"]): choisi = (c, i); break
-        if not choisi: manquants.append(iso); print(iso, "aucun enregistrement libre", candidats[:3]); continue
+        if not choisi: manquants.append(iso); print(iso, "aucun enregistrement libre", [c for c, _ in candidats[:3]]); continue
         titre_fichier, i = choisi
         brut = SORTIE / f"{iso}.source"
         brut.write_bytes(get(i["url"]))
@@ -96,13 +144,18 @@ def main():
                             "-ac", "1", "-ar", "48000", "-b:a", "40k", "-map_metadata", "-1", str(SORTIE / f"{iso}.mp3")])
         brut.unlink()
         if r.returncode: manquants.append(iso); print(iso, "conversion impossible"); continue
-        lignes.append({"iso3": iso, "pays": noms[iso], "hymne": e["titre"], "fichier_commons": titre_fichier,
-                       "auteur": i["auteur"], "licence": i["licence"], "page": i["page"]})
+        lignes[iso] = {"iso3": iso, "pays": noms[iso], "hymne": e["titre"], "fichier_commons": titre_fichier,
+                       "auteur": i["auteur"].replace("\n", " "), "licence": i["licence"], "page": i["page"]}
         print(iso, "ok", i["licence"], titre_fichier)
-    with open(SORTIE / "hymnes.csv", "w", newline="", encoding="utf8") as f:
-        w = csv.DictWriter(f, fieldnames=list(lignes[0].keys()), delimiter=";"); w.writeheader(); w.writerows(lignes)
-    (RACINE / "src" / "data" / "hymnes.json").write_text(json.dumps({l["iso3"]: l["hymne"] for l in lignes}, ensure_ascii=False, indent=0), "utf8")
-    print(f"{len(lignes)} hymnes, {len(manquants)} manquants : {' '.join(manquants)}")
+    for iso in list(lignes):  # un hymne refait mais introuvable ne garde pas l'ancien fichier faux
+        if iso not in gardees and iso in manquants: lignes.pop(iso)
+    for iso in isos:
+        if iso not in lignes and (SORTIE / f"{iso}.mp3").exists(): (SORTIE / f"{iso}.mp3").unlink()
+    ordre = [lignes[i] for i in isos if i in lignes]
+    with open(csv_existant, "w", newline="", encoding="utf8") as f:
+        w = csv.DictWriter(f, fieldnames=list(ordre[0].keys()), delimiter=";"); w.writeheader(); w.writerows(ordre)
+    (RACINE / "src" / "data" / "hymnes.json").write_text(json.dumps({l["iso3"]: l["hymne"] for l in ordre}, ensure_ascii=False, indent=0), "utf8")
+    print(f"{len(ordre)} hymnes, {len(manquants)} manquants : {' '.join(manquants)}")
 
 
 if __name__ == "__main__":

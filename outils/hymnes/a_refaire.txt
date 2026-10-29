@@ -1,0 +1,10 @@
+# Hymnes à recollecter : code ISO3, puis éventuellement le titre exact du fichier Commons à imposer.
+# Les pays absents du CSV sont recollectés d'office.
+USA File:"The Star-Spangled Banner" - Solo vocalist - U.S. Navy Band.oga
+ESP File:Marcha Real-Royal March by US Navy Band.ogg
+ZAF   # avait reçu l'hymne de la Corée du Sud
+MEX   # avait reçu une marche de John Philip Sousa
+IRN   # avait reçu l'ancien hymne impérial
+GIN   # avait reçu l'hymne de la Guinée équatoriale
+BHS   # avait reçu God Save the Queen au lieu de March On
+BIH   # avait reçu l'ancien hymne Jedna si Jedina (Intermeco depuis 1999)
