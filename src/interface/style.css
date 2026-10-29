@@ -266,3 +266,8 @@ body.plein-ecran main { position: relative; }
 .d-boutons{display:flex;flex-wrap:wrap;gap:6px}.d-journal{margin:0;padding-left:1.1em;color:var(--doux);font-size:.85em}
 .d-fin{font-weight:700;margin:0}.d-fin.gagne{color:#5fd08a}.d-fin.perdu{color:var(--chn)}
 @media (max-width:520px){.d-case{min-height:32px;min-width:30px;font-size:.75em}}
+/* Salle des duels */
+.salle-liste{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin:8px 0}
+.salle-liste button{text-align:left;display:grid;gap:3px;padding:8px}.salle-liste button.note{border-color:var(--accent)}
+.salle-liste small,.salle-liste span{color:var(--doux);font-size:.8em}.salle-liste em{color:var(--accent);font-style:normal;font-size:.85em}
+#sTexte,#sCom{width:100%;box-sizing:border-box;background:#0c1116;color:var(--texte);border:1px solid var(--bord);border-radius:6px;padding:6px;font:inherit}

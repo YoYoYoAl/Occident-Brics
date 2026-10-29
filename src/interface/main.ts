@@ -9,6 +9,7 @@ import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musiq
 import { ficheHtml } from "./fiche";
 import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur } from "./plans-ui";
 import { jouerDuel } from "./duel-ui";
+import { salleDuels } from "./salle-duels";
 import { conclureDuel, paysDuPlan as paysDuPlanUi } from "../moteur/plans";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
@@ -90,12 +91,14 @@ function choisirCamp() {
     <div class="choix-camp">
       <button data-camp="OCC" class="occ"><strong>Bloc USA</strong><span>Les États-Unis et leurs alliés. Riche et influent partout, mais l'essor chinois grignote ta position.</span></button>
       <button data-camp="CHN" class="chn"><strong>Bloc Chine</strong><span>La Chine et ses partenaires. Croissance à deux chiffres, peu d'alliés. Transforme ton poids économique en influence.</span></button>
-    </div>`, b => b.querySelectorAll<HTMLButtonElement>("[data-camp]").forEach(x => x.onclick = () => {
+    </div>
+    <p class="note"><button id="salleDuels">Salle des duels</button> Teste les 22 mini-jeux un par un et donne ton avis.</p>`, b => { b.querySelector<HTMLButtonElement>("#salleDuels")!.onclick = () => salleDuels({ boite: $("boite"), ouvrir: () => { $("fenetre").hidden = false; }, fermer, son: n => son(n), quitter: () => (etat ? fermer() : choisirCamp()) });
+    b.querySelectorAll<HTMLButtonElement>("[data-camp]").forEach(x => x.onclick = () => {
     formatChoisi = (b.querySelector<HTMLInputElement>("input[name=format]:checked")?.value as Format) ?? "2000-2008";
     etat = creerPartie(Date.now() % 2147483647, x.dataset.camp as Camp, { generiques: true, ia: true, format: formatChoisi });
     journalVu = 0; briefingVuAuRound = -1; paysChoisi = null; carteOuverte = null; onglet = "main";
     fermer(); rapport("Début de partie"); afficher();
-  }));
+  }); });
 }
 
 function ligneJournal(j: EntreeJournal, avecReactions = false) {
