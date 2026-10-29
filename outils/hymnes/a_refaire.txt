@@ -1,10 +1,19 @@
-# Hymnes à recollecter : code ISO3, puis éventuellement le titre exact du fichier Commons à imposer.
-# Les pays absents du CSV sont recollectés d'office.
-USA File:"The Star-Spangled Banner" - Solo vocalist - U.S. Navy Band.oga
-ESP File:Marcha Real-Royal March by US Navy Band.ogg
-ZAF   # avait reçu l'hymne de la Corée du Sud
-MEX   # avait reçu une marche de John Philip Sousa
-IRN   # avait reçu l'ancien hymne impérial
-GIN   # avait reçu l'hymne de la Guinée équatoriale
-BHS   # avait reçu God Save the Queen au lieu de March On
-BIH   # avait reçu l'ancien hymne Jedna si Jedina (Intermeco depuis 1999)
+# Hymnes à recollecter : code ISO3, puis éventuellement le titre exact du fichier Commons à imposer,
+# ou « ?texte » pour une recherche Commons dédiée. Les pays absents du CSV sont recollectés d'office.
+IRN File:Sorud-e Mellí-e Yomhurí-e Eslamí-e Irán (instrumental).oga
+MDA File:Imnul Republicii Moldova US NAVY.ogg
+PRK File:The Patriotic Song (Orchestra).ogg
+TGO File:Titre de l'hymne national du Togo.ogg
+CMR ?Chant de ralliement
+CMR ?Cameroon national anthem Navy Band
+WSM ?The Banner of Freedom Samoa
+CHN ?March of the Volunteers
+CHN ?Yiyongjun Jinxingqu
+COD ?Debout Congolaise
+BIH ?Intermeco
+PRT ?A Portuguesa hino
+MNG ?Mongol Ulsyn töriin duulal
+MNG ?Mongolian national anthem
+GNB ?Esta é a Nossa Pátria Bem Amada
+SEN ?Le Lion rouge Sénégal
+SEN ?Senegalese national anthem

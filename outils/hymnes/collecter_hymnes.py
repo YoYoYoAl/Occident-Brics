@@ -27,8 +27,11 @@ def get(url, params=None, essais=5):
 
 
 def commons(params):
-    time.sleep(0.5)  # politesse envers l'API
-    return json.loads(get("https://commons.wikimedia.org/w/api.php", {**params, "format": "json"}))
+    for k in range(5):
+        time.sleep(0.5 + 3 * k)  # politesse envers l'API ; une réponse d'erreur (limite de débit) est retentée
+        d = json.loads(get("https://commons.wikimedia.org/w/api.php", {**params, "format": "json", "maxlag": 5}))
+        if "query" in d: return d
+    raise RuntimeError(d.get("error", d))
 
 
 def wikidata(isos):
@@ -56,7 +59,7 @@ def wikidata(isos):
 # Contrôle d'appariement : le pays le plus long cité dans le nom du fichier doit être le bon
 # (« South Korea » ≠ South Africa, « Equatorial Guinea » ≠ Guinea), le nom de l'orchestre étant retiré.
 ORCHESTRE = re.compile(r"(united states|u\.\s?s\.|us|royal australian) (navy|army)[^,.()-]*band|navy band southwest", re.I)
-EXCLUS = re.compile(r"former|imperial|soviet|new mexico|\(19\d\d|19\d\d[–-]|march\b.*sousa", re.I)
+EXCLUS = re.compile(r"former|imperial|soviet|new mexico|transnistria|american samoa|fifa|jedna si jedina|\bvs\b|\(19\d\d|19\d\d[–-]|march\b.*sousa", re.I)
 
 
 def pays_cite(titre, noms_en):
@@ -78,9 +81,9 @@ def convient(titre, iso, e, noms_en, strict):
     return bool(titres and len(titres & mots(ORCHESTRE.sub(" ", titre))) >= min(2, len(titres)))
 
 
-def recherche(e):
+def recherche(e, requetes=()):
     vus = []
-    for q in (f'"{e["en"]}" national anthem', f'intitle:"{e["en"]}" anthem', f'"{e["titreEn"]}" anthem' if e["titreEn"] else ""):
+    for q in (*requetes, f'"{e["en"]}" national anthem', f'intitle:"{e["en"]}" anthem', f'"{e["titreEn"]}" anthem' if e["titreEn"] else ""):
         if not q: continue
         d = commons({"action": "query", "list": "search", "srnamespace": 6, "srlimit": 15, "srsearch": q})
         vus += [r["title"] for r in d["query"]["search"] if AUDIO.search(r["title"]) and r["title"] not in vus]
@@ -108,14 +111,16 @@ def main():
     # fusion : on garde les lignes déjà collectées, sauf celles à refaire (a_refaire.txt : code ISO3 [titre Commons imposé])
     csv_existant = SORTIE / "hymnes.csv"
     gardees = {l["iso3"]: l for l in csv.DictReader(open(csv_existant, encoding="utf8"), delimiter=";")} if csv_existant.exists() else {}
-    imposes = {}
+    imposes, requetes = {}, {}
     fichier_refaire = Path(__file__).with_name("a_refaire.txt")
     if fichier_refaire.exists():
         for ligne in fichier_refaire.read_text("utf8").splitlines():
             ligne = ligne.split("#")[0].strip()
             if not ligne: continue
             iso, _, titre = ligne.partition(" "); gardees.pop(iso, None)
-            if titre.strip(): imposes[iso] = titre.strip()
+            titre = titre.strip()
+            if titre.startswith("?"): requetes.setdefault(iso, []).append(titre[1:].strip())  # « ?texte » : recherche Commons à essayer d'abord
+            elif titre: imposes[iso] = titre
     a_faire = [i for i in isos if i not in gardees]
     print(f"{len(gardees)} gardés, {len(a_faire)} à collecter : {' '.join(a_faire)}")
     wd = {}
@@ -128,7 +133,11 @@ def main():
         else:
             candidats = [(c, False) for c in sorted(e["audios"], key=preference) if convient(c, iso, e, noms_en, False)]
             if not any("navy band" in c.lower() for c, _ in candidats) and e["en"]:
-                try: candidats = [(c, True) for c in sorted(recherche(e), key=preference) if convient(c, iso, e, noms_en, True)] + candidats
+                try:
+                    trouves = recherche(e, requetes.get(iso, ()))
+                    # les résultats d'une requête dédiée (?texte) sont acceptés sans contrôle de titre, sauf autre pays cité
+                    souple = set(recherche(e, requetes[iso])[:3]) if iso in requetes else set()
+                    candidats = [(c, True) for c in sorted(trouves, key=preference) if convient(c, iso, e, noms_en, c not in souple)] + candidats
                 except Exception as err: print(iso, "recherche", err, file=sys.stderr)
         choisi = None
         for c, _ in candidats:
