@@ -111,7 +111,7 @@ def main():
     # fusion : on garde les lignes déjà collectées, sauf celles à refaire (a_refaire.txt : code ISO3 [titre Commons imposé])
     csv_existant = SORTIE / "hymnes.csv"
     gardees = {l["iso3"]: l for l in csv.DictReader(open(csv_existant, encoding="utf8"), delimiter=";")} if csv_existant.exists() else {}
-    imposes, requetes = {}, {}
+    imposes, requetes, sans = {}, {}, set()
     fichier_refaire = Path(__file__).with_name("a_refaire.txt")
     if fichier_refaire.exists():
         for ligne in fichier_refaire.read_text("utf8").splitlines():
@@ -119,9 +119,10 @@ def main():
             if not ligne: continue
             iso, _, titre = ligne.partition(" "); gardees.pop(iso, None)
             titre = titre.strip()
-            if titre.startswith("?"): requetes.setdefault(iso, []).append(titre[1:].strip())  # « ?texte » : recherche Commons à essayer d'abord
+            if titre == "-": sans.add(iso)  # « - » : aucun enregistrement fiable trouvé, pays laissé sans hymne
+            elif titre.startswith("?"): requetes.setdefault(iso, []).append(titre[1:].strip())  # « ?texte » : recherche Commons à essayer d'abord
             elif titre: imposes[iso] = titre
-    a_faire = [i for i in isos if i not in gardees]
+    a_faire = [i for i in isos if i not in gardees and i not in sans]
     print(f"{len(gardees)} gardés, {len(a_faire)} à collecter : {' '.join(a_faire)}")
     wd = {}
     for k in range(0, len(isos), 50): wd.update(wikidata(isos[k:k + 50])); time.sleep(1)
