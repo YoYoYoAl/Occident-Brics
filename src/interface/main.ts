@@ -5,7 +5,8 @@ import { organisations, SIGLES } from "../data/organisations";
 import { HUBS, hubsDe } from "../data/hubs";
 import { NOMS_BIENS } from "../data/commerce";
 import { FLUX, DETROITS } from "../data/flux";
-import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique, type Son } from "./sons";
+import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, musiqueEre, jouerHymne, aUnHymne, titreHymne, basculerMusique, musiqueActivee, relancerMusique, type Son } from "./sons";
+import { date as dateDuRound } from "../moteur/temps";
 import { ficheHtml } from "./fiche";
 import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur } from "./plans-ui";
 import { panneauDirigeant, panneauGuerre, lierGuerre, tableauRegions, blocAlliancePays } from "./guerre-ui";
@@ -99,7 +100,7 @@ function choisirCamp() {
     formatChoisi = (b.querySelector<HTMLInputElement>("input[name=format]:checked")?.value as Format) ?? "2000-2008";
     etat = creerPartie(Date.now() % 2147483647, x.dataset.camp as Camp, { generiques: true, ia: true, format: formatChoisi });
     journalVu = 0; briefingVuAuRound = -1; paysChoisi = null; carteOuverte = null; onglet = "main";
-    fermer(); rapport("Début de partie"); afficher();
+    fermer(); rapport("Début de partie"); afficher(); jouerHymne(x.dataset.camp === "OCC" ? "USA" : "CHN");
   }); });
 }
 
@@ -160,7 +161,7 @@ function rapport(titre: string, debut = journalVu) {
     const neufs = etat!.journal.slice(debut).filter(j => j.visiblePour.includes(joueur()));
     const fort = neufs.find(j => j.type === "historique") ?? neufs.filter(j => j.type === "generique").sort((a, b) => importance(b) - importance(a))[0];
     if (!jouerEvenement(fort?.famille)) son(fort?.type === "historique" ? "evenement" : "ouvrir", 0.45);
-    musique(cran(etat!) >= 3 ? "tension" : etat!.round % 8 < 4 ? "carte" : "calme");
+    musique(cran(etat!) >= 4 ? "guerre" : cran(etat!) >= 3 ? "tension" : etat!.round % 8 < 4 ? musiqueEre(dateDuRound(etat!.round).annee) : etat!.round % 16 < 8 ? "carte" : "calme");
   }
   debutRapport = debut; titreRapport = titre;
   const tout = etat!.journal.slice(debut);
@@ -488,7 +489,7 @@ function panneauPays(): string {
   if (!paysChoisi) return `<p class="aide">Clique sur un pays en couleur pour ouvrir sa fiche et y agir.</p>`;
   const e = etat!, iso = paysChoisi, p = e.pays[iso], a = alignement(e, iso);
   const pente = Math.abs(a) < 0.1 ? "neutre" : a > 0 ? (a >= 0.4 ? "allié du bloc USA" : "penche vers le bloc USA") : (a <= -0.4 ? "allié du bloc Chine" : "penche vers le bloc Chine");
-  let h = `<h2>${esc(nomPays(iso))}</h2>
+  let h = `<h2>${esc(nomPays(iso))}${aUnHymne(iso) ? ` <button class="hymne" data-hymne="${iso}" title="${esc(titreHymne(iso) ?? "Hymne national")} (cliquer de nouveau pour arrêter)">♪ Hymne</button>` : ""}</h2>
     <p class="gros">Alignement ${avance(a, 2, 0.005)} <span class="note">(${pente})</span></p>
     ${iso !== "USA" && iso !== "CHN" ? `<p class="note">Selon tes ambassadeurs (estimation) : ${estimationMemoire(e, iso, joueur())} envers ton bloc, ${estimationMemoire(e, iso, adversaire(joueur()))} envers l'adversaire.${auBord(e, iso) ? ` <strong>⚖ Au bord de la bascule</strong> (seuil ${avance(auBord(e, iso)!.seuil, 1, 0)}).` : ""}</p>${(() => { const k = complementarite(iso, joueur()); return `<p class="note">Commerce avec ton bloc : <strong style="color:${COULEURS_COMMERCE[k.type]}">${NOMS_COMMERCE[k.type]}</strong>${k.ilOffre.length ? ` · il t'offre : ${k.ilOffre.map(b => NOMS_BIENS[b]).join(", ")}` : ""}${k.tuOffres.length ? ` · tu lui offres : ${k.tuOffres.map(b => NOMS_BIENS[b]).join(", ")}` : ""} (actions économiques ×${String(BOOST_COMMERCE[k.type]).replace(".", ",")}).</p>`; })()}` : ""}
     <table><tr><td>PIB</td><td class="v">${nombre(p.pib / 1e9, 0)} Md USD <span class="note">(int-$ 2011)</span></td></tr>
@@ -804,6 +805,7 @@ const majBoutonMusique = () => { $("btnMusique").textContent = musiqueActivee() 
 $("btnMusique").onclick = () => { basculerMusique(); majBoutonMusique(); };
 majBoutonMusique();
 document.addEventListener("pointerdown", relancerMusique);
+document.addEventListener("click", ev => { const b = (ev.target as HTMLElement).closest<HTMLElement>("[data-hymne]"); if (b) jouerHymne(b.dataset.hymne!); });
 // petit clic sur les boutons d'interface (les actions de jeu ont leur propre son)
 document.addEventListener("click", ev => { const b = (ev.target as HTMLElement).closest("button"); if (b && !b.disabled && (b.dataset.option || b.dataset.onglet || b.closest(".zoom-boutons"))) son("clic", 0.3); });
 document.addEventListener("keydown", ev => { if (ev.key === "?" && !fenetreOuverte()) aide(); });
