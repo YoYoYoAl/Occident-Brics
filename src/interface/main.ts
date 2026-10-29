@@ -158,7 +158,7 @@ function rapport(titre: string, debut = journalVu) {
     const neufs = etat!.journal.slice(debut).filter(j => j.visiblePour.includes(joueur()));
     const fort = neufs.find(j => j.type === "historique") ?? neufs.filter(j => j.type === "generique").sort((a, b) => importance(b) - importance(a))[0];
     if (!jouerEvenement(fort?.famille)) son(fort?.type === "historique" ? "evenement" : "ouvrir", 0.45);
-    musique(cran(etat!) >= 3 ? "tension" : etat!.round % 8 < 4 ? "carte" : "calme");
+    musique(cran(etat!) >= 4 ? "guerre" : cran(etat!) >= 3 ? "tension" : etat!.round % 8 < 4 ? "carte" : "calme");
   }
   debutRapport = debut; titreRapport = titre;
   const tout = etat!.journal.slice(debut);

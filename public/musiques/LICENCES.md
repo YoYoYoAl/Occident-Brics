@@ -17,3 +17,10 @@ Conversion en mp3 mono 48 kHz, 96 kbit/s, volume harmonisé (loudnorm EBU R128 :
 ## Crédits suggérés
 Musiques : cynicmusic, artisticdude, yd, eponasoft, northivanastan, isaiah658, indieteur, adiutorium, cinameng, vitalezzz, spring-spring, cethiel, eldritch-grim, congusbongus, kosmo-the-cat.
 Sons : joth, tinyworlds, qubodup, starninjas, expl0it3r, aquinn, ezduzziteh, wuxiascrub, iamoneabe, kresiek-the-furry, cassie-orbitgames, vinrax, mieki256, thimras, jasinski et transitking (via Freesound), Kenney.
+
+## Listes de lecture (variantes, 2026-10-29)
+Extraits de 150 s au plus (fondu 1 s / 3 s), mono 48 kHz, 56 kbit/s, -20 LUFS, tirés des morceaux CC0 du dossier partagé :
+carte_2 (Dissimulation), carte_3 (Échos du passé), calme_2 et calme_3 (Cold Silence, eponasoft, deux passages),
+tension_2 (Infiltration), tension_3 (Ombre), tension_4 (Chute), guerre et guerre_2 (thème de guerre, deux passages),
+guerre_3 (marche militaire), victoire_2 (Victoire oubliée, 2e passage), defaite_2 (Lamentation).
+Auteurs et pages sources : `sons/catalogue.csv` du dossier partagé du projet.
