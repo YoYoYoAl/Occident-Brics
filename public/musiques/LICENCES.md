@@ -24,3 +24,10 @@ carte_2 (Dissimulation), carte_3 (Échos du passé), calme_2 et calme_3 (Cold Si
 tension_2 (Infiltration), tension_3 (Ombre), tension_4 (Chute), guerre et guerre_2 (thème de guerre, deux passages),
 guerre_3 (marche militaire), victoire_2 (Victoire oubliée, 2e passage), defaite_2 (Lamentation).
 Auteurs et pages sources : `sons/catalogue.csv` du dossier partagé du projet.
+
+## Morceaux composés pour le jeu (Suno, 2026-10-29)
+Générés par AlwwAl avec Suno à partir des prompts du projet (licence : celle du compte Suno de l'auteur ; publication réservée à un abonnement payant).
+menu_2, menu_3 (Two Worlds Rising) ; ere1, ere1_2 (Millennium Markets) ; ere2, ere2_2 (After the Crash) ; ere3, ere3_2 (Multipolar) ;
+tension_5, tension_6 (Crisis Room) ; tension_7, tension_8 (Shadow Diplomacy) ; tension_9, tension_10 (Black Monday) ;
+guerre_4, guerre_5 (Theatre of War) ; calme_4, calme_5 (The Summit) ; victoire_3, defaite_3 (Deux mondes, chanté).
+Extraits de 150 s au plus (chansons entières), mono 48 kHz, -20 LUFS, fondu final de 3 s.

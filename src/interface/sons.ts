@@ -1,5 +1,6 @@
 // Sons d'interface : packs « UI Audio » et « Interface Sounds » de Kenney (kenney.nl), licence CC0 (domaine public).
 // Bruitages et musiques : CC0, détail dans public/musiques/LICENCES.md.
+import HYMNES from "../data/hymnes.json";
 const fichiers = import.meta.glob("../sons/*.mp3", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const URLS: Record<string, string> = Object.fromEntries(Object.entries(fichiers).map(([k, v]) => [k.split("/").pop()!.replace(".mp3", ""), v]));
 export type Son = "clic" | "carte" | "action" | "fin" | "ouvrir" | "fermer" | "briefing" | "evenement" | "erreur" | "reaction" | "victoire" | "defaite" | "etape"
@@ -69,11 +70,15 @@ export function jouerJingle(victoire: boolean) {
 
 // Musiques (CC0, OpenGameArt) : fichiers à part (musiques/*.mp3), chargés seulement à l'écoute, à faible volume.
 // Chaque situation a une liste de lecture : « nom », « nom_2 »… enchaînés au hasard sans répétition immédiate, avec fondu.
-export type Musique = "menu" | "carte" | "calme" | "tension" | "guerre" | "victoire" | "defaite";
-export const MUSIQUES: Record<Musique, number> = { menu: 1, carte: 3, calme: 3, tension: 4, guerre: 3, victoire: 2, defaite: 2 };
+// ere1 à ere3 : thèmes de carte composés pour le jeu (Suno), un par ère (2000-2007, 2008-2019, 2020 et après).
+export type Musique = "menu" | "carte" | "calme" | "ere1" | "ere2" | "ere3" | "tension" | "guerre" | "victoire" | "defaite";
+export const MUSIQUES: Record<Musique, number> = { menu: 3, carte: 3, calme: 5, ere1: 2, ere2: 2, ere3: 2, tension: 10, guerre: 5, victoire: 3, defaite: 3 };
+export const musiqueEre = (annee: number): Musique => (annee < 2008 ? "ere1" : annee < 2020 ? "ere2" : "ere3");
 export const pisteMusique = (m: Musique, i: number) => `musiques/${m}${i > 1 ? `_${i}` : ""}.mp3`;
 const FIN_DE_PARTIE = (m: Musique) => m === "victoire" || m === "defaite";
 const VOLUME_MUSIQUE = 0.18, FONDU_MS = 1500;
+let hymne: HTMLAudioElement | null = null;
+const volumeMusique = () => (hymne ? VOLUME_MUSIQUE / 4 : VOLUME_MUSIQUE);
 const CLE_MUSIQUE = "occident-brics-musique";
 let musiqueActive = (() => { try { return localStorage.getItem(CLE_MUSIQUE) !== "non"; } catch { return true; } })();
 let lecteur: HTMLAudioElement | null = null, morceau: Musique | null = null, voulu: Musique | null = null;
@@ -92,7 +97,7 @@ function piste(m: Musique, debut: boolean) {
   if (debut && !FIN_DE_PARTIE(m) && m !== "menu") a.addEventListener("loadedmetadata", () => { if (isFinite(a.duration)) a.currentTime = Math.random() * a.duration / 3; }, { once: true });
   // la liste de lecture continue ; les fins de partie s'arrêtent après un morceau
   a.addEventListener("ended", () => { if (lecteur === a && !FIN_DE_PARTIE(m)) { lecteur = piste(m, false); } });
-  void a.play().then(() => fondu(a, VOLUME_MUSIQUE)).catch(() => { if (lecteur === a) morceau = null; }); // refusé avant un geste : on réessaiera
+  void a.play().then(() => fondu(a, volumeMusique())).catch(() => { if (lecteur === a) morceau = null; }); // refusé avant un geste : on réessaiera
   return a;
 }
 export function musique(m: Musique) {
@@ -106,6 +111,21 @@ export function basculerMusique(): boolean {
   try { localStorage.setItem(CLE_MUSIQUE, musiqueActive ? "oui" : "non"); } catch { /* stockage indisponible */ }
   if (!musiqueActive) { lecteur?.pause(); morceau = null; } else if (voulu) musique(voulu);
   return musiqueActive;
+}
+// Hymnes nationaux (Wikimedia Commons, surtout l'US Navy Band, domaine public ; licence par fichier dans public/hymnes/hymnes.csv).
+// Chargés seulement à l'écoute ; la musique s'efface le temps de l'hymne. Un second appel arrête l'hymne en cours.
+export const aUnHymne = (iso: string) => iso in (HYMNES as Record<string, string>);
+export const titreHymne = (iso: string) => (HYMNES as Record<string, string>)[iso] ?? null;
+export function jouerHymne(iso: string, volume = 0.45): boolean {
+  if (hymne) { hymne.pause(); hymne = null; if (lecteur) lecteur.volume = VOLUME_MUSIQUE; return false; }
+  if (!actif || !aUnHymne(iso)) return false;
+  try {
+    const a = new Audio(`hymnes/${iso}.mp3`); a.volume = volume; hymne = a;
+    if (lecteur) lecteur.volume = VOLUME_MUSIQUE / 4;
+    a.addEventListener("ended", () => { if (hymne === a) { hymne = null; if (lecteur) lecteur.volume = VOLUME_MUSIQUE; } });
+    void a.play().catch(() => { hymne = null; });
+    return true;
+  } catch { return false; }
 }
 // La musique s'efface pendant un bruitage d'événement, puis revient.
 function baisserMusique(a: HTMLAudioElement) {
