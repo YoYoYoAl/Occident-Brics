@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { creerPartie, finRound, agir, chargerPartie, serialiserPartie, poidsCamp, alignement, type EtatPartie } from "../src/moteur/partie";
 import { REGIONS_CLES } from "../src/data/regions";
 import { PROFILS } from "../src/data/commerce";
-import { regionsDe, decoupageGenerique, coutRegion, signerPaix, peutSignerPaix, suiviRegions, rendreRegion, controleur, aeDe, termesAuto, nucleaire, partAnnexee, coutTerme, REGION, AE, SCORE, type Intervention } from "../src/moteur/guerre";
+import { regionsDe, decoupageGenerique, coutRegion, signerPaix, peutSignerPaix, suiviRegions, rendreRegion, controleur, aeDe, termesAuto, nucleaire, partAnnexee, coutTerme, peutAnnexerRegion, annexerRegion, ANNEXION, REGION, AE, SCORE, type Intervention } from "../src/moteur/guerre";
 
 const SANS_ALEA = { generiques: false, ia: false };
 function enGuerre(iso: string, score: number): EtatPartie {
@@ -68,7 +68,7 @@ describe("v19 : régions", () => {
 
   it("5. l'IA garde les régions occupées les plus stratégiques quand le score le permet", () => {
     const e = enGuerre("IRQ", 99), t = termesAuto(e, it0(e));
-    expect(t[0]).toBe("regime"); expect(t).toContain("region:bagdad");
+    expect(t[0]).toBe("regime"); expect(t.some(x => x.startsWith("region:") && it0(e).occupees!.includes(x.slice(7)))).toBe(true); // le score restant (après la riposte d'une éventuelle coalition) fixe la région gardée
   });
 
   it("6. révolte : une région tenue dans un pays qui penche vers l'adversaire finit par se libérer", () => {
@@ -92,6 +92,21 @@ describe("v19 : régions", () => {
     expect(poidsCamp(x, "CHN", "IRQ")).toBeCloseTo(0.7 * -alignement(x, "IRQ"), 9);
     for (let k = 0; k < 100; k++) suiviRegions(x);
     expect(controleur(x, "IRQ", "bassora")).toBe("OCC");
+  });
+
+  it("9. occuper puis annexer : possible après 2 ans d'occupation, 10 de capital politique, pas si le pays penche vers l'adversaire", () => {
+    const x = signerPaix(enGuerre("IRQ", 99), "OCC", "IRQ", ["region:bassora"]);
+    for (const c of ["e", "p", "m", "c"] as const) { x.pays.IRQ.influence.OCC[c] = 60; x.pays.IRQ.influence.CHN[c] = 10; }
+    x.camps.OCC.cp = 50;
+    expect(peutAnnexerRegion(x, "OCC", "IRQ", "bassora")).toMatch(/après 2 ans/);
+    x.round += ANNEXION.delai;
+    expect(peutAnnexerRegion(x, "OCC", "IRQ", "bassora")).toBeNull();
+    const ae0 = aeDe(x, "OCC", "moyen_orient"), y = annexerRegion(x, "OCC", "IRQ", "bassora");
+    expect(partAnnexee(y, "OCC", "IRQ")).toBeCloseTo(0.3, 9); expect(y.camps.OCC.cp).toBe(50 - ANNEXION.cp);
+    expect(aeDe(y, "OCC", "moyen_orient")).toBeCloseTo(ae0 + AE.victoire * coutRegion(REGIONS_CLES.IRQ[1]), 6);
+    expect(peutAnnexerRegion(y, "OCC", "IRQ", "bassora")).toMatch(/déjà/);
+    for (const c of ["e", "p", "m", "c"] as const) { x.pays.IRQ.influence.OCC[c] = 0; x.pays.IRQ.influence.CHN[c] = 90; }
+    expect(peutAnnexerRegion(x, "OCC", "IRQ", "bassora")).toMatch(/résiste/);
   });
 
   it("7. sauvegarde sans régions contrôlées : liste vide au chargement", () => {

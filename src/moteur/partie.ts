@@ -31,9 +31,10 @@ import { ZONES } from "./zones";
 import { CARTES_GENEREES } from "../contenu/cartes-generees";
 import { type Plan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
 import { date, libelle, NB_ROUNDS } from "./temps";
-import { type Dirigeant, tirerDirigeants, suiviDirigeants, apresScrutin, maintienAvecPopularite, multDiplomatie, multIntendance, multRisque, bonusPutsch, aTrait } from "./dirigeants";
+import { type Dirigeant, tirerDirigeants, normaliserDirigeants, suiviDirigeants, apresScrutin, maintienAvecPopularite, multDiplomatie, multIntendance, multRisque, bonusPutsch, aTrait } from "./dirigeants";
 import { type CasusBelli, type Coalition, type Intervention, type Controle, suiviRegions, partAnnexee, majCasusBelli, suiviExpansion, suiviGuerres, justifier, gagnerAE, facteurAE, coalitionContre, aeDuPays, nucleaire, casusBelliDe, AE, CASUS_BELLI } from "./guerre";
 import { resolutionAuto } from "./plans";
+import { type Alliance, suiviAlliances, iaAlliances } from "./alliances";
 import {
   type Camp, type Canal, type Effet, type Condition, type CiblePays, type CampRel, type Carte, type Briefing,
   type ModeleGenerique, CAMPS, CANAUX, adversaire,
@@ -44,9 +45,9 @@ export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
 // Formules de partie : l'ère 1 seule, l'ère 1 prolongée jusqu'en 2025, ou un départ réel en 2008 jusqu'en 2025.
 export type Format = "2000-2008" | "2000-2035" | "2008-2035";
 export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
-  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 3.9, egalite: 0.3 }, // v18, 200 parties IA : 39,5 / 20,5 / 39,5 %, 0,5 % banqueroute USA
-  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 15.9, egalite: 0.2 }, // v18, 200 parties IA : 39,5 / 21 / 39 %, 0,5 % banqueroute USA
-  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 12.8, egalite: 0.25 }, // v18, 200 parties IA : 40 / 19 / 41 %, aucune défaite
+  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 4.5, egalite: 0.25 }, // v21, 200 parties IA : 41 / 21 / 38 %, aucune défaite
+  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 16.5, egalite: 0.2 }, // v21, 200 parties IA : 38,5 / 22 / 39 %, 0,5 % banqueroute USA
+  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 13.1, egalite: 0.25 }, // v21, 200 parties IA : 39 / 20,5 / 40 %, 0,5 % banqueroute USA
 };
 export const formatDe = (e: EtatPartie) => FORMATS[(e.reglages.format ?? "2000-2008").replace("2025", "2035") as Format]; // sauvegardes v14 : formats « -2025 » prolongés
 // Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
@@ -87,6 +88,7 @@ export interface EtatCamp {
   orientations?: Record<string, Orientation>; partOrientations?: number; // orientations permanentes et part du budget qui s'y applique
   crans?: Record<string, { coop: number; coer: number; round: number; rCoop?: number; rCoer?: number }>; // échelles militaires atteintes par pays
   recherche?: Record<string, number>; technologies?: string[]; // points investis par technologie, percées obtenues
+  apaise?: Record<string, number>; // dernière année d'apaisement par pays
   fabrique?: number; // dernière année (round / 4) où le camp a monté un dossier de casus belli
   ajustement?: number; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
 }
@@ -126,6 +128,8 @@ export interface EtatPartie {
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
   plans?: Plan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
   controles?: Controle[]; // régions gardées après une guerre
+  alliances?: Alliance[]; // partenariats stratégiques (1) et alliances militaires intégrées (3) ; le niveau 2 est la garantie
+  apaisement?: Record<string, Record<Camp, number>>; // gestes d'apaisement (réduisent la méfiance, déclinent)
   ae?: Record<Camp, Record<string, number>>; casusBelli?: CasusBelli[]; coalitions?: Coalition[]; // expansion agressive par région, justifications, coalitions
   dirigeants?: Record<Camp, Dirigeant>; succession?: { camp: Camp; candidats: Dirigeant[]; round: number } | null; // dirigeants et succession à arbitrer par le joueur
   zones: Record<string, Record<Camp, number>>; // présence des blocs dans les zones stratégiques (0-100) // ports et aéroports sous concession d'un bloc
@@ -1072,7 +1076,7 @@ function iaIntervenir(e: EtatPartie, camp: Camp) {
 function iaJouerSurPlace(e: EtatPartie, camp: Camp): EtatPartie {
   const c = () => e.camps[camp];
   if (date(e.round).trimestre === 1 || !e.plans?.some(p => p.camp === camp)) iaPlans(e, camp); // séance annuelle des conseils
-  iaIntervenir(e, camp);
+  iaIntervenir(e, camp); iaAlliances(e, camp);
   if (c().briefing) {
     const b = BRIEFINGS[c().briefing!];
     const notes = b.options.map((o, i) => ({ i, v: valeurEffets(e, camp, o.effets, camp) - (o.cout.budget ?? 0) * 0.3 * prixBudget(e, camp) - (o.cout.cp ?? 0) * 0.1,
@@ -1964,7 +1968,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
     for (const canal of ["p", "m", "c"] as Canal[]) inf[canal] = borne(inf[canal] - USURE * (inf[canal] - p.ancre[camp][canal]), 0, 100);
     inf.e = borne(inf.e + DERIVE_E * (cibleEconomique(e, iso, camp) - inf.e), 0, 100);
   }
-  appliquerOrientations(e); rapprochement(e); effetMemoire(e); usureOpinion(e); resoudreElections(e); echeancesPrets(e); suiviGuerres(e, av => resolutionAuto(e, av)); majCasusBelli(e); suiviExpansion(e); suiviRegions(e); suiviDirigeants(e);
+  appliquerOrientations(e); rapprochement(e); effetMemoire(e); usureOpinion(e); resoudreElections(e); echeancesPrets(e); suiviGuerres(e, av => resolutionAuto(e, av)); majCasusBelli(e); suiviExpansion(e); suiviRegions(e); suiviAlliances(e); suiviDirigeants(e);
   if (trimestre === 3) cloreSessionOnu(e);
   // forces de rappel : la tension retombe de 8 % de son excès sur 10 par trimestre, la stabilité revient vers 50 (5 %),
   // le capital politique se reconstitue de 1 point ; sans elles, les événements génériques saturaient tension et instabilité.
@@ -2087,6 +2091,6 @@ export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
-  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= []; e.controles ??= [];
+  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); else normaliserDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= []; e.controles ??= []; e.alliances ??= [];
   return e;
 }

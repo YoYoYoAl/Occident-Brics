@@ -13,7 +13,8 @@ export const APTITUDES: Record<Aptitude, { nom: string; aide: string }> = {
   intrigue: { nom: "Intrigue", aide: "Risque d'être démasqué : −5 % par point au-dessus de 5 ; réussite des putschs +2 points par point." },
 };
 export const LISTE_APTITUDES = Object.keys(APTITUDES) as Aptitude[];
-export type TraitDirigeant = "belliciste" | "pacificateur" | "charismatique" | "paranoiaque" | "corrompu" | "reformateur" | "populiste" | "prudent" | "stratege" | "malade" | "batisseur" | "intrigant";
+export type TraitDirigeant = "belliciste" | "pacificateur" | "charismatique" | "paranoiaque" | "corrompu" | "reformateur" | "populiste" | "prudent" | "stratege" | "batisseur" | "intrigant"
+  | "visionnaire" | "technocrate" | "autoritaire" | "negociateur" | "veteran" | "idealiste" | "pragmatique" | "impulsif" | "colerique" | "orateur" | "austere" | "nationaliste" | "multilateraliste";
 export const TRAITS_DIRIGEANT: Record<TraitDirigeant, { nom: string; aide: string; apt?: Partial<Record<Aptitude, number>>; popularite?: number; valeur: number; contraire?: TraitDirigeant }> = {
   belliciste: { nom: "Belliciste", aide: "Casus belli « changement de régime » contre les pays alignés sur l'adversaire ; intervention possible dès 45 de capital politique ; expansion agressive +10 %.", valeur: 1, contraire: "pacificateur" },
   pacificateur: { nom: "Pacificateur", aide: "Diplomatie +1 ; l'expansion agressive retombe d'1 point de plus par trimestre ; une intervention coûte 5 de capital politique de plus.", apt: { diplomatie: 1 }, valeur: 1, contraire: "belliciste" },
@@ -24,9 +25,21 @@ export const TRAITS_DIRIGEANT: Record<TraitDirigeant, { nom: string; aide: strin
   populiste: { nom: "Populiste", aide: "Popularité d'équilibre +8, diplomatie −1.", apt: { diplomatie: -1 }, popularite: 8, valeur: 1 },
   prudent: { nom: "Prudent", aide: "Expansion agressive −20 %.", valeur: 1 },
   stratege: { nom: "Stratège", aide: "Stratégie militaire +2.", apt: { strategie: 2 }, valeur: 2 },
-  malade: { nom: "Malade", aide: "Perd sa santé deux fois plus vite.", valeur: -2 },
   batisseur: { nom: "Bâtisseur", aide: "Intendance +1, popularité d'équilibre +3.", apt: { intendance: 1 }, popularite: 3, valeur: 2 },
   intrigant: { nom: "Intrigant", aide: "Intrigue +2.", apt: { intrigue: 2 }, valeur: 1 },
+  visionnaire: { nom: "Visionnaire", aide: "Intendance +1, diplomatie +1.", apt: { intendance: 1, diplomatie: 1 }, valeur: 3 },
+  technocrate: { nom: "Technocrate", aide: "Intendance +2 ; popularité d'équilibre −3.", apt: { intendance: 2 }, popularite: -3, valeur: 1 },
+  autoritaire: { nom: "Autoritaire", aide: "Intrigue +1, diplomatie −1.", apt: { intrigue: 1, diplomatie: -1 }, valeur: 0, contraire: "idealiste" },
+  negociateur: { nom: "Négociateur", aide: "Diplomatie +2.", apt: { diplomatie: 2 }, valeur: 2, contraire: "colerique" },
+  veteran: { nom: "Ancien militaire", aide: "Stratégie militaire +1 ; popularité d'équilibre +3.", apt: { strategie: 1 }, popularite: 3, valeur: 2 },
+  idealiste: { nom: "Idéaliste", aide: "Diplomatie +1, intrigue −2.", apt: { diplomatie: 1, intrigue: -2 }, valeur: 0, contraire: "pragmatique" },
+  pragmatique: { nom: "Pragmatique", aide: "Diplomatie +1, intendance +1.", apt: { diplomatie: 1, intendance: 1 }, valeur: 2 },
+  impulsif: { nom: "Impulsif", aide: "Stratégie militaire −1 ; popularité d'équilibre +2.", apt: { strategie: -1 }, popularite: 2, valeur: -1, contraire: "prudent" },
+  colerique: { nom: "Colérique", aide: "Diplomatie −2.", apt: { diplomatie: -2 }, valeur: -2 },
+  orateur: { nom: "Grand orateur", aide: "Popularité d'équilibre +8.", popularite: 8, valeur: 2 },
+  austere: { nom: "Austère", aide: "Intendance +1 ; popularité d'équilibre −4.", apt: { intendance: 1 }, popularite: -4, valeur: 0, contraire: "populiste" },
+  nationaliste: { nom: "Nationaliste", aide: "Popularité d'équilibre +5, diplomatie −1.", apt: { diplomatie: -1 }, popularite: 5, valeur: 1, contraire: "multilateraliste" },
+  multilateraliste: { nom: "Multilatéraliste", aide: "Diplomatie +2 ; popularité d'équilibre −2.", apt: { diplomatie: 2 }, popularite: -2, valeur: 2 },
 };
 export const LISTE_TRAITS_DIRIGEANT = Object.keys(TRAITS_DIRIGEANT) as TraitDirigeant[];
 export interface Dirigeant { nom: string; naissance: number; sante: number; popularite: number; aptitudes: Record<Aptitude, number>; traits: TraitDirigeant[]; depuis: number }
@@ -39,6 +52,10 @@ const NOMS: Record<Camp, string[]> = {
   OCC: ["Whitmore", "Calloway", "Hendricks", "Brennan", "Ashford", "Delaney", "Harlan", "Prescott", "Thornbury", "Talbot", "Winslow", "Garrison", "Langford", "Osgood"],
   CHN: ["Wang", "Li", "Zhang", "Liu", "Chen", "Yang", "Zhao", "Huang", "Zhou", "Wu", "Xu", "Sun", "Guo", "He"],
 };
+// Santé : la maladie est un événement (plus fréquent avec l'âge), pas un trait. Sous 30 de santé, toutes les aptitudes −1 ; sous 15, −2.
+export const SANTE = { maladie: 0.01, parAn: 0.002, ageMaladie: 55, perteMin: 15, perteMax: 40, guerison: 1, affaibli: 30, grave: 15 };
+// Aptitudes tirées autour de 6 (écart-type 1,3, bornées 2-10) : un dirigeant à 16 points ou moins sur 40 reste très rare (≈ 0,2 %).
+export const TIRAGE = { moyenne: 6, ecart: 1.3, min: 2, max: 10 };
 export const DIRIGEANT = { popularite: 50, rappel: 0.08, guerre: 2, intervention: 0.5, mandatOCC: 8, mandatCHN: 10, candidats: 3 };
 
 const tirer = (e: EtatPartie) => outils.tirer(e);
@@ -46,7 +63,8 @@ function nouveau(e: EtatPartie, camp: Camp): Dirigeant {
   const { annee } = date(e.round), choisir = <T>(l: T[]) => l[Math.floor(tirer(e) * l.length)];
   const t1 = choisir(LISTE_TRAITS_DIRIGEANT);
   const t2 = choisir(LISTE_TRAITS_DIRIGEANT.filter(t => t !== t1 && t !== TRAITS_DIRIGEANT[t1].contraire && TRAITS_DIRIGEANT[t].contraire !== t1));
-  const apt = Object.fromEntries(LISTE_APTITUDES.map(a => [a, 2 + Math.floor(tirer(e) * 7)])) as Record<Aptitude, number>; // 2 à 8
+  const normale = () => Math.sqrt(-2 * Math.log(1 - tirer(e))) * Math.cos(2 * Math.PI * tirer(e));
+  const apt = Object.fromEntries(LISTE_APTITUDES.map(a => [a, Math.max(TIRAGE.min, Math.min(TIRAGE.max, Math.round(TIRAGE.moyenne + TIRAGE.ecart * normale())))])) as Record<Aptitude, number>;
   const nom = camp === "OCC" ? `${choisir(PRENOMS.OCC)} ${choisir(NOMS.OCC)}` : `${choisir(NOMS.CHN)} ${choisir(PRENOMS.CHN)}`;
   return { nom, naissance: annee - (48 + Math.floor(tirer(e) * 20)), sante: 70 + Math.floor(tirer(e) * 31), popularite: 45 + Math.floor(tirer(e) * 16), aptitudes: apt, traits: [t1, t2], depuis: e.round };
 }
@@ -57,7 +75,14 @@ export const aTrait = (e: EtatPartie, camp: Camp, t: TraitDirigeant) => !!e.diri
 // Aptitude effective (base + traits), bornée de 0 à 10 ; 5 sans dirigeant (parties anciennes).
 export function aptitude(e: EtatPartie, camp: Camp, a: Aptitude): number {
   const d = e.dirigeants?.[camp]; if (!d) return 5;
-  return Math.max(0, Math.min(10, d.aptitudes[a] + d.traits.reduce((s, t) => s + (TRAITS_DIRIGEANT[t].apt?.[a] ?? 0), 0)));
+  const malus = d.sante < SANTE.grave ? 2 : d.sante < SANTE.affaibli ? 1 : 0; // dirigeant affaibli par la maladie
+  return Math.max(0, Math.min(10, d.aptitudes[a] - malus + d.traits.reduce((s, t) => s + (TRAITS_DIRIGEANT[t]?.apt?.[a] ?? 0), 0)));
+}
+// Sauvegardes antérieures : traits disparus (« malade ») remplacés par un trait compatible.
+export function normaliserDirigeants(e: EtatPartie) {
+  for (const camp of CAMPS) { const d = e.dirigeants?.[camp]; if (!d) continue;
+    d.traits = d.traits.filter(t => TRAITS_DIRIGEANT[t]);
+    while (d.traits.length < 2) d.traits.push(LISTE_TRAITS_DIRIGEANT.find(t => !d.traits.includes(t) && !d.traits.some(x => TRAITS_DIRIGEANT[x].contraire === t || TRAITS_DIRIGEANT[t].contraire === x))!); }
 }
 export const ageDe = (e: EtatPartie, d: Dirigeant) => date(e.round).annee - d.naissance;
 export const multDiplomatie = (e: EtatPartie, camp: Camp) => 1 + 0.03 * (aptitude(e, camp, "diplomatie") - 5);
@@ -96,9 +121,13 @@ export function suiviDirigeants(e: EtatPartie) {
     const d = e.dirigeants[camp];
     d.popularite += DIRIGEANT.rappel * (equilibrePopularite(e, camp) - d.popularite) - (e.guerre ? DIRIGEANT.guerre : 0) - DIRIGEANT.intervention * e.interventions.filter(i => i.camp === camp).length;
     d.popularite = Math.max(5, Math.min(95, d.popularite));
-    if (trimestre !== 1) continue;
-    const age = ageDe(e, d), perte = (age > 60 ? 0.6 * (age - 60) : 0.5) + 3 * tirer(e);
-    d.sante = Math.max(0, d.sante - perte * (d.traits.includes("malade") ? 2 : 1));
+    const age = ageDe(e, d);
+    if (tirer(e) < SANTE.maladie + SANTE.parAn * Math.max(0, age - SANTE.ageMaladie)) {
+      d.sante = Math.max(0, d.sante - (SANTE.perteMin + (SANTE.perteMax - SANTE.perteMin) * tirer(e)));
+      if (d.sante > 0) outils.noter(e, { type: "politique", titre: `${camp === "OCC" ? "Washington" : "Pékin"} : ${d.nom} est malade`, camp, visiblePour: [...CAMPS],
+        texte: `Santé ${Math.round(d.sante)}/100.${d.sante < SANTE.affaibli ? " Affaibli, le dirigeant perd en efficacité (aptitudes −1, −2 sous 15)." : ""}` });
+    } else d.sante = Math.min(100 - Math.max(0, 1.5 * (age - 60)), d.sante + SANTE.guerison); // convalescence, plafonnée par l'âge
+    if (trimestre === 1) d.sante = Math.max(0, d.sante - ((age > 60 ? 0.6 * (age - 60) : 0.5) + 3 * tirer(e)));
     if (d.sante <= 0) succession(e, camp, `${d.nom} meurt à ${age} ans`);
   }
 }

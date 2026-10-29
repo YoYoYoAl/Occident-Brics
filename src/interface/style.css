@@ -297,3 +297,4 @@ body.plein-ecran main { position: relative; }
 .g-ae { width: 100%; border-collapse: collapse; font-size: .85em; } .g-ae td, .g-ae th { padding: 3px 4px; text-align: left; } .g-ae td:not(:first-child) { width: 30%; }
 .g-regions { width: 100%; border-collapse: collapse; font-size: .85em; margin: 6px 0; } .g-regions td, .g-regions th { padding: 3px 4px; text-align: left; border-bottom: 1px solid var(--bord); }
 .g-regions small { color: var(--doux); } .g-regions tr.occupee td:first-child { color: var(--accent); }
+.g-mini { display: inline-block; width: 70px; vertical-align: middle; }

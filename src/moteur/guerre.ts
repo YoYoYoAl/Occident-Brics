@@ -1,7 +1,8 @@
 // Guerre, casus belli et expansion agressive (inspirés d'Europa Universalis IV, simplifiés).
 // Casus belli : justification d'une intervention ; il réduit l'expansion agressive (multiplicateur). Sans casus belli : agression (×3, capital politique −10).
 // Expansion agressive (0-100) par camp et par région : pleine dans la région visée, moitié dans les régions voisines, quart ailleurs.
-// Seuils : 25 = actions d'influence −15 % dans la région ; 50 = l'adversaire y gagne +1 d'influence politique par trimestre ; 75 = coalition.
+// Seuils : 25 = actions d'influence −15 % dans la région ; 50 = l'adversaire y gagne +1 d'influence politique par trimestre.
+// Coalitions (façon EU4) : chaque pays a sa méfiance envers chaque bloc ; il adhère au-dessus de 50 et part sous 35.
 // Interventions : but de guerre, score de guerre (−100 à +100), batailles décisives en duels, paix achetée avec le score.
 import { CAMPS, adversaire, type Camp } from "./types";
 import type { EtatPartie } from "./partie";
@@ -11,6 +12,7 @@ import { aTrait, bonusStrategie, multRisque } from "./dirigeants";
 import type { IdDuel } from "../duels/catalogue";
 import { REGIONS_CLES, type Region } from "../data/regions";
 import { PROFILS } from "../data/commerce";
+import { niveauAlliance, bonusAllies, ALLIANCE } from "./alliances";
 
 export type TypeCB = "defense" | "incident" | "antiterrorisme" | "humanitaire" | "adm" | "regime" | "rivalite";
 export const CASUS_BELLI: Record<TypeCB, { nom: string; mult: number; duree: number; aide: string }> = {
@@ -24,7 +26,7 @@ export const CASUS_BELLI: Record<TypeCB, { nom: string; mult: number; duree: num
 };
 export const AE = { intervention: 20, putsch: 15, putschRate: 10, renverser: 15, guerre: 30, victoire: 0.3, agression: 3, cpAgression: 10, declin: 2, declinPaix: 4, seuils: [25, 50, 75], malus: 0.85, gainAdverse: 1, plafondAdverse: 70, coalition: 3, plans: 0.7 };
 export interface CasusBelli { camp: Camp; iso: string; type: TypeCB; fin: number }
-export interface Coalition { contre: Camp; zone: string; membres: string[]; depuis: number }
+export interface Coalition { contre: Camp; zone: string; membres: string[]; depuis: number; chef?: string } // zone : région du chef (affichage)
 
 // Régions voisines (pour l'expansion agressive) ; la Russie compte avec l'Europe, le Canada n'a pas de région.
 const VOISINES: Record<string, string[]> = {
@@ -44,10 +46,47 @@ const vers = (e: EtatPartie, camp: Camp, iso: string) => (camp === "OCC" ? 1 : -
 export const aeDe = (e: EtatPartie, camp: Camp, zone: string) => e.ae?.[camp]?.[zone] ?? 0;
 export const aeDuPays = (e: EtatPartie, camp: Camp, iso: string) => { const z = zoneDe(iso); return z ? aeDe(e, camp, z) : 0; };
 export const coalitionContre = (e: EtatPartie, camp: Camp, iso: string) => (e.coalitions ?? []).find(c => c.contre === camp && c.membres.includes(iso)) ?? null;
-// Multiplicateur des actions d'influence d'un camp dans un pays (expansion agressive ≥ 25 dans sa région).
-export const facteurAE = (e: EtatPartie, camp: Camp, iso: string) => aeDuPays(e, camp, iso) >= AE.seuils[0] ? AE.malus : 1;
-// Multiplicateur de vitesse d'un plan dont les pays sont dans une région en coalition contre le camp.
-export const facteurPlanAE = (e: EtatPartie, camp: Camp, pays: string[]) => pays.some(i => { const z = zoneDe(i); return z && (e.coalitions ?? []).some(c => c.contre === camp && c.zone === z); }) ? AE.plans : 1;
+export const coalitionDe = (e: EtatPartie, camp: Camp) => (e.coalitions ?? []).find(c => c.contre === camp) ?? null;
+// ---------- Méfiance et coalition (une coalition au plus contre chaque bloc) ----------
+// Méfiance d'un pays envers un bloc (0-100) : expansion agressive de sa région, rancune (mémoire négative ×3), voisin d'un pays
+// attaqué ou occupé (+15), penchant vers l'adversaire (+20 × alignement), moins le penchant vers ce bloc (−40 × alignement) et l'apaisement.
+export const COALITION = { adhesion: 50, depart: 35, minimum: 3, declencheur: 25, apaise: 10, rancune: 3, voisin: 15, versAdv: 20, versMoi: 40, freinBase: 0.1, freinParMembre: 0.05, freinMax: 0.4,
+  commerceDes: 4, commerce: 0.02, commerceMax: 0.2, riposte: 3, riposteParMembre: 1, riposteMax: 10, soutien: 1, plafondSoutien: 70,
+  apaiser: { budget: 1, cp: 2, gain: 15, max: 30, declin: 2 } };
+const eligible = (e: EtatPartie, camp: Camp, iso: string) => iso !== "USA" && iso !== "CHN" && !!e.pays[iso] && vers(e, camp, iso) < 0.4 && !e.garanties?.some(g => g.iso === iso && g.camp === camp);
+function menaces(e: EtatPartie, camp: Camp): Set<string> {
+  const l = new Set<string>(), cibles = [...e.interventions.filter(i => i.camp === camp).map(i => i.iso), ...(e.controles ?? []).filter(c => c.camp === camp).map(c => c.iso)];
+  for (const i of cibles) for (const v of prochesDe(e, i).voisins) l.add(v);
+  return l;
+}
+export function mefiance(e: EtatPartie, camp: Camp, iso: string, voisins = menaces(e, camp)): number {
+  if (!eligible(e, camp, iso)) return 0;
+  const a = vers(e, camp, iso), rancune = Math.max(0, -(e.memoire?.[iso]?.[camp] ?? 0));
+  return borne(aeDuPays(e, camp, iso) + COALITION.rancune * rancune + (voisins.has(iso) ? COALITION.voisin : 0)
+    + COALITION.versAdv * Math.max(0, -a) - COALITION.versMoi * Math.max(0, a) - (e.apaisement?.[iso]?.[camp] ?? 0) - (niveauAlliance(e, camp, iso) >= 1 ? ALLIANCE.mefiance : 0), 0, 100);
+}
+// Frein d'une coalition sur les actions et les plans du bloc visé chez ses membres : 10 % + 5 % par membre, au plus 40 %.
+export const freinCoalition = (c: Coalition) => Math.min(COALITION.freinMax, COALITION.freinBase + COALITION.freinParMembre * c.membres.length);
+// Multiplicateur des actions d'influence d'un camp dans un pays : expansion agressive ≥ 25 dans sa région, frein de coalition s'il en est membre.
+export const facteurAE = (e: EtatPartie, camp: Camp, iso: string) => { const c = coalitionContre(e, camp, iso); return (aeDuPays(e, camp, iso) >= AE.seuils[0] ? AE.malus : 1) * (c ? 1 - freinCoalition(c) : 1); };
+// Multiplicateur de vitesse d'un plan qui vise au moins un membre d'une coalition contre le camp.
+export const facteurPlanAE = (e: EtatPartie, camp: Camp, pays: string[]) => { const c = coalitionDe(e, camp); return c && pays.some(i => c.membres.includes(i)) ? 1 - freinCoalition(c) : 1; };
+export function peutApaiser(e: EtatPartie, camp: Camp, iso: string): string | null {
+  if (!eligible(e, camp, iso)) return "Pays non concerné (allié, garanti ou leader).";
+  const c = e.camps[camp], A = COALITION.apaiser;
+  if (c.apaise?.[iso] === Math.floor(e.round / 4)) return "Un geste d'apaisement par pays et par an.";
+  if (c.budget < A.budget) return "Budget insuffisant."; if (c.cp < A.cp) return "Capital politique insuffisant.";
+  return null;
+}
+// Apaiser (« améliorer les relations ») : méfiance −15 (cumul 30 au plus, −2 par trimestre), gratitude +1.
+export function apaiser(e0: EtatPartie, camp: Camp, iso: string, surPlace = false): EtatPartie {
+  const err = peutApaiser(e0, camp, iso); if (err) throw new Error(err);
+  const e = surPlace ? e0 : structuredClone(e0), c = e.camps[camp], A = COALITION.apaiser;
+  c.budget -= A.budget; c.cp = borne(c.cp - A.cp, 0, 100); (c.apaise ??= {})[iso] = Math.floor(e.round / 4);
+  const ap = ((e.apaisement ??= {})[iso] ??= { OCC: 0, CHN: 0 }); ap[camp] = Math.min(A.max, ap[camp] + A.gain); outils.memoriser(e, iso, camp, 1);
+  outils.noter(e, { type: "action", titre: `Apaisement : ${nomPays(iso)}`, camp, pays: [iso], visiblePour: [...CAMPS], texte: `Visites, aides et garanties de bonne conduite : méfiance −${A.gain}.` });
+  return e;
+}
 
 export function gagnerAE(e: EtatPartie, camp: Camp, iso: string, base: number) {
   const z = zoneDe(iso), k = base * (aTrait(e, camp, "belliciste") ? 1.1 : 1) * (aTrait(e, camp, "prudent") ? 0.8 : 1);
@@ -133,19 +172,44 @@ export function suiviExpansion(e: EtatPartie) {
     for (const z of LISTE_ZONES) {
       const v = a[z] ?? 0;
       if (v >= AE.seuils[1]) for (const i of plusGros(e, z, 3, () => false)) { const p = e.pays[i].influence[adv]; if (p.p < AE.plafondAdverse) p.p = Math.min(AE.plafondAdverse, p.p + AE.gainAdverse); }
-      const co: Coalition | undefined = e.coalitions.find((c: Coalition) => c.contre === camp && c.zone === z);
-      if (!co && v >= AE.seuils[2]) {
-        const membres = plusGros(e, z, AE.coalition, i => vers(e, camp, i) >= 0.4);
-        if (membres.length) { e.coalitions.push({ contre: camp, zone: z, membres, depuis: e.round });
-          outils.noter(e, { type: "politique", titre: `Coalition contre le ${camp === "OCC" ? "bloc USA" : "bloc Chine"} : ${ZONES[z].nom}`, pays: membres, visiblePour: [...CAMPS],
-            texte: `${membres.map(nomPays).join(", ")} s'engagent à se défendre mutuellement. Plus d'intervention ni de putsch possibles chez eux pour ce bloc ; ses plans dans la région avancent 30 % moins vite.` }); }
-      }
-      if (co && v < AE.seuils[1]) { e.coalitions = e.coalitions.filter((c: Coalition) => c !== co);
-        outils.noter(e, { type: "politique", titre: `La coalition se dissout : ${ZONES[z].nom}`, pays: co.membres, visiblePour: [...CAMPS], texte: "La méfiance retombe ; les pays de la région reprennent leur liberté d'action." }); }
-      if (co) for (const i of co.membres) e.pays[i].influence[camp].p = Math.max(0, e.pays[i].influence[camp].p - 1);
       const enGuerre = e.interventions.some(i => i.camp === camp && zoneDe(i.iso) === z);
       a[z] = Math.max(0, v - (enGuerre ? AE.declin : AE.declinPaix) - (aTrait(e, camp, "pacificateur") ? 1 : 0));
     }
+    suiviCoalition(e, camp);
+  }
+  for (const iso of Object.keys(e.apaisement ?? {})) for (const c of CAMPS) e.apaisement![iso][c] = Math.max(0, e.apaisement![iso][c] - COALITION.apaiser.declin);
+}
+const nomBlocG = (c: Camp) => c === "OCC" ? "bloc USA" : "bloc Chine";
+// Adhésions et départs selon la méfiance, chef (plus grande économie), soutien de l'autre bloc, commerce, riposte aux interventions.
+function suiviCoalition(e: EtatPartie, camp: Camp) {
+  // il faut un déclencheur : expansion agressive ≥ 25 dans la région du pays, ou un voisin attaqué ou occupé (pas de coalition par simple rancune)
+  const adv = adversaire(camp), v = menaces(e, camp), declenche = (i: string) => v.has(i) || aeDuPays(e, camp, i) >= COALITION.declencheur;
+  const m = (i: string) => mefiance(e, camp, i, v), entre = (i: string) => declenche(i) && m(i) >= COALITION.adhesion;
+  let co = coalitionDe(e, camp);
+  if (!co) {
+    const candidats = Object.keys(e.pays).filter(entre);
+    if (candidats.length < COALITION.minimum) return;
+    co = { contre: camp, zone: "", membres: candidats, depuis: e.round }; e.coalitions!.push(co);
+    outils.noter(e, { type: "politique", titre: `Coalition contre le ${nomBlocG(camp)}`, pays: candidats, visiblePour: [...CAMPS],
+      texte: `${candidats.map(nomPays).join(", ")} s'engagent à se défendre mutuellement contre le ${nomBlocG(camp)}.` });
+  } else {
+    const partent = co.membres.filter(i => m(i) < COALITION.depart || (!v.has(i) && aeDuPays(e, camp, i) < COALITION.apaise)), entrent = Object.keys(e.pays).filter(i => !co!.membres.includes(i) && entre(i));
+    co.membres = co.membres.filter(i => !partent.includes(i)).concat(entrent);
+    if (entrent.length) outils.noter(e, { type: "politique", titre: `${entrent.map(nomPays).join(", ")} rejoin${entrent.length > 1 ? "nent" : "t"} la coalition contre le ${nomBlocG(camp)}`, pays: entrent, visiblePour: [...CAMPS], texte: `La coalition compte ${co.membres.length} membres.` });
+    if (partent.length) outils.noter(e, { type: "politique", titre: `${partent.map(nomPays).join(", ")} quitte${partent.length > 1 ? "nt" : ""} la coalition contre le ${nomBlocG(camp)}`, pays: partent, visiblePour: [...CAMPS], texte: "La méfiance est retombée." });
+    if (co.membres.length < 2) { e.coalitions = e.coalitions!.filter(c => c !== co);
+      outils.noter(e, { type: "politique", titre: `La coalition contre le ${nomBlocG(camp)} se dissout`, pays: co.membres, visiblePour: [...CAMPS], texte: "Trop peu de pays la soutiennent encore." }); return; }
+  }
+  co.chef = co.membres.slice().sort((a, b) => e.pays[b].pib - e.pays[a].pib)[0]; co.zone = zoneDe(co.chef) ?? "";
+  const n = co.membres.length;
+  for (const i of co.membres) { const p = e.pays[i].influence[adv]; if (p.p < COALITION.plafondSoutien) p.p = Math.min(COALITION.plafondSoutien, p.p + COALITION.soutien); e.pays[i].influence[camp].p = Math.max(0, e.pays[i].influence[camp].p - 1); }
+  if (n >= COALITION.commerceDes) e.pays[camp === "OCC" ? "USA" : "CHN"].bonus.push({ points: -Math.min(COALITION.commerceMax, COALITION.commerce * (n - COALITION.commerceDes + 1)), reste: 1 });
+  // riposte : la coalition soutient le pays envahi s'il est membre, voisin d'un membre ou dans la région du chef
+  for (const it of e.interventions.filter(i => i.camp === camp) as Intervention[]) {
+    const proche = co.membres.includes(it.iso) || co.membres.some(i => prochesDe(e, i).voisins.includes(it.iso)) || zoneDe(it.iso) === co.zone;
+    if (!proche) continue;
+    const k = Math.min(COALITION.riposteMax, COALITION.riposte + COALITION.riposteParMembre * n); it.score = borne((it.score ?? 0) - k, -100, 100);
+    if (!it.coalition) { it.coalition = true; outils.noter(e, { type: "action", titre: `La coalition entre en guerre aux côtés ${nomPays(it.iso) ? `de « ${nomPays(it.iso)} »` : ""}`, camp, pays: [it.iso, co.chef!], visiblePour: [...CAMPS], texte: `Armes, volontaires et renseignement : ton score de guerre baisse de ${k} par trimestre.` }); }
   }
 }
 
@@ -164,7 +228,7 @@ export const TERMES: Record<TermeFixe, { nom: string; cout: number }> = {
 };
 export const SCORE = { base: 4, forces: 20, strategie: 1.5, alea: 16, usure: 3, bataille: 60, batailles: [1, 4], fin: 100 };
 export const TYPES_BATAILLE: IdDuel[] = ["memoire44", "stratego", "streetfighter"];
-export interface Intervention { iso: string; camp: Camp; fin: number; debut?: number; score?: number; but?: ButGuerre; cb?: TypeCB | null; occupees?: string[] }
+export interface Intervention { iso: string; camp: Camp; fin: number; debut?: number; score?: number; but?: ButGuerre; cb?: TypeCB | null; occupees?: string[]; coalition?: boolean; appels?: Camp[] } // appels : alliés intégrés de l'autre camp qui ont appelé à l'aide
 
 // ---------- Régions : 30 pays clés découpés en permanence, les autres seulement en cas de guerre ----------
 export interface Controle { iso: string; region: string; camp: Camp; depuis: number; annexion?: boolean } // annexion : définitive, la région compte pour le bloc dans le score
@@ -208,6 +272,27 @@ export function suiviRegions(e: EtatPartie) {
       outils.noter(e, { type: "action", titre: `${nomPays(c.iso)} : révolte, la région « ${r.nom} » chasse l'occupant`, camp: c.camp, pays: [c.iso], visiblePour: [...CAMPS], texte: "Le pays penche trop vers l'autre bloc : l'occupation n'est plus tenable." });
     }
   }
+}
+// Annexion différée : une région occupée depuis 2 ans peut être annexée sans nouvelle guerre (capital politique, expansion agressive),
+// si le pays ne penche pas vers l'adversaire (sinon la population résiste).
+export const ANNEXION = { delai: 8, cp: 10, seuil: -0.2 };
+export function peutAnnexerRegion(e: EtatPartie, camp: Camp, iso: string, id: string): string | null {
+  const c = (e.controles ?? []).find(x => x.iso === iso && x.region === id && x.camp === camp);
+  if (!c) return "Ton bloc n'occupe pas cette région.";
+  if (c.annexion) return "Région déjà annexée.";
+  const reste = c.depuis + ANNEXION.delai - e.round; if (reste > 0) return `Annexion possible après 2 ans d'occupation (encore ${reste} trimestre${reste > 1 ? "s" : ""}).`;
+  if (e.camps[camp].cp < ANNEXION.cp) return `Capital politique ${ANNEXION.cp} requis.`;
+  if (vers(e, camp, iso) < ANNEXION.seuil) return "Le pays penche trop vers l'adversaire : la population résiste à l'annexion.";
+  return null;
+}
+export function annexerRegion(e0: EtatPartie, camp: Camp, iso: string, id: string): EtatPartie {
+  const err = peutAnnexerRegion(e0, camp, iso, id); if (err) throw new Error(err);
+  const e = structuredClone(e0), c = e.controles!.find(x => x.iso === iso && x.region === id)!, r = regionDe(iso, id)!;
+  c.annexion = true; e.camps[camp].cp = borne(e.camps[camp].cp - ANNEXION.cp, 0, 100); outils.memoriser(e, iso, camp, -3);
+  const k = gagnerAE(e, camp, iso, AE.victoire * coutRegion(r));
+  outils.noter(e, { type: "action", titre: `${nomPays(iso)} : annexion de la région « ${r.nom} »`, camp, pays: [iso], visiblePour: [...CAMPS],
+    texte: `Après 2 ans d'occupation, la région est rattachée au ${camp === "OCC" ? "bloc USA" : "bloc Chine"} : capital politique −${ANNEXION.cp}, expansion agressive +${Math.round(k)}, rancune du pays. Elle compte désormais pour ton bloc dans le score.` });
+  return e;
 }
 export function rendreRegion(e0: EtatPartie, camp: Camp, iso: string, id: string): EtatPartie {
   if (controleur(e0, iso, id) !== camp) throw new Error("Ton bloc ne contrôle pas cette région.");
@@ -288,7 +373,7 @@ export function suiviGuerres(e: EtatPartie, resolution: (av: number) => number) 
     it.debut ??= it.fin - 7; it.score ??= 0; it.but ??= "regime";
     const duree = e.round - it.debut;
     if (duree > 0) {
-      const d = SCORE.base + SCORE.forces * forces(e, it) + SCORE.strategie * bonusStrategie(e, it.camp) + SCORE.alea * (outils.tirer(e) - 0.5) - (duree > 4 ? SCORE.usure * (duree - 4) : 0);
+      const d = SCORE.base + bonusAllies(e, it) + SCORE.forces * forces(e, it) + SCORE.strategie * bonusStrategie(e, it.camp) + SCORE.alea * (outils.tirer(e) - 0.5) - (duree > 4 ? SCORE.usure * (duree - 4) : 0);
       it.score = borne(it.score + d, -100, 100);
     }
     if (SCORE.batailles.includes(duree)) bataille(e, it, resolution);
