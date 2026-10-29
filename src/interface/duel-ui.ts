@@ -2,6 +2,7 @@
 // l'animation des séquences à mémoriser et le chrono des duels d'adresse. Le moteur du duel reste pur (src/duels).
 import { REGLES } from "../duels/index";
 import { DUELS } from "../duels/catalogue";
+import { REGLES_TEXTE } from "../duels/regles-texte";
 import type { Vue, Case } from "../duels/moteur";
 import type { Duel } from "../moteur/plans";
 
@@ -14,6 +15,13 @@ export interface HoteDuel {
   noms?: string[];                          // noms des pays en jeu (affichage)
   titre: string; sousTitre: string; avantage: number;
   fin: (resultat: number) => void;          // résultat du joueur, 0 à 1
+}
+// Fiche de règles complète d'un duel (écran d'ouverture et volet « Règles complètes »).
+export function ficheRegles(type: Duel["type"]): string {
+  const f = REGLES_TEXTE[type];
+  return `<div class="d-fiche"><p><strong>But :</strong> ${esc(f.but)}</p><p><strong>Déroulement :</strong></p><ol>${f.tour.map(t => `<li>${esc(t)}</li>`).join("")}</ol>
+    <p><strong>Fin et résultat :</strong> ${esc(f.fin)} Au-delà de 60 %, c'est une victoire ; sous 40 %, une défaite ; entre les deux, un match nul.</p>
+    <p><strong>Préparation :</strong> ${esc(f.preparation)}</p><p><strong>Conseil :</strong> ${esc(f.conseil)}</p></div>`;
 }
 function caseHtml(c: Case, i: string): string {
   return `<button class="d-case ${c.c ?? ""} ${c.coup ? "jouable" : ""}" ${c.coup ? `data-coup="${esc(c.coup)}"` : "disabled"} ${c.titre ? `title="${esc(c.titre)}"` : ""} data-i="${i}">${txt(c.t)}</button>`;
@@ -35,6 +43,7 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
     let h = `<div class="duel"><header class="d-entete"><div><h2>${esc(info.nom)}</h2><small>${esc(hote.titre)} · inspiré de ${esc(info.inspire)}</small></div>
       ${v.scores ? `<div class="d-scores"><span class="moi">Toi : ${esc(v.scores[0])}</span>${v.scores[1] ? `<span class="lui">Adversaire : ${esc(v.scores[1])}</span>` : ""}</div>` : ""}</header>
       <p class="d-regle">${esc(info.principe)}</p>
+      <details class="d-regles"><summary>Règles complètes</summary>${ficheRegles(d.type)}</details>
       <p class="d-statut">${txt(v.statut)}${v.chrono ? ` <strong class="d-chrono" id="dChrono">${Math.ceil(v.chrono)} s</strong>` : ""}</p>`;
     if (v.grille) h += `<div class="d-grille ${v.grille.c ?? ""}" style="grid-template-columns:repeat(${v.grille.cols},minmax(0,1fr))">${v.grille.cases.map((c, i) => caseHtml(c, `g${i}`)).join("")}</div>`;
     for (const [k, r] of (v.rangees ?? []).entries()) h += `<div class="d-rangee ${r.c ?? ""}">${r.titre ? `<h4>${esc(r.titre)}</h4>` : ""}<div>${r.cases.map((c, i) => caseHtml(c, `r${k}_${i}`)).join("")}</div></div>`;
@@ -63,5 +72,12 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
         if (el) el.textContent = `${Math.max(0, Math.ceil(r))} s`; if (r <= 0) jouer("temps"); }, 200);
     }
   }
-  hote.ouvrir(); rendre();
+  // écran d'ouverture : la situation et les règles complètes, puis la partie
+  const av = hote.avantage;
+  hote.boite.innerHTML = `<div class="duel"><header class="d-entete"><div><h2>${esc(info.nom)}</h2><small>${esc(hote.titre)} · inspiré de ${esc(info.inspire)}</small></div></header>
+    <p class="d-regle">${esc(info.situation)}. ${esc(info.principe)}</p>
+    <p class="note">Ta préparation : ${av > 0.15 ? "favorable" : av < -0.15 ? "défavorable" : "équilibrée"} (${av >= 0 ? "+" : ""}${av.toFixed(1).replace(".", ",")}).</p>
+    ${ficheRegles(d.type)}<div class="actions-fenetre"><button id="dCommencer" class="principal">Commencer</button></div></div>`;
+  hote.ouvrir();
+  hote.boite.querySelector<HTMLButtonElement>("#dCommencer")!.onclick = () => { hote.son("etape"); rendre(); };
 }

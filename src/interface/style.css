@@ -271,3 +271,6 @@ body.plein-ecran main { position: relative; }
 .salle-liste button{text-align:left;display:grid;gap:3px;padding:8px}.salle-liste button.note{border-color:var(--accent)}
 .salle-liste small,.salle-liste span{color:var(--doux);font-size:.8em}.salle-liste em{color:var(--accent);font-style:normal;font-size:.85em}
 #sTexte,#sCom{width:100%;box-sizing:border-box;background:#0c1116;color:var(--texte);border:1px solid var(--bord);border-radius:6px;padding:6px;font:inherit}
+.d-fiche{font-size:.9em;line-height:1.4}.d-fiche p{margin:.35em 0}.d-fiche ol{margin:.2em 0 .5em;padding-left:1.3em}.d-fiche li{margin:.2em 0}
+.d-regles summary{cursor:pointer;color:var(--accent);font-size:.9em}.d-regles[open]{border:1px solid var(--bord);border-radius:6px;padding:4px 8px}
+.p-aide summary{cursor:pointer;color:var(--accent)}.p-aide ol{padding-left:1.2em;font-size:.9em;line-height:1.4}.p-aide li{margin:.3em 0}

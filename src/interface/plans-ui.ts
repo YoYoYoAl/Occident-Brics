@@ -79,6 +79,15 @@ export function panneauPlans(e: EtatPartie, camp: Camp): string {
   const annuel = seanceAnnuelle(e), libre = annuel || c.ajustement !== e.round;
   let h = `<p class="note">${annuel ? "<strong>Séance annuelle des conseils</strong> : donne autant d'instructions que tu veux (5 plans au plus)." : libre ? "Hors séance annuelle : un seul ajustement ce trimestre (lancer ou abandonner un plan)." : "Ajustement du trimestre déjà fait : la prochaine séance annuelle est au 1er trimestre."}
     Tes conseils jouent seuls chaque trimestre et suivent tes plans. Réserve d'opérations ciblées : ${nb(c.reserve ?? 0)} point${(c.reserve ?? 0) > 1 ? "s" : ""} (+${RESERVE.gain} par trimestre, utilisable aux 1er et 4e trimestres).</p>`;
+  h += `<details class="p-aide"><summary>Comment marchent les plans ?</summary><ol>
+    <li><strong>Lancer</strong> : choisis un objectif (chaque conseil a les siens), une cible, une durée (1 an à 3 ans) et une intensité. Discret : moins cher, plus lent, rarement repéré. Normal : repéré au premier jalon. Massif : effet plus fort, mais l'adversaire le voit tout de suite.</li>
+    <li><strong>Chaque trimestre</strong>, le plan coûte son budget, agit un peu sur sa cible et avance. Sans budget, il s'arrête. Il avance moins vite si l'adversaire a un plan rival sur la même cible, si les pays visés penchent vers lui, ou si deux de tes conseils se contredisent (un plan militaire et un plan commercial ou culturel sur les mêmes pays).</li>
+    <li><strong>Jalons</strong> : à un tiers, le plan prend de l'élan (double effet), ou déclenche un duel si la cible est disputée. Aux deux tiers, il y a toujours un duel contre l'autre bloc. Gagner : +10 points d'avancée et le rival recule. Perdre : −25. Match nul : rien ne bouge.</li>
+    <li><strong>Arrivée à 100 %</strong> : la récompense indiquée, plus forte si tu as gagné tes duels et si l'intensité est haute. Abandonner après 50 % garde la moitié de la récompense.</li>
+    <li><strong>Calendrier</strong> : au 1er trimestre (séance annuelle), tu lances, abandonnes et remplaces des chefs librement (2 CP par chef). Les autres trimestres, un seul ajustement. Une fois par an, tu peux riposter à un plan adverse repéré (3 CP) : un duel immédiat qui, gagné, lui fait perdre 33 points d'avancée.</li>
+    <li><strong>Plans secrets</strong> (renverser, contrer, infiltrer) : risque de scandale chaque trimestre (capital politique −4, rancune dans le pays).</li>
+    <li><strong>Tes ministères</strong> jouent seuls chaque trimestre et renforcent leurs actions dans les pays visés par tes plans.</li>
+  </ol></details>`;
   h += blocConseils(e, camp);
   h += `<h4>Tes plans (${mes.length}/${PLANS.max})</h4>` + (mes.length ? mes.map(p => cartePlan(e, camp, p.id)).join("")
     : `<p class="note">Aucun plan en cours. ${annuel ? `<button id="pProposer">Laisser mes conseils proposer un programme</button>` : ""}</p>`);
