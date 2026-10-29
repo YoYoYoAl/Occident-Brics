@@ -238,3 +238,31 @@ body.plein-ecran main { position: relative; }
 .choix-format label { display: block; padding: 8px 10px; border: 1px solid var(--bord, #3a4656); border-radius: 8px; cursor: pointer; }
 .choix-format label:has(input:checked) { border-color: var(--accent, #d9a441); }
 .choix-format small { display: block; color: var(--doux); margin-left: 22px; }
+/* Plans pluriannuels et conseils */
+.plan{border:1px solid var(--bord);border-left:4px solid var(--accent);border-radius:8px;padding:8px 10px;margin:0 0 8px;background:#1b2530;display:grid;gap:4px}
+.plan.adverse{border-left-color:var(--chn)}.plan.secret header strong::after{content:" · secret";color:var(--doux);font-weight:400;font-size:.85em}
+.plan header{display:flex;flex-direction:column}.plan header small{color:var(--doux)}.plan button{justify-self:start}
+.p-barre{position:relative;height:10px;border-radius:5px;background:#0c1116;border:1px solid var(--bord);overflow:hidden}
+.p-barre span{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#8a6a2a,var(--accent))}.p-barre i{position:absolute;top:0;bottom:0;width:2px;background:var(--texte);opacity:.6}
+.p-nouveau{border:1px dashed var(--accent);border-radius:8px;padding:8px 10px;margin:0 0 10px;display:grid;gap:6px}.p-nouveau h4{margin:0}
+.p-nouveau select{max-width:100%}.p-choix{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.p-choix button.actif{background:var(--accent);color:#111;font-weight:600}
+.p-conseils ul{list-style:none;padding:0;margin:6px 0;display:grid;gap:6px}.p-conseils li{display:grid;gap:2px;border-bottom:1px solid var(--bord);padding-bottom:4px}
+.p-conseils small{color:var(--doux)}.trait{font-size:.8em;padding:0 .4em;border-radius:4px;background:#26323d}
+/* Duels */
+.duel{display:grid;gap:8px;max-width:640px}.d-entete{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.d-entete h2{margin:0}.d-entete small{color:var(--doux)}
+.d-scores{display:flex;gap:10px;align-items:center;font-weight:600}.d-scores .moi,.d-case.moi{color:var(--occ)}.d-scores .lui,.d-case.lui{color:var(--chn)}
+.d-regle{color:var(--doux);font-size:.9em;margin:0}.d-statut{margin:0;font-weight:500}.d-chrono{color:var(--accent);font-variant-numeric:tabular-nums}
+.d-grille{display:grid;gap:3px;width:100%}.d-rangee h4{margin:4px 0 2px;font-size:.85em;color:var(--doux)}.d-rangee>div{display:flex;flex-wrap:wrap;gap:3px}
+.d-rangee.pyramide>div{justify-content:center}
+.d-case{min-height:38px;min-width:38px;padding:3px;border:1px solid var(--bord);border-radius:5px;background:#1b2530;color:var(--texte);font-size:.85em;line-height:1.15;cursor:default}
+.d-case.jouable{cursor:pointer;border-color:var(--accent)}.d-case.jouable:hover{background:#2a3742}.d-case:disabled{opacity:1}
+.d-case.moi{background:#1d3350;border-color:var(--occ)}.d-case.lui{background:#4a2420;border-color:var(--chn)}.d-case.vide{background:#141b22}
+.d-case.possible{background:#2d3a22;border-color:#8fbf4f}.d-case.eau{background:#173248}.d-case.touche{background:#7a2b22}.d-case.sonar{background:#1f4a5c}
+.d-case.carte{background:#2a2f3a}.d-case.choisi{outline:2px solid var(--accent)}.d-case.etiquette{border:none;background:none;color:var(--doux);text-align:left;cursor:default}
+.d-case.piece{font-size:1.3em}.d-case.palais{box-shadow:inset 0 0 0 2px #8a6a2a}.d-case.cachee{background:#20262e;color:var(--doux)}.d-case.rien{visibility:hidden}
+.d-case.niv0{background:#1b2530}.d-case.niv1{background:#2b3a2a}.d-case.niv2{background:#3f5532}.d-case.niv3{background:#5e7a3a}.d-case.niv4{background:#8fae4a;color:#111}
+.d-case.noeud{border-radius:50%}.d-case.eco{border-color:#2fae6a}.d-case.culture{border-color:#b07ae0}.d-case.militaire{border-color:#e08a2a}
+.d-case.flash{background:var(--accent);color:#111;transform:scale(1.08);transition:transform .1s}
+.d-boutons{display:flex;flex-wrap:wrap;gap:6px}.d-journal{margin:0;padding-left:1.1em;color:var(--doux);font-size:.85em}
+.d-fin{font-weight:700;margin:0}.d-fin.gagne{color:#5fd08a}.d-fin.perdu{color:var(--chn)}
+@media (max-width:520px){.d-case{min-height:32px;min-width:30px;font-size:.75em}}

@@ -1,3 +1,4 @@
+import { IMAGES_GENEREES } from "../contenu/cartes-generees";
 // Illustrations du jeu (générées en local, style BD ligne claire), intégrées au fichier HTML au moment du build.
 const fichiers = import.meta.glob("../images/*.webp", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const IMAGES: Record<string, string> = Object.fromEntries(Object.entries(fichiers).map(([k, v]) => [k.split("/").pop()!.replace(".webp", ""), v]));
@@ -61,4 +62,4 @@ const CARTES: Record<string, string> = {
   c2_ndb: "carte_banque_ndb", c2_iles: "carte_iles_artificielles", c2_5g: "carte_5g", c2_masques: "carte_covid", c2_yuan: "carte_yuan", c2_loups: "carte_loups_guerriers",
   c2_brics_plus: "carte_brics_elargis", n2_g20: "carte_g20", n2_ia: "carte_intelligence_artificielle", n2_migrations: "famille_crise_migratoire", n2_terres_rares: "carte_metaux_critiques",
 };
-export const imageCarte = (id: string) => image(CARTES[id] ?? "");
+export const imageCarte = (id: string) => image(CARTES[id] ?? IMAGES_GENEREES[id] ?? "");

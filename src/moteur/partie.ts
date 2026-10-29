@@ -27,6 +27,9 @@ import { BRIEFINGS_ERE1 } from "../contenu/briefings";
 import { SCORES } from "../data/donnees2000";
 import { FAMILLES as FAMILLES_ATTRIBUTS, type Famille } from "../data/attributs";
 import { suivant } from "./alea";
+import { ZONES } from "./zones";
+import { CARTES_GENEREES } from "../contenu/cartes-generees";
+import { type Plan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
 import { date, libelle, NB_ROUNDS } from "./temps";
 import {
   type Camp, type Canal, type Effet, type Condition, type CiblePays, type CampRel, type Carte, type Briefing,
@@ -38,9 +41,9 @@ export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
 // Formules de partie : l'ère 1 seule, l'ère 1 prolongée jusqu'en 2025, ou un départ réel en 2008 jusqu'en 2025.
 export type Format = "2000-2008" | "2000-2035" | "2008-2035";
 export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
-  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 7.1, egalite: 0.35 }, // 200 parties IA : 39,5 / 20 / 40,5 %
-  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 18.9, egalite: 0.25 }, // 200 parties IA : 39 / 20 / 41 %, aucune défaite
-  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 16.1, egalite: 0.25 }, // 200 parties IA : 40,5 / 20 / 39 %, 0,5 % banqueroute USA
+  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 4.1, egalite: 0.3 }, // v17, 200 parties IA : 40,5 / 19 / 40,5 %
+  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 15.8, egalite: 0.25 }, // v17, 200 parties IA : 40,5 / 18,5 / 41 %, aucune défaite
+  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 12.9, egalite: 0.25 }, // v17, 200 parties IA : 39,5 / 20 / 40 %, 0,5 % banqueroute USA
 };
 export const formatDe = (e: EtatPartie) => FORMATS[(e.reglages.format ?? "2000-2008").replace("2025", "2035") as Format]; // sauvegardes v14 : formats « -2025 » prolongés
 // Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
@@ -81,6 +84,7 @@ export interface EtatCamp {
   orientations?: Record<string, Orientation>; partOrientations?: number; // orientations permanentes et part du budget qui s'y applique
   crans?: Record<string, { coop: number; coer: number; round: number; rCoop?: number; rCoer?: number }>; // échelles militaires atteintes par pays
   recherche?: Record<string, number>; technologies?: string[]; // points investis par technologie, percées obtenues
+  ajustement?: number; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
 }
 export type TypeCarte = "camp" | "adverse" | "neutre";
 export const NOMS_TYPES: Record<TypeCarte, string> = { camp: "de ton camp", adverse: "adverse", neutre: "neutre" };
@@ -116,6 +120,7 @@ export interface EtatPartie {
   garanties?: { iso: string; camp: Camp }[]; // garanties de défense accordées // guerre directe entre les deux leaders // CACHÉ : gratitude (+) ou rancune (−) de chaque pays envers chaque bloc, de −10 à +10
   rapprochements: { iso: string; camp: Camp; restant: number }[]; // entraînements en cours (trimestres restants)
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
+  plans?: Plan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
   zones: Record<string, Record<Camp, number>>; // présence des blocs dans les zones stratégiques (0-100) // ports et aéroports sous concession d'un bloc
 }
 export interface Conflit { iso: string; titre: string; fin: number }
@@ -131,12 +136,15 @@ const TRAJ = trajectoires.pays as Record<string, { pib: number[]; population: nu
 const PETROLE: Record<string, number> = Object.fromEntries(donnees.pays.map(p => [p.iso3, p.indicateurs.prodPetrole ?? 0]));
 const POP_MOYENNE_2000 = ISO.reduce((s, i) => s + TRAJ[i].population[0], 0) / ISO.length;
 const PETROLE_TOTAL = Object.values(PETROLE).reduce((a, b) => a + b, 0);
-const CARTES: Record<string, Carte> = Object.fromEntries([...CARTES_ERE1, ...CARTES_ERE2].map(c => [c.id, c]));
+const CARTES: Record<string, Carte> = Object.fromEntries([...CARTES_ERE1, ...CARTES_ERE2, ...CARTES_GENEREES].map(c => [c.id, c]));
 const TOUS_BRIEFINGS = [...BRIEFINGS_ERE1, ...BRIEFINGS_ERE2];
 const BRIEFINGS: Record<string, Briefing> = Object.fromEntries(TOUS_BRIEFINGS.map(b => [b.id, b]));
 export const HISTORIQUES = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_COMPLEMENTS, ...HISTORIQUES_RECENTS, ...PROJECTIONS];
 // Paquet de l'année : ère 1 jusqu'en 2008 ; ensuite les cartes de l'ère 2 et les cartes réutilisables de l'ère 1.
-const paquet = (annee: number) => annee <= 2008 ? CARTES_ERE1.map(c => c.id) : [...CARTES_ERE1.filter(c => c.type === "reutilisable"), ...CARTES_ERE2].map(c => c.id);
+// Les cartes générées par région (×15) complètent les cartes écrites de chaque ère.
+const generees = (ere: number) => CARTES_GENEREES.filter(c => c.ere === ere).map(c => c.id);
+const paquet = (annee: number) => { const ecrites = annee <= 2008 ? CARTES_ERE1.map(c => c.id) : [...CARTES_ERE1.filter(c => c.type === "reutilisable"), ...CARTES_ERE2].map(c => c.id);
+  return [...ecrites, ...generees(annee <= 2008 ? 1 : 2)]; };
 export const carte = (id: string) => CARTES[id];
 export const briefing = (id: string) => BRIEFINGS[id];
 const MODELES_PAR_FAMILLE: Record<string, ModeleGenerique[]> = {};
@@ -327,6 +335,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
+  e.plans = []; e.duels = []; tirerChefs(e);
   return debutRound(e, true);
 }
 
@@ -364,6 +373,7 @@ function depart2008(graine: number, joueur: Camp | null, reglages: Reglages): Et
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
+  e.plans = []; e.duels = []; tirerChefs(e);
   return e;
 }
 
@@ -501,6 +511,7 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   // 5. briefings déclenchés
   for (const camp of CAMPS) {
     const c = e.camps[camp]; c.points = pointsDeBase(); c.pa = 0; c.paParPays = {}; c.paAchetes = 0; c.carteJouee = false; c.reactions = [];
+    if (RESERVE.trimestres.includes(trimestre)) { c.pa = c.reserve ?? 0; c.reserve = 0; } // réserve d'opérations ciblées : début et fin d'année
     c.briefing = TOUS_BRIEFINGS.find(b => b.camp === camp && !e.briefingsFaits.includes(b.id) && declenche(e, b))?.id ?? null;
   }
   return e;
@@ -868,15 +879,7 @@ export function apercuAction(e: EtatPartie, camp: Camp, type: TypeAction, iso: s
 }
 
 // ---------- Campagnes régionales : impact diffus sur toute une zone ----------
-export const ZONES: Record<string, { nom: string; pays: string[] }> = {
-  afrique: { nom: "Afrique subsaharienne", pays: ["NGA", "ETH", "KEN", "COD", "ZAF", "AGO", "BEN", "BWA", "BFA", "BDI", "CPV", "CMR", "CAF", "TCD", "COM", "COG", "CIV", "DJI", "GNQ", "ERI", "SWZ", "GAB", "GMB", "GHA", "GIN", "GNB", "LSO", "LBR", "MDG", "MWI", "MLI", "MRT", "MUS", "MOZ", "NAM", "NER", "RWA", "STP", "SEN", "SYC", "SLE", "SOM", "SSD", "SDN", "TZA", "TGO", "UGA", "ZMB", "ZWE"] },
-  moyen_orient: { nom: "Moyen-Orient et Afrique du Nord", pays: ["SAU", "ARE", "QAT", "IRN", "IRQ", "ISR", "EGY", "TUR", "DZA", "BHR", "JOR", "KWT", "LBN", "OMN", "SYR", "YEM", "LBY", "MAR", "TUN"] },
-  asie_sud_est: { nom: "Asie du Sud-Est", pays: ["VNM", "THA", "MYS", "SGP", "PHL", "IDN", "BRN", "KHM", "LAO", "MMR", "TLS"] },
-  amerique_latine: { nom: "Amérique latine et Caraïbes", pays: ["BRA", "ARG", "MEX", "COL", "CHL", "VEN", "CUB", "PAN", "BOL", "CRI", "DOM", "ECU", "SLV", "GTM", "GUY", "HTI", "HND", "JAM", "NIC", "PRY", "PER", "SUR", "TTO", "URY", "ATG", "BHS", "BRB", "BLZ", "DMA", "GRD", "KNA", "LCA", "VCT"] },
-  europe: { nom: "Europe", pays: ["DEU", "GBR", "FRA", "ITA", "ESP", "NLD", "NOR", "POL", "UKR", "ALB", "AND", "AUT", "BLR", "BEL", "BIH", "BGR", "HRV", "CYP", "CZE", "DNK", "EST", "FIN", "GRC", "HUN", "ISL", "IRL", "LVA", "LIE", "LTU", "LUX", "MLT", "MDA", "MCO", "MNE", "MKD", "PRT", "ROU", "SMR", "SRB", "SVK", "SVN", "SWE", "CHE"] },
-  asie_sud_centre: { nom: "Asie du Sud, Caucase et Asie centrale", pays: ["IND", "PAK", "BGD", "KAZ", "AFG", "ARM", "AZE", "BTN", "GEO", "KGZ", "MDV", "NPL", "LKA", "TJK", "TKM", "UZB", "MNG"] },
-  asie_est: { nom: "Asie de l'Est et Pacifique", pays: ["JPN", "KOR", "TWN", "PRK", "AUS", "NZL", "PNG", "FJI", "KIR", "MHL", "FSM", "NRU", "PLW", "WSM", "SLB", "TON", "TUV", "VUT"] },
-};
+export { ZONES };
 export const CAMPAGNE = { pa: 2, budget: 1, gain: { p: 3, e: 3, c: 2 } as Record<"p" | "e" | "c", number> };
 export function peutCampagne(e: EtatPartie, camp: Camp, zone: string): string | null {
   const c = e.camps[camp];
@@ -1036,6 +1039,7 @@ export function iaJouer(e0: EtatPartie, camp: Camp): EtatPartie {
 }
 function iaJouerSurPlace(e: EtatPartie, camp: Camp): EtatPartie {
   const c = () => e.camps[camp];
+  if (date(e.round).trimestre === 1 || !e.plans?.some(p => p.camp === camp)) iaPlans(e, camp); // séance annuelle des conseils
   if (c().briefing) {
     const b = BRIEFINGS[c().briefing!];
     const notes = b.options.map((o, i) => ({ i, v: valeurEffets(e, camp, o.effets, camp) - (o.cout.budget ?? 0) * 0.3 * prixBudget(e, camp) - (o.cout.cp ?? 0) * 0.1,
@@ -1199,7 +1203,7 @@ export const DOMAINE_ACTION: Record<TypeAction, Domaine> = {
   militaire: "defense", armes: "defense", exercices: "defense", garantie: "defense", intimidation: "defense", soutien: "defense", intervention: "defense",
   clandestin: "secret", destabiliser: "secret", espionnage: "secret", putsch: "secret",
 };
-export const MODES_DEFAUT: Record<Domaine, ModeDomaine> = { eco: "auto", diplo: "conseiller", defense: "auto", secret: "manuel" };
+export const MODES_DEFAUT: Record<Domaine, ModeDomaine> = { eco: "auto", diplo: "auto", defense: "auto", secret: "auto" }; // refonte : les conseils exécutent, le joueur donne les plans
 const pointsDeBase = (): Record<Domaine, number> => Object.fromEntries(LISTE_DOMAINES.map(d => [d, DOMAINES[d].points])) as Record<Domaine, number>;
 export const dispo = (c: EtatCamp, d: Domaine) => (c.points?.[d] ?? 0) + c.pa;
 function depenser(c: EtatCamp, d: Domaine, n: number) { const pts = (c.points ??= pointsDeBase()), k = Math.min(n, pts[d]); pts[d] -= k; c.pa -= n - k; }
@@ -1269,7 +1273,7 @@ export function candidats(e: EtatPartie, camp: Camp, d: Domaine): Option[] {
     const [canal, k0, adverse] = IMPACT[type]!, cible = adverse ? adversaire(camp) : camp;
     const k = (adverse ? -1 : 1) * k0 * (adverse ? 1 : 1 - p.influence[cible][canal] / 100) * bonusPriorite(c, type) * boostCommerce(iso, camp, type);
     const v0 = p.influence[cible][canal]; p.influence[cible][canal] = Math.max(0, v0 + k); const apres = alignement(e, iso); p.influence[cible][canal] = v0; // restauration exacte : l'état d'entrée reste intact
-    const mult = o === "cultiver" && !adverse ? 1.5 : o === "contester" && (adverse || type === "clandestin") ? 1.5 : 1;
+    const mult = (o === "cultiver" && !adverse ? 1.5 : o === "contester" && (adverse || type === "clandestin") ? 1.5 : 1) * multPlan(e, camp, iso, type); // les conseils suivent les plans
     const bascule = s * (palier(apres) - palier(avant)) > 0;
     const gain = 100 * W[iso] * (pos(apres) - pos(avant)) * mult * (bascule ? r.palier : bord ? r.bord : 1);
     const v = gain / ACTIONS[type].pa - ACTIONS[type].budget * r.prixBudget * prixBudget(e, camp);
@@ -1682,14 +1686,17 @@ export function rechercher(e0: EtatPartie, camp: Camp, t: string): EtatPartie {
   const err = peutRechercher(e0, camp, t); if (err) throw new Error(err);
   const e = copie(e0), c = e.camps[camp], r = (c.recherche ??= {});
   c.budget -= COUT_RECHERCHE; c.paParPays.techno = 1; r[t] = (r[t] ?? 0) + 1;
-  if (r[t] >= SEUIL_TECHNO) {
-    (c.technologies ??= []).push(t); const l = leaderDe(camp);
-    if (t === "renouvelables") e.pays[l].bonus.push({ points: 0.1, reste: 9999 });
-    if (t === "telecoms") for (const i of ISO) if (i !== "USA" && i !== "CHN" && sensDe(camp) * alignement(e, i) >= 0.1) e.pays[i].influence[camp].e = borne(e.pays[i].influence[camp].e + 2, 0, 100);
-    if (t === "biotech") { e.pays[l].stabilite = borne(e.pays[l].stabilite + 3, 0, 100); c.cp = borne(c.cp + 3, 0, 100); }
-    noter(e, { type: "politique", titre: `Percée technologique du ${nomBloc(camp)} : ${TECHNOLOGIES[t].nom}`, texte: TECHNOLOGIES[t].texte, camp, visiblePour: [...CAMPS] });
-  }
+  if (r[t] >= SEUIL_TECHNO) percee(e, camp, t);
   return e;
+}
+function percee(e: EtatPartie, camp: Camp, t: string) {
+  const c = e.camps[camp];
+  if (c.technologies?.includes(t)) return;
+  (c.technologies ??= []).push(t); const l = leaderDe(camp);
+  if (t === "renouvelables") e.pays[l].bonus.push({ points: 0.1, reste: 9999 });
+  if (t === "telecoms") for (const i of ISO) if (i !== "USA" && i !== "CHN" && sensDe(camp) * alignement(e, i) >= 0.1) e.pays[i].influence[camp].e = borne(e.pays[i].influence[camp].e + 2, 0, 100);
+  if (t === "biotech") { e.pays[l].stabilite = borne(e.pays[l].stabilite + 3, 0, 100); c.cp = borne(c.cp + 3, 0, 100); }
+  noter(e, { type: "politique", titre: `Percée technologique du ${nomBloc(camp)} : ${TECHNOLOGIES[t].nom}`, texte: TECHNOLOGIES[t].texte, camp, visiblePour: [...CAMPS] });
 }
 
 // ---------- Blocus naval et course aux armements ----------
@@ -1895,12 +1902,14 @@ export function finRound(e0: EtatPartie): EtatPartie {
   if (e.proposition && e.proposition.round < e.round) { e = structuredClone(e); const pr = e.proposition!; e.proposition = null; conclure(e, pr.de, pr.type, false); } // sans réponse : refusée
   // Ministres automatiques du joueur puis IA, sur une seule copie de l'état (modifiée sur place) ; sans IA (bac à sable, tests), rien ne joue seul
   e = structuredClone(e);
+  reglerDuelsEnSuspens(e); // duels du joueur non joués : réglés par ses conseillers
   if (e.reglages.ia) { SUR_PLACE = true; try {
     const j = e.joueur; if (j) for (const d of LISTE_DOMAINES) if (modeDe(e, j, d) === "auto") e = jouerDomaine(e, j, d);
     for (const camp of CAMPS) if (camp !== e.joueur) e = iaJouerSurPlace(e, camp);
   } finally { SUR_PLACE = false; } }
-  for (const c of CAMPS) e.camps[c].budget = arrondi(e.camps[c].budget);
   const { annee, trimestre } = date(e.round);
+  avancerPlans(e);
+  for (const c of CAMPS) { const k = e.camps[c]; k.budget = arrondi(k.budget); k.reserve = Math.min(RESERVE.max, (RESERVE.trimestres.includes(trimestre) ? k.pa : k.reserve ?? 0) + RESERVE.gain); }
   brasDeFer(e); programmerChaines(e); criseNucleaire(e);
   // économie, population, émissions
   let emissions = 0;
@@ -2044,6 +2053,8 @@ export function decrireEffet(e: EtatPartie, ef: Effet, joueur: Camp | null, pays
 const signe = (x: number) => (x >= 0 ? "+" : "") + (Math.abs(x) < 10 ? x.toFixed(1).replace(".", ",").replace(",0", "") : Math.round(x).toString());
 
 export { libelle };
+// Outils internes partagés avec le moteur des plans (src/moteur/plans.ts).
+export const outils = { noter, tirer, borne, memoriser, poidsPays, percee };
 
 // ---------- Sauvegarde ----------
 export function serialiserPartie(e: EtatPartie): string { return JSON.stringify(e); }
@@ -2051,6 +2062,6 @@ export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
-  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; }
+  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e);
   return e;
 }

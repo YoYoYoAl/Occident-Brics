@@ -7,6 +7,9 @@ import { NOMS_BIENS } from "../data/commerce";
 import { FLUX, DETROITS } from "../data/flux";
 import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique, type Son } from "./sons";
 import { ficheHtml } from "./fiche";
+import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur } from "./plans-ui";
+import { jouerDuel } from "./duel-ui";
+import { conclureDuel, paysDuPlan as paysDuPlanUi } from "../moteur/plans";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, FORMATS, formatDe, peutProlonger, prolonger, type Format, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
@@ -258,9 +261,9 @@ const cout = (c: { budget?: number; cp?: number }) => [c.budget ? `${c.budget} b
 const CLE_GUIDE = "occident-brics-tour-guide";
 let guide = (() => { try { return localStorage.getItem(CLE_GUIDE) !== "non"; } catch { return true; } })();
 let etape = 0, etapeRound = -1;
-type Etape = "evenements" | "carte" | Domaine | "bilan";
-const ETAPES: Etape[] = ["evenements", "carte", "defense", "eco", "diplo", "secret", "bilan"]; // défense d'abord : ventes d'armes et espionnage rapportent du budget
-const NOM_ETAPE = (x: Etape) => x === "evenements" ? "Événements" : x === "carte" ? "Carte" : x === "bilan" ? "Bilan" : DOMAINES[x].nom;
+type Etape = "evenements" | "carte" | "plans" | "duels" | Domaine | "bilan";
+const ETAPES: Etape[] = ["evenements", "carte", "plans", "duels", "defense", "eco", "diplo", "secret", "bilan"]; // plans pluriannuels puis duels ; les ministères sont en automatique (les conseils suivent les plans), sauf choix contraire
+const NOM_ETAPE = (x: Etape) => x === "evenements" ? "Événements" : x === "carte" ? "Carte" : x === "plans" ? "Conseils et plans" : x === "duels" ? "Duels" : x === "bilan" ? "Bilan" : DOMAINES[x].nom;
 const aReagirDe = (e: EtatPartie) => e.journal.filter(j => j.reactif && j.round === e.round && j.visiblePour.includes(joueur()) && (j.type === "historique" || campTouche(j) !== null || importance(j) >= 3));
 const ripostesDe = (e: EtatPartie) => e.journal.filter(j => j.contestable && j.camp === adversaire(joueur()) && j.round >= e.round - 1 && j.visiblePour.includes(joueur()));
 // Une étape est utile s'il y a quelque chose à y décider.
@@ -269,6 +272,8 @@ function etapeUtile(x: Etape): boolean {
   if (x === "evenements") return aReagirDe(e).length > 0 || ripostesDe(e).length > 0 || e.proposition?.de === adversaire(joueur());
   if (x === "carte") return !c.carteJouee && c.main.length > 0;
   if (x === "bilan") return true;
+  if (x === "plans") return plansUtiles(e, joueur());
+  if (x === "duels") return duelsDuJoueur(e, joueur()).length > 0;
   return modeDe(e, joueur(), x) !== "auto" && (c.points?.[x] ?? 0) > 0;
 }
 const etapeSuivante = (i: number) => { for (let k = i + 1; k < ETAPES.length; k++) if (etapeUtile(ETAPES[k])) return k; return ETAPES.length - 1; };
@@ -333,12 +338,14 @@ function panneauMain(): string {
     return `<div class="achat"><button id="acheter" ${errAchat ? `disabled title="${esc(errAchat)}"` : ""}>Acheter 1 point de crise (${PRIX_PA} budget)</button> <span class="note">2 par trimestre au plus.</span></div>`;
   };
   const bascule = `<p class="note bascule-guide"><button id="basculeGuide">${guide ? "Vue complète" : "Tour guidé"}</button> ${guide ? "Le trimestre se joue étape par étape." : "Toutes les décisions sur une page."}</p>`;
-  if (!guide) return bascule + sEntete() + sEvenements() + blocStrategie() + blocDiplomatie() + sCartes() + blocMinisteres() + sAgir() + sAchat();
+  if (!guide) return bascule + sEntete() + sEvenements() + panneauPlans(e, joueur()) + panneauDuels(e, joueur()) + blocStrategie() + blocDiplomatie() + sCartes() + blocMinisteres() + sAgir() + sAchat();
   if (etapeRound !== e.round) { etapeRound = e.round; etape = etapeUtile(ETAPES[0]) ? 0 : etapeSuivante(0); }
   const x = ETAPES[etape];
-  let h = bascule + `<ol class="etapes">${ETAPES.map((y, k) => `<li><button data-etape="${k}" class="${k === etape ? "actif" : ""} ${etapeUtile(y) ? "" : "inutile"}" title="${etapeUtile(y) ? "" : y === "carte" ? "Carte jouée" : y === "evenements" ? "Rien à décider" : modeDe(e, joueur(), y as Domaine) === "auto" ? "Ministre automatique" : "Actions jouées"}">${k + 1}. ${NOM_ETAPE(y)}</button></li>`).join("")}</ol>`;
+  let h = bascule + `<ol class="etapes">${ETAPES.map((y, k) => `<li><button data-etape="${k}" class="${k === etape ? "actif" : ""} ${etapeUtile(y) ? "" : "inutile"}" title="${etapeUtile(y) ? "" : y === "carte" ? "Carte jouée" : y === "evenements" || y === "plans" ? "Rien à décider" : y === "duels" ? "Aucun duel en attente" : modeDe(e, joueur(), y as Domaine) === "auto" ? "Ministre automatique" : "Actions jouées"}">${k + 1}. ${NOM_ETAPE(y)}</button></li>`).join("")}</ol>`;
   if (x === "evenements") h += (sEvenements() || `<p class="note">Aucun événement ne te concerne directement ce trimestre.</p>`) + blocDiplomatie();
   else if (x === "carte") h += sEntete() + sCartes();
+  else if (x === "plans") h += panneauPlans(e, joueur());
+  else if (x === "duels") h += panneauDuels(e, joueur());
   else if (x === "bilan") {
     const restes = LISTE_DOMAINES.filter(d => (c.points?.[d] ?? 0) > 0);
     h += `<p>${restes.length ? `Actions encore disponibles : ${restes.map(d => `${DOMAINES[d].nom.toLowerCase()} ${c.points![d]}${modeDe(e, joueur(), d) === "auto" ? " (le ministre les jouera)" : ""}`).join(", ")}.` : "Toutes les actions du trimestre sont jouées."} Budget restant : ${nombre(c.budget, 1)}.</p>`;
@@ -539,6 +546,7 @@ function lierPanneau(zone: HTMLElement) {
   zone.querySelector<HTMLButtonElement>("#basculeGuide")?.addEventListener("click", () => { guide = !guide; try { localStorage.setItem(CLE_GUIDE, guide ? "oui" : "non"); } catch { /* stockage indisponible */ } afficher(); });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
   lierReactions(zone, afficher);
+  lierPlans(zone, { etat: () => etat!, camp: joueur, tenter, jouerDuel: lancerDuel });
   zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, b.dataset.iso ?? paysChoisi!), sonAction(b.dataset.agir as TypeAction)));
   zone.querySelectorAll<HTMLSelectElement>("[data-cible]").forEach(sel => sel.onchange = () => { paysChoisi = sel.value || null; carteMonde.choisir(paysChoisi); afficher(); });
   zone.querySelector<HTMLSelectElement>("#paysAction")?.addEventListener("change", ev => { paysAction = (ev.target as HTMLSelectElement).value; if (paysAction) paysChoisi = paysAction; afficher(); });
@@ -695,6 +703,15 @@ function afficher() {
 }
 
 // Pas de confirm() : les fenêtres natives sont bloquées dans une page intégrée.
+// Un duel en attente : fenêtre de jeu, puis le résultat est appliqué au plan.
+function lancerDuel(id: string) {
+  const d = etat?.duels?.find(x => x.id === id); if (!d || fenetreOuverte()) return;
+  const p = etat!.plans?.find(x => x.id === d.plan), pays = p ? paysDuPlanUi(p) : [];
+  son("ouvrir", 0.4);
+  jouerDuel(d, { boite: $("boite"), ouvrir: () => { $("fenetre").hidden = false; }, fermer, son: n => son(n), noms: pays.map(court),
+    titre: d.titre, sousTitre: d.attaquant === joueur() ? "Tu attaques" : "Tu défends", avantage: avantageJoueur(d, joueur()),
+    fin: r => tenter(() => conclureDuel(etat!, id, r), r >= 0.6 ? "victoire" : r < 0.4 ? "defaite" : "etape") });
+}
 function finTrimestre() {
   if (!etat || etat.termine || fenetreOuverte()) return;
   const c = etat.camps[joueur()];
@@ -796,6 +813,9 @@ function aide() {
       <li><strong>Actions</strong> : chaque trimestre, 2 en économie, 2 en diplomatie, 2 en défense et 1 secrète ; une carte jouée pour ses points donne des points de crise utilisables partout ; le budget peut en acheter 2 de plus. 2 points au plus par pays et par trimestre.</li>
       <li><strong>Fin du trimestre</strong> : l'adversaire joue, l'économie avance, les événements tombent.</li>
     </ol>
+    <h3>Conseils et plans pluriannuels</h3>
+    <p>Tu ne cliques plus pays par pays : tu donnes des <strong>instructions à six conseils</strong> (affaires internationales, économie, militaire, politique et stabilité, infrastructures, éducation et culture). Chaque instruction est un <strong>plan</strong> de 1 an, 18 mois, 2 ans ou 3 ans, discret, normal ou massif, sur un pays, une région, un détroit, un front ou le rival. 5 plans au plus. La <strong>séance annuelle</strong> (1er trimestre) permet tout ; ensuite, un seul ajustement par trimestre. Un plan coûte du budget chaque trimestre, agit un peu chaque trimestre, et les ministères automatiques le suivent. Chaque chef de conseil a un trait (prudent, agressif, corrompu, brillant, loyal) ; tu peux le remplacer à la séance annuelle (2 CP).</p>
+    <p><strong>Jalons et duels</strong> : à un tiers, le plan prend de l'élan (ou déclenche un duel si la cible est disputée) ; aux deux tiers, il y a toujours un <strong>duel</strong> contre l'autre bloc : 22 mini-jeux rapides inspirés de jeux de société (Puissance 4, Skull, Coup, Jaipur, Mémoire 44, Stratego, Mastermind…). La préparation (alignement, intensité, puissance) donne un avantage de départ. Tu le joues ou tu laisses tes conseillers le régler. Gagné : le plan avance de 10 points et le rival recule ; perdu : il recule de 25. Une fois par an, tu peux <strong>riposter</strong> à un plan adverse repéré (3 CP) : duel immédiat. Une réserve d'opérations ciblées (+1 par trimestre) se dépense aux 1er et 4e trimestres.</p>
     <h3>Les cartes</h3>
     <p>Chaque année, tu reçois <strong>6 cartes</strong> : 2 de ton camp, 2 du camp adverse, 2 neutres. Tu en joues une par trimestre, donc 4 par an, avec <strong>au moins une de chaque type</strong>. Les 2 restantes sont défaussées en fin d'année. Une carte adverse se joue pour ses points d'action, mais son événement se déclenche alors au profit de l'adversaire : choisis bien le moment.</p>
     <h3>Influence et alignement</h3>

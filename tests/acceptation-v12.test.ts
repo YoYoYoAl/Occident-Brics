@@ -35,7 +35,7 @@ describe("v12", () => {
 
   it("4. tour guidé : étapes dans l'ordre événements, carte, défense (qui peut rapporter du budget), économie, diplomatie, secret, bilan ; domaines automatiques sautés ; vue complète possible", () => {
     const src = readFileSync("src/interface/main.ts", "utf8");
-    expect(src).toMatch(/ETAPES: Etape\[\] = \["evenements", "carte", "defense", "eco", "diplo", "secret", "bilan"\]/);
+    expect(src).toMatch(/ETAPES: Etape\[\] = \["evenements", "carte", "plans", "duels", "defense", "eco", "diplo", "secret", "bilan"\]/);
     expect(src).toMatch(/modeDe\(e, joueur\(\), x\) !== "auto"/);
     expect(src).toMatch(/id="basculeGuide"/);
   });
