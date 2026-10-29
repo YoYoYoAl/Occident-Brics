@@ -1,5 +1,6 @@
 // Tests d'acceptation de la v8 (25/10/2026) : zones stratégiques, Antarctique sur la carte, 5 niveaux de gravité,
 // interactions entre blocs (bras de fer, riposte, diplomatie), effet « ami d'un ami », effets court et long terme.
+import { dirigeantsNeutres } from "./neutre";
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
@@ -9,7 +10,7 @@ import {
 } from "../src/moteur/partie";
 
 const SANS_ALEA = { generiques: false, ia: false };
-const avecPA = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].pa = 20; e.camps[c].budget = 50; e.camps[c].cp = 60; } return e; };
+const avecPA = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].pa = 20; e.camps[c].budget = 50; e.camps[c].cp = 60; } return dirigeantsNeutres(e); };
 const jouer = (e: EtatPartie) => { while (!e.termine) e = roundAutomatique(e); return e; };
 
 describe("v8", () => {

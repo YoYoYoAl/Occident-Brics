@@ -8,6 +8,7 @@ import { FLUX, DETROITS } from "../data/flux";
 import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, basculerMusique, musiqueActivee, relancerMusique, type Son } from "./sons";
 import { ficheHtml } from "./fiche";
 import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur } from "./plans-ui";
+import { panneauDirigeant, panneauGuerre, lierGuerre } from "./guerre-ui";
 import { jouerDuel } from "./duel-ui";
 import { salleDuels } from "./salle-duels";
 import { conclureDuel, paysDuPlan as paysDuPlanUi } from "../moteur/plans";
@@ -275,9 +276,9 @@ function etapeUtile(x: Etape): boolean {
   if (x === "evenements") return aReagirDe(e).length > 0 || ripostesDe(e).length > 0 || e.proposition?.de === adversaire(joueur());
   if (x === "carte") return !c.carteJouee && c.main.length > 0;
   if (x === "bilan") return true;
-  if (x === "plans") return plansUtiles(e, joueur());
+  if (x === "plans") return plansUtiles(e, joueur()) || e.succession?.camp === joueur();
   if (x === "duels") return duelsDuJoueur(e, joueur()).length > 0;
-  return modeDe(e, joueur(), x) !== "auto" && (c.points?.[x] ?? 0) > 0;
+  return (modeDe(e, joueur(), x) !== "auto" && (c.points?.[x] ?? 0) > 0) || (x === "defense" && e.interventions.some(i => i.camp === joueur()));
 }
 const etapeSuivante = (i: number) => { for (let k = i + 1; k < ETAPES.length; k++) if (etapeUtile(ETAPES[k])) return k; return ETAPES.length - 1; };
 
@@ -341,19 +342,19 @@ function panneauMain(): string {
     return `<div class="achat"><button id="acheter" ${errAchat ? `disabled title="${esc(errAchat)}"` : ""}>Acheter 1 point de crise (${PRIX_PA} budget)</button> <span class="note">2 par trimestre au plus.</span></div>`;
   };
   const bascule = `<p class="note bascule-guide"><button id="basculeGuide">${guide ? "Vue complète" : "Tour guidé"}</button> ${guide ? "Le trimestre se joue étape par étape." : "Toutes les décisions sur une page."}</p>`;
-  if (!guide) return bascule + sEntete() + sEvenements() + panneauPlans(e, joueur()) + panneauDuels(e, joueur()) + blocStrategie() + blocDiplomatie() + sCartes() + blocMinisteres() + sAgir() + sAchat();
+  if (!guide) return bascule + sEntete() + sEvenements() + panneauDirigeant(e, joueur()) + panneauPlans(e, joueur()) + panneauDuels(e, joueur()) + panneauGuerre(e, joueur()) + blocStrategie() + blocDiplomatie() + sCartes() + blocMinisteres() + sAgir() + sAchat();
   if (etapeRound !== e.round) { etapeRound = e.round; etape = etapeUtile(ETAPES[0]) ? 0 : etapeSuivante(0); }
   const x = ETAPES[etape];
   let h = bascule + `<ol class="etapes">${ETAPES.map((y, k) => `<li><button data-etape="${k}" class="${k === etape ? "actif" : ""} ${etapeUtile(y) ? "" : "inutile"}" title="${etapeUtile(y) ? "" : y === "carte" ? "Carte jouée" : y === "evenements" || y === "plans" ? "Rien à décider" : y === "duels" ? "Aucun duel en attente" : modeDe(e, joueur(), y as Domaine) === "auto" ? "Ministre automatique" : "Actions jouées"}">${k + 1}. ${NOM_ETAPE(y)}</button></li>`).join("")}</ol>`;
   if (x === "evenements") h += (sEvenements() || `<p class="note">Aucun événement ne te concerne directement ce trimestre.</p>`) + blocDiplomatie();
   else if (x === "carte") h += sEntete() + sCartes();
-  else if (x === "plans") h += panneauPlans(e, joueur());
+  else if (x === "plans") h += panneauDirigeant(e, joueur()) + panneauPlans(e, joueur());
   else if (x === "duels") h += panneauDuels(e, joueur());
   else if (x === "bilan") {
     const restes = LISTE_DOMAINES.filter(d => (c.points?.[d] ?? 0) > 0);
     h += `<p>${restes.length ? `Actions encore disponibles : ${restes.map(d => `${DOMAINES[d].nom.toLowerCase()} ${c.points![d]}${modeDe(e, joueur(), d) === "auto" ? " (le ministre les jouera)" : ""}`).join(", ")}.` : "Toutes les actions du trimestre sont jouées."} Budget restant : ${nombre(c.budget, 1)}.</p>`;
     h += blocStrategie() + sAgir() + sAchat() + `<p><button id="finGuide" class="principal">Fin du trimestre</button></p>`;
-  } else h += blocDomaine(x) + sAgir();
+  } else h += blocDomaine(x) + (x === "defense" ? panneauGuerre(e, joueur()) : "") + sAgir();
   if (x !== "bilan") h += `<p class="suite-guide"><button id="etapeSuivante" class="principal">${NOM_ETAPE(ETAPES[etapeSuivante(etape)])} ›</button></p>`;
   return h;
 }
@@ -550,6 +551,7 @@ function lierPanneau(zone: HTMLElement) {
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
   lierReactions(zone, afficher);
   lierPlans(zone, { etat: () => etat!, camp: joueur, tenter, jouerDuel: lancerDuel });
+  lierGuerre(zone, { etat: () => etat!, camp: joueur, tenter });
   zone.querySelectorAll<HTMLButtonElement>("[data-agir]").forEach(b => b.onclick = () => tenter(() => agir(etat!, joueur(), b.dataset.agir as TypeAction, b.dataset.iso ?? paysChoisi!), sonAction(b.dataset.agir as TypeAction)));
   zone.querySelectorAll<HTMLSelectElement>("[data-cible]").forEach(sel => sel.onchange = () => { paysChoisi = sel.value || null; carteMonde.choisir(paysChoisi); afficher(); });
   zone.querySelector<HTMLSelectElement>("#paysAction")?.addEventListener("change", ev => { paysAction = (ev.target as HTMLSelectElement).value; if (paysAction) paysChoisi = paysAction; afficher(); });
@@ -819,6 +821,12 @@ function aide() {
     <h3>Conseils et plans pluriannuels</h3>
     <p>Tu ne cliques plus pays par pays : tu donnes des <strong>instructions à six conseils</strong> (affaires internationales, économie, militaire, politique et stabilité, infrastructures, éducation et culture). Chaque instruction est un <strong>plan</strong> de 1 an, 18 mois, 2 ans ou 3 ans, discret, normal ou massif, sur un pays, une région, un détroit, un front ou le rival. 5 plans au plus. La <strong>séance annuelle</strong> (1er trimestre) permet tout ; ensuite, un seul ajustement par trimestre. Un plan coûte du budget chaque trimestre, agit un peu chaque trimestre, et les ministères automatiques le suivent. Chaque chef de conseil a un trait (prudent, agressif, corrompu, brillant, loyal) ; tu peux le remplacer à la séance annuelle (2 CP).</p>
     <p><strong>Jalons et duels</strong> : à un tiers, le plan prend de l'élan (ou déclenche un duel si la cible est disputée) ; aux deux tiers, il y a toujours un <strong>duel</strong> contre l'autre bloc : 22 mini-jeux rapides inspirés de jeux de société (Puissance 4, Skull, Coup, Jaipur, Mémoire 44, Stratego, Mastermind…). La préparation (alignement, intensité, puissance) donne un avantage de départ. Tu le joues ou tu laisses tes conseillers le régler. Gagné : le plan avance de 10 points et le rival recule ; perdu : il recule de 25. Une fois par an, tu peux <strong>riposter</strong> à un plan adverse repéré (3 CP) : duel immédiat. Une réserve d'opérations ciblées (+1 par trimestre) se dépense aux 1er et 4e trimestres.</p>
+    <h3>Dirigeants</h3>
+    <p>Chaque bloc a un <strong>dirigeant</strong> (nom fictif) : quatre aptitudes de 0 à 10 et deux traits. <strong>Diplomatie</strong> : gains d'influence politique, culturelle et économique ±3 % par point autour de 5. <strong>Stratégie militaire</strong> : score de guerre +1,5 par trimestre et par point. <strong>Intendance</strong> : budget ±2 % par point. <strong>Intrigue</strong> : risque d'être démasqué −5 % par point, putschs +2 points. La <strong>popularité</strong> pèse sur la réélection ; la <strong>santé</strong> baisse avec l'âge. À chaque alternance, fin de mandats (8 ans aux États-Unis, 10 en Chine) ou décès, tu choisis le successeur parmi 3 candidats.</p>
+    <h3>Guerre, casus belli et expansion agressive</h3>
+    <p>Une <strong>intervention armée</strong> a un <strong>but</strong> (changement de régime, base permanente, expédition punitive) et un <strong>score de guerre</strong> de −100 à +100, qui suit chaque trimestre ton avantage militaire dans le pays et la stratégie de ton dirigeant ; deux <strong>batailles décisives</strong> se jouent en duel (±30). Tu signes la paix quand tu veux : chaque terme se paie en points de score (régime ami 60, base 40, expédition punitive 25, démilitarisation 20, réparations 20, influence 15), la paix blanche est toujours possible. À l'échéance, tes conseillers signent pour toi, ou c'est l'enlisement si le score est négatif. Pas d'intervention chez une puissance nucléaire.</p>
+    <p>Un <strong>casus belli</strong> justifie l'intervention : défense d'un allié (×0,25), incident frontalier ou lutte antiterroriste (×0,5), crise humanitaire ou dossier d'armes de destruction massive fabriqué (×0,75, 30 % de risque de scandale), changement de régime (×1, dirigeant belliciste), rivalité ouverte (tension 80, seule justification d'une guerre contre l'autre puissance). Sans casus belli, c'est une <strong>agression</strong> : capital politique −10 et expansion ×3.</p>
+    <p>L'<strong>expansion agressive</strong> se compte par région (pleine dans la région visée, moitié dans les voisines, quart ailleurs). À 25, tes actions d'influence y perdent 15 % ; à 50, l'adversaire y gagne de l'influence ; à 75, les trois plus grands pays forment une <strong>coalition</strong> : plus d'intervention ni de putsch chez eux, tes plans dans la région −30 %. Elle baisse de 4 par trimestre sans intervention dans la région (2 sinon).</p>
     <h3>Les cartes</h3>
     <p>Chaque année, tu reçois <strong>6 cartes</strong> : 2 de ton camp, 2 du camp adverse, 2 neutres. Tu en joues une par trimestre, donc 4 par an, avec <strong>au moins une de chaque type</strong>. Les 2 restantes sont défaussées en fin d'année. Une carte adverse se joue pour ses points d'action, mais son événement se déclenche alors au profit de l'adversaire : choisis bien le moment.</p>
     <h3>Influence et alignement</h3>

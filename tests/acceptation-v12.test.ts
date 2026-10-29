@@ -1,4 +1,5 @@
 // Tests d'acceptation de la v12 (26/10/2026) : budget versé chaque trimestre et dosé pour 4 à 5 des 7 actions, épargne plafonnée, tour guidé.
+import { multIntendance } from "../src/moteur/dirigeants";
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { creerPartie, finRound, budgetTrimestre, BUDGET, arrondi } from "../src/moteur/partie";
@@ -10,7 +11,7 @@ describe("v12", () => {
   it("1. budget trimestriel : socle + racine du PIB du leader, versé à chaque trimestre", () => {
     const e = creerPartie(1, "OCC", SANS_ALEA);
     for (const [camp, iso] of [["OCC", "USA"], ["CHN", "CHN"]] as const) {
-      expect(budgetTrimestre(e, camp)).toBeCloseTo(arrondi(BUDGET.socle + BUDGET.k * Math.sqrt(e.pays[iso].pib / 1e12)), 9);
+      expect(budgetTrimestre(e, camp)).toBeCloseTo(arrondi((BUDGET.socle + BUDGET.k * Math.sqrt(e.pays[iso].pib / 1e12)) * multIntendance(e, camp)), 9); // v18 : intendance du dirigeant
       expect(e.camps[camp].budget).toBe(budgetTrimestre(e, camp));
     }
     e.camps.OCC.budget = 1;

@@ -1,5 +1,6 @@
 // Tests d'acceptation de la v11 (25/10/2026) : domaines d'action, modes (automatique, conseiller, manuel), orientations,
 // échelles militaires, blocus conditionné, complémentarité commerciale, budget au dixième.
+import { dirigeantsNeutres } from "./neutre";
 import { describe, it, expect } from "vitest";
 import {
   creerPartie, finRound, agir, peutAgir, DOMAINES, dispo, conseils, reglerMode, modeDe, orienter, reglerPartOrientations, peutBloquer,
@@ -8,7 +9,7 @@ import {
 import { PROFILS } from "../src/data/commerce";
 
 const SANS_ALEA = { generiques: false, ia: false };
-const prets = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].budget = 60; e.camps[c].cp = 70; } return e; };
+const prets = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].budget = 60; e.camps[c].cp = 70; } return dirigeantsNeutres(e); };
 
 describe("v11", () => {
   it("1. domaines : 2 actions en économie, diplomatie, défense, 1 secrète par trimestre ; points de crise en complément", () => {

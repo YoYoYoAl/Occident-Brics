@@ -1,5 +1,6 @@
 // Tests d'acceptation de la v9 (25/10/2026) : priorité annuelle, pays au bord de la bascule, investissement durable,
 // mémoire cachée des pays, renseignement, agenda secret, dépendance commerciale, usure de l'opinion.
+import { dirigeantsNeutres } from "./neutre";
 import { describe, it, expect } from "vitest";
 import {
   creerPartie, finRound, agir, choisirPriorite, peutChoisirPriorite, BONUS_PRIORITE, PART_IMMEDIATE, DURABLE, auBord, alignement,
@@ -9,7 +10,7 @@ import {
 import { CANAUX } from "../src/moteur/types";
 
 const SANS_ALEA = { generiques: false, ia: false };
-const avecPA = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].pa = 20; e.camps[c].budget = 50; e.camps[c].cp = 60; } return e; };
+const avecPA = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].pa = 20; e.camps[c].budget = 50; e.camps[c].cp = 60; } return dirigeantsNeutres(e); };
 const jusqua = (e: EtatPartie, r: number) => { while (e.round < r) e = finRound(e); return e; };
 
 describe("v9", () => {

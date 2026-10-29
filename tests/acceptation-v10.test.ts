@@ -1,5 +1,6 @@
 // Tests d'acceptation de la v10 (25/10/2026) : crises en chaîne, rumeurs, ONU, prêts et dette, élections, technologies,
 // escalade militaire (intimidation, soutien, putsch, intervention, blocus, course aux armements), guerre entre leaders, crise nucléaire.
+import { dirigeantsNeutres } from "./neutre";
 import { describe, it, expect } from "vitest";
 import {
   creerPartie, finRound, roundAutomatique, agir, peutAgir, electionProchaine, ELECTIONS_PAYS, lobbyOnu, peutLobbyOnu, voteOnu, rechercher, peutRechercher,
@@ -8,7 +9,7 @@ import {
 } from "../src/moteur/partie";
 
 const SANS_ALEA = { generiques: false, ia: false };
-const avecPA = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].pa = 20; e.camps[c].budget = 60; e.camps[c].cp = 70; } return e; };
+const avecPA = (e: EtatPartie) => { for (const c of ["OCC", "CHN"] as const) { e.camps[c].pa = 20; e.camps[c].budget = 60; e.camps[c].cp = 70; } return dirigeantsNeutres(e); };
 const jusqua = (e: EtatPartie, r: number) => { while (e.round < r && !e.termine) e = finRound(e); return e; };
 const jouer = (e: EtatPartie) => { while (!e.termine) e = roundAutomatique(e); return e; };
 
@@ -90,7 +91,7 @@ describe("v10", () => {
     const t0 = e.tension, x = agir(e, "OCC", "intervention", "VEN");
     expect(x.interventions).toHaveLength(1); expect(x.conflits.some(c => c.iso === "VEN")).toBe(true); expect(x.tension).toBeGreaterThanOrEqual(Math.min(100, t0 + 10));
     const fin = jusqua(x, 8);
-    expect(fin.journal.some(j => j.titre.startsWith("Fin de l'intervention au Venezuela"))).toBe(true);
+    expect(fin.journal.some(j => /^Venezuela : (victoire|paix blanche|enlisement)/.test(j.titre))).toBe(true); // v18 : issue selon le score de guerre
     const b = bloquer(e, "OCC", "ormuz");
     expect(b.blocages.some(x => x.detroit === "ormuz")).toBe(true); expect(peutBloquer(b, "CHN", "malacca")).toMatch(/déjà/);
     const a = courseArmements(e, "OCC"); expect(peutArmer(a, "OCC")).toMatch(/par an/);

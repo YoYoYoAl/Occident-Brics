@@ -7,6 +7,7 @@ import { type Camp, type Canal, type Effet, CAMPS, adversaire } from "./types";
 import { date } from "./temps";
 import { DETROITS } from "../data/flux";
 import { DUELS, type IdDuel } from "../duels/catalogue";
+import { gagnerAE, appliquerBataille, facteurPlanAE, AE } from "./guerre";
 import {
   type EtatPartie, type Domaine, type TypeAction, alignement, nomPays, ZONES, THEATRES, ZONES_STRATEGIQUES, RIVERAINS, electionProchaine,
   partFamille, arrondi, DOMAINE_ACTION, TECHNOLOGIES, SEUIL_TECHNO, outils,
@@ -88,7 +89,7 @@ export interface Plan {
 }
 export interface Duel {
   id: string; plan: string; type: IdDuel; attaquant: Camp; defenseur: Camp; avantage: number; round: number; graine: number;
-  motif: "jalon" | "riposte"; titre: string;
+  motif: "jalon" | "riposte" | "bataille"; titre: string; // bataille : plan = « guerre:ISO »
 }
 
 const sens = (c: Camp) => (c === "OCC" ? 1 : -1);
@@ -199,6 +200,7 @@ export function vitesse(e: EtatPartie, p: Plan): number {
   if (pays.length) v *= 1 - 0.3 * Math.max(0, -s * pays.reduce((a, i) => a + alignement(e, i), 0) / pays.length);
   if (chef === "brillant") v *= 1.15; if (chef === "prudent") v *= 0.95;
   if (conflitConseils(e, p)) v *= 0.8;
+  v *= facteurPlanAE(e, p.camp, pays); // coalition contre le camp dans la région : −30 %
   return v;
 }
 const DURS: ObjectifPlan[] = ["sanctions", "renverser", "frontiere", "detroit", "presence", "contrer"], DOUX: ObjectifPlan[] = ["commerce", "partenariat", "rayonnement", "infrastructures"];
@@ -244,7 +246,7 @@ function recompenser(e: EtatPartie, p: Plan, part = 1) {
     case "influence": for (const i of pays) inf(i, p.camp, "p", 3 * f); break;
     case "election": inf(p.cible, p.camp, "p", 10 * f); inf(p.cible, adv, "p", -5 * f); break;
     case "renverser": { const x = e.pays[p.cible]; if (f >= 0.5) { x.influence[p.camp].p = Math.max(x.influence[p.camp].p, 55); x.influence[adv].p = Math.min(x.influence[adv].p, 20); }
-      x.stabilite = outils.borne(x.stabilite - 12, 0, 100);
+      x.stabilite = outils.borne(x.stabilite - 12, 0, 100); if (f >= 0.5) gagnerAE(e, p.camp, p.cible, AE.renverser * f);
       outils.noter(e, { type: "action", titre: `Coup d'État ${nomPays(p.cible).match(/^[AEIOUÉ]/) ? "en" : "au"} ${nomPays(p.cible)}`, famille: "coup_etat", texte: "Le régime tombe ; les nouveaux dirigeants restent discrets sur leurs soutiens étrangers.", pays: [p.cible], visiblePour: [...CAMPS] }); break; }
     case "contrer": inf(p.cible, adv, "p", -12 * f); inf(p.cible, adv, "e", -6 * f); break;
     case "espionnage": e.camps[p.camp].budget = arrondi(e.camps[p.camp].budget + 3 * f); e.camps[p.camp].revelation = e.round + 8; break;
@@ -331,6 +333,8 @@ export function resolutionAuto(e: EtatPartie, avantage: number): number {
 function appliquerDuel(e: EtatPartie, d: Duel, r: number) {
   const p = e.plans?.find(x => x.id === d.plan);
   e.duels = (e.duels ?? []).filter(x => x.id !== d.id);
+  if (d.motif === "bataille") { appliquerBataille(e, d.plan.slice(7), r);
+    outils.noter(e, { type: "action", titre: `${d.titre} : ${r >= PLANS.victoire ? "victoire" : r < PLANS.defaite ? "défaite" : "issue indécise"} du ${nomBlocPlan(d.attaquant)}`, texte: `Score de guerre ${r >= 0.5 ? "+" : ""}${Math.round(60 * (r - 0.5))}.`, camp: d.attaquant, pays: [d.plan.slice(7)], visiblePour: [...CAMPS] }); return; }
   const issue = r >= PLANS.victoire ? "victoire" : r < PLANS.defaite ? "défaite" : "match nul";
   outils.noter(e, { type: "action", titre: `Duel « ${DUELS[d.type].nom} » : ${issue} du ${nomBlocPlan(d.attaquant)}`, texte: p ? titrePlan(p) : d.titre, camp: d.attaquant, pays: p ? paysDuPlan(p) : [], visiblePour: [...CAMPS] });
   if (!p) return;

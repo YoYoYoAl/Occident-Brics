@@ -31,6 +31,9 @@ import { ZONES } from "./zones";
 import { CARTES_GENEREES } from "../contenu/cartes-generees";
 import { type Plan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
 import { date, libelle, NB_ROUNDS } from "./temps";
+import { type Dirigeant, tirerDirigeants, suiviDirigeants, apresScrutin, maintienAvecPopularite, multDiplomatie, multIntendance, multRisque, bonusPutsch, aTrait } from "./dirigeants";
+import { type CasusBelli, type Coalition, type Intervention, majCasusBelli, suiviExpansion, suiviGuerres, justifier, gagnerAE, facteurAE, coalitionContre, aeDuPays, nucleaire, casusBelliDe, AE, CASUS_BELLI } from "./guerre";
+import { resolutionAuto } from "./plans";
 import {
   type Camp, type Canal, type Effet, type Condition, type CiblePays, type CampRel, type Carte, type Briefing,
   type ModeleGenerique, CAMPS, CANAUX, adversaire,
@@ -41,9 +44,9 @@ export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
 // Formules de partie : l'ère 1 seule, l'ère 1 prolongée jusqu'en 2025, ou un départ réel en 2008 jusqu'en 2025.
 export type Format = "2000-2008" | "2000-2035" | "2008-2035";
 export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
-  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 4.1, egalite: 0.3 }, // v17, 200 parties IA : 40,5 / 19 / 40,5 %
-  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 15.8, egalite: 0.25 }, // v17, 200 parties IA : 40,5 / 18,5 / 41 %, aucune défaite
-  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 12.9, egalite: 0.25 }, // v17, 200 parties IA : 39,5 / 20 / 40 %, 0,5 % banqueroute USA
+  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 3.9, egalite: 0.3 }, // v18, 200 parties IA : 39,5 / 20,5 / 39,5 %, 0,5 % banqueroute USA
+  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 15.9, egalite: 0.2 }, // v18, 200 parties IA : 39,5 / 21 / 39 %, 0,5 % banqueroute USA
+  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 12.8, egalite: 0.25 }, // v18, 200 parties IA : 40 / 19 / 41 %, aucune défaite
 };
 export const formatDe = (e: EtatPartie) => FORMATS[(e.reglages.format ?? "2000-2008").replace("2025", "2035") as Format]; // sauvegardes v14 : formats « -2025 » prolongés
 // Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
@@ -84,6 +87,7 @@ export interface EtatCamp {
   orientations?: Record<string, Orientation>; partOrientations?: number; // orientations permanentes et part du budget qui s'y applique
   crans?: Record<string, { coop: number; coer: number; round: number; rCoop?: number; rCoer?: number }>; // échelles militaires atteintes par pays
   recherche?: Record<string, number>; technologies?: string[]; // points investis par technologie, percées obtenues
+  fabrique?: number; // dernière année (round / 4) où le camp a monté un dossier de casus belli
   ajustement?: number; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
 }
 export type TypeCarte = "camp" | "adverse" | "neutre";
@@ -111,7 +115,7 @@ export interface EtatPartie {
   paliers: Record<string, number>;
   memoire: Record<string, Record<Camp, number>>;
   prets: { iso: string; camp: Camp; montant: number; echeance: number }[];
-  interventions: { iso: string; camp: Camp; fin: number }[];
+  interventions: Intervention[]; // interventions armées : but, score de guerre, casus belli
   campagnesElectorales: Record<string, Record<Camp, number>>; // « ISO:année » → soutiens de chaque bloc
   chaines: { iso: string; famille: string; round: number; source: string }[]; // crises en chaîne programmées
   onu?: { annee: number; theme: string; de: Camp; lobby: Record<Camp, number> } | null;
@@ -121,6 +125,8 @@ export interface EtatPartie {
   rapprochements: { iso: string; camp: Camp; restant: number }[]; // entraînements en cours (trimestres restants)
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
   plans?: Plan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
+  ae?: Record<Camp, Record<string, number>>; casusBelli?: CasusBelli[]; coalitions?: Coalition[]; // expansion agressive par région, justifications, coalitions
+  dirigeants?: Record<Camp, Dirigeant>; succession?: { camp: Camp; candidats: Dirigeant[]; round: number } | null; // dirigeants et succession à arbitrer par le joueur
   zones: Record<string, Record<Camp, number>>; // présence des blocs dans les zones stratégiques (0-100) // ports et aéroports sous concession d'un bloc
 }
 export interface Conflit { iso: string; titre: string; fin: number }
@@ -335,7 +341,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
-  e.plans = []; e.duels = []; tirerChefs(e);
+  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return debutRound(e, true);
 }
 
@@ -373,14 +379,14 @@ function depart2008(graine: number, joueur: Camp | null, reglages: Reglages): Et
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
-  e.plans = []; e.duels = []; tirerChefs(e);
+  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return e;
 }
 
 // Budget versé chaque trimestre : socle + racine du PIB du leader (en milliers de milliards), estimation de jeu calée pour couvrir
 // 4 à 5 des 7 actions du trimestre ; l'épargne est plafonnée à 2 trimestres de revenu, assez pour un levier lourd.
 export const BUDGET = { socle: 3.5, k: 0.7, report: 2 };
-export const budgetTrimestre = (e: EtatPartie, camp: Camp) => arrondi(BUDGET.socle + BUDGET.k * Math.sqrt(e.pays[camp === "OCC" ? "USA" : "CHN"].pib / 1e12));
+export const budgetTrimestre = (e: EtatPartie, camp: Camp) => arrondi((BUDGET.socle + BUDGET.k * Math.sqrt(e.pays[camp === "OCC" ? "USA" : "CHN"].pib / 1e12)) * multIntendance(e, camp)); // intendance du dirigeant : ±2 % par point
 
 // ---------- Conditions et effets ----------
 function campReel(rel: CampRel, joueur: Camp | null, paysTire: string | undefined, e: EtatPartie): Camp {
@@ -726,7 +732,7 @@ export const ACTIONS: Record<TypeAction, { nom: string; pa: number; budget: numb
   soutien: { nom: "Soutenir un camp dans le conflit", pa: 2, budget: 2, famille: "militaire", aide: "Armes, conseillers, frappes : influence militaire +8 et politique +4, tension +2. Dans un pays en conflit : conflit raccourci de 2 trimestres, ou guerre par procuration si l'adversaire soutient aussi (tension +3, conflit rallongé). Sinon, soutien à l'opposition d'un pays qui ne penche pas vers toi : stabilité −4 et rancune." },
   putsch: { nom: "Fomenter un putsch", pa: 2, budget: 4, famille: "secret", aide: "Pays instable (stabilité < 40) seulement. 45 % de réussite : un régime ami (influence politique 60, adverse 15), stabilité −15. Échec : stabilité −5, et 70 % de risque d'être démasqué : scandale, capital politique −6, tension +5, rancune dans le pays et chez ses voisins. Il faut d'abord avoir intimidé le pays." },
   garantie: { nom: "Garantie de défense", pa: 2, budget: 3, famille: "militaire", aide: "Dernier cran de la coopération : alliance formelle. Influence militaire +10 et politique +6, ses voisins se rapprochent de toi ; l'adversaire ne peut plus y intervenir et toute pression sur ce pays lui coûte plus de tension. Le pays doit pencher vers toi d'au moins 0,40." },
-  intervention: { nom: "Intervention armée", pa: 2, budget: 8, famille: "militaire", aide: "Capital politique 55 requis (−5). Conflit de 8 trimestres, coût 1 budget par trimestre, tension +10, stabilité −20, rancune ; influence militaire +15, influence militaire et politique adverses −10. Issue cachée selon le rapport des forces militaires : régime ami (politique +15) ou enlisement (politique −10, capital politique −8)." },
+  intervention: { nom: "Intervention armée", pa: 2, budget: 8, famille: "militaire", aide: "Capital politique 55 requis (−5). Conflit de 8 trimestres, coût 1 budget par trimestre, tension +10, stabilité −20, rancune ; influence militaire +15, influence militaire et politique adverses −10. Score de guerre (−100 à +100) chaque trimestre selon le rapport des forces militaires et la stratégie du dirigeant, deux batailles décisives (duels) ; à la paix, tu achètes des termes avec le score (régime ami 60, base 40…). Score négatif à l'échéance : enlisement (politique −10, capital politique −8). Sans casus belli : agression (capital politique −10, expansion agressive ×3)." },
   espionnage: { nom: "Espionnage économique", pa: 1, budget: 0, famille: "secret", aide: "Influence économique +4 et adverse −3, rapporte 0,5 de budget. 20 % de risque d'être révélé : influence économique −6, capital politique −2." },
 };
 export const AIDES_ACTIONS: Partial<Record<TypeAction, string>> = {
@@ -747,6 +753,7 @@ export function peutAgir(e: EtatPartie, camp: Camp, type: TypeAction, iso: strin
   if (type === "putsch" && (c.crans?.[iso]?.coer ?? 0) < 1) return "Putsch : il faut d'abord avoir intimidé ce pays (échelle de coercition).";
   const garant = e.garanties?.find(g => g.iso === iso && g.camp !== camp);
   if (garant && (type === "intervention" || type === "putsch")) return "Ce pays est sous garantie de défense adverse : ce serait une guerre ouverte.";
+  if ((type === "intervention" || type === "putsch") && coalitionContre(e, camp, iso)) return "Ce pays fait partie d'une coalition défensive contre ton bloc (expansion agressive trop forte dans la région).";
   if (type === "garantie" && (camp === "OCC" ? 1 : -1) * alignement(e, iso) < 0.4) return "Garantie de défense : le pays doit pencher vers toi d'au moins 0,40.";
   if (type === "garantie" && e.garanties?.some(g => g.iso === iso && g.camp === camp)) return "Garantie déjà accordée.";
   if ((c.paParPays[iso] ?? 0) + a.pa > MAX_PA_PAR_PAYS) return "Maximum 2 points par pays et par trimestre.";
@@ -764,9 +771,10 @@ export function peutAgir(e: EtatPartie, camp: Camp, type: TypeAction, iso: strin
   if (type === "soutien" && !e.conflits.some(x => x.iso === iso) && (camp === "OCC" ? 1 : -1) * alignement(e, iso) >= 0.1) return "Soutien armé : seulement dans un pays en conflit, ou à l'opposition d'un pays qui ne penche pas vers toi.";
   if (type === "putsch" && e.pays[iso].stabilite >= 40) return `Putsch : le pays doit être instable (stabilité < 40 ; actuelle : ${Math.round(e.pays[iso].stabilite)}).`;
   if (type === "intervention") {
-    if (c.cp < 55) return `Intervention : capital politique 55 requis (actuel : ${Math.floor(c.cp)}).`;
+    const cpMin = aTrait(e, camp, "belliciste") ? 45 : 55; if (c.cp < cpMin) return `Intervention : capital politique ${cpMin} requis (actuel : ${Math.floor(c.cp)}).`;
     if (e.interventions.some(x => x.iso === iso)) return "Une intervention est déjà en cours dans ce pays.";
     if (vers >= 0.4) return "On n'envahit pas un allié.";
+    if (nucleaire(iso, date(e.round).annee)) return "Puissance nucléaire : une intervention armée y est exclue.";
   }
   if (type === "armes" && vers < -0.2) return `Vente d'armes : le pays penche trop vers l'adversaire (${(-vers).toFixed(2).replace(".", ",")} ; limite 0,20).`;
   return null;
@@ -780,7 +788,7 @@ export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string, 
   if (ech) { const cr = ((c.crans ??= {})[iso] ??= { coop: 0, coer: 0, round: e.round }); cr[ech.echelle] = Math.max(cr[ech.echelle], ECHELLES[ech.echelle].indexOf(type) + 1); cr.round = e.round; if (ech.echelle === "coop") cr.rCoop = e.round; else cr.rCoer = e.round; }
   if (type === "putsch") { const cr = ((c.crans ??= {})[iso] ??= { coop: 0, coer: 0, round: e.round }); cr.rCoer = e.round; }
   if ((type === "intimidation" || type === "soutien") && e.garanties?.some(g => g.iso === iso && g.camp !== camp)) e.tension = borne(e.tension + 3, 0, 100);
-  const bonus = bonusPriorite(c, type) * boostCommerce(iso, camp, type), su = (c.suite ??= {})[iso];
+  const bonus = bonusPriorite(c, type) * boostCommerce(iso, camp, type) * facteurAE(e, camp, iso) * (type === "politique" || type === "culturelle" || type === "economique" ? multDiplomatie(e, camp) : 1), su = (c.suite ??= {})[iso];
   const n = !su ? 0 : su.round === e.round ? su.n : su.round === e.round - 1 ? Math.min(3, su.n + 1) : 0; // investissement durable
   c.suite[iso] = { round: e.round, n };
   const durable = 1 + DURABLE * n;
@@ -825,16 +833,20 @@ export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string, 
     e.tension = borne(e.tension + 2, 0, 100);
   }
   if (type === "intervention") {
-    c.cp = borne(c.cp - 5, 0, 100); gain("m", 15); const adv = e.pays[iso].influence[adversaire(camp)]; adv.m = Math.max(0, adv.m - 10); adv.p = Math.max(0, adv.p - 10);
+    c.cp = borne(c.cp - 5 - (aTrait(e, camp, "pacificateur") ? 5 : 0), 0, 100); gain("m", 15); const adv = e.pays[iso].influence[adversaire(camp)]; adv.m = Math.max(0, adv.m - 10); adv.p = Math.max(0, adv.p - 10);
     e.pays[iso].stabilite = borne(e.pays[iso].stabilite - 20, 0, 100); e.tension = borne(e.tension + 10, 0, 100); c.fatigue = (c.fatigue ?? 0) + 3;
     memoriser(e, iso, camp, -4); for (const v of prochesDe(e, iso).voisins) memoriser(e, v, camp, -1);
     e.conflits.push({ iso, titre: `Intervention ${camp === "OCC" ? "américaine" : "chinoise"} ${enPays(iso, nomPays(iso))}`, fin: e.round + 7 });
-    e.interventions.push({ iso, camp, fin: e.round + 7 });
+    const j = apercu ? { cb: casusBelliDe(e, camp, iso)?.type ?? null, ae: 0 } : justifier(e, camp, iso, AE.intervention);
+    e.interventions.push({ iso, camp, fin: e.round + 7, debut: e.round, score: 0, but: "regime", cb: j.cb });
+    if (!apercu) noter(e, { type: "action", titre: `${j.cb ? `Casus belli : ${CASUS_BELLI[j.cb].nom.toLowerCase()}` : "Agression sans casus belli"} (${nomPays(iso)})`, camp, pays: [iso], visiblePour: [...CAMPS],
+      texte: j.cb ? `Expansion agressive +${Math.round(j.ae)} dans la région.` : `Le monde condamne : capital politique −${AE.cpAgression}, rancune dans la région, expansion agressive +${Math.round(j.ae)} (×${AE.agression}).` });
   }
   if (type === "putsch") {
-    const reussi = !apercu && tirer(e) < 0.45, p = e.pays[iso], adv = p.influence[adversaire(camp)];
+    const reussi = !apercu && tirer(e) < 0.45 + bonusPutsch(e, camp), p = e.pays[iso], adv = p.influence[adversaire(camp)];
     if (apercu || reussi) { inf.p = Math.max(inf.p, 60); adv.p = Math.min(adv.p, 15); p.stabilite = borne(p.stabilite - 15, 0, 100); }
-    const demasque = !apercu && !reussi && tirer(e) < 0.7 * (c.technologies?.includes("calcul") ? 0.5 : 1);
+    const demasque = !apercu && !reussi && tirer(e) < 0.7 * (c.technologies?.includes("calcul") ? 0.5 : 1) * multRisque(e, camp);
+    if (reussi) gagnerAE(e, camp, iso, AE.putsch); if (demasque) gagnerAE(e, camp, iso, AE.putschRate);
     if (!apercu && !reussi) p.stabilite = borne(p.stabilite - 5, 0, 100);
     noter(e, { type: "action", titre: `Opération secrète, putsch : ${nomPays(iso)}`, texte: reussi ? "Le nouveau régime t'est acquis." : apercu ? "" : "Le coup échoue.", camp, pays: [iso], visiblePour: [camp] });
     if (reussi) noter(e, { type: "action", titre: `Coup d'État ${enPays(iso, nomPays(iso))}`, famille: "coup_etat", texte: "L'armée renverse le gouvernement ; les nouveaux dirigeants restent discrets sur leurs soutiens étrangers.", pays: [iso], visiblePour: [...CAMPS] });
@@ -846,7 +858,7 @@ export function agir(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string, 
   }
   if (a.famille === "secret") {
     const adv = e.pays[iso].influence[adversaire(camp)], perte = (canal: Canal, k: number) => { inf[canal] = borne(inf[canal] - k, 0, 100); };
-    const risque = { clandestin: 0.25, destabiliser: 0.35, espionnage: 0.2 }[type as "clandestin" | "destabiliser" | "espionnage"] * (c.technologies?.includes("calcul") ? 0.5 : 1);
+    const risque = { clandestin: 0.25, destabiliser: 0.35, espionnage: 0.2 }[type as "clandestin" | "destabiliser" | "espionnage"] * (c.technologies?.includes("calcul") ? 0.5 : 1) * multRisque(e, camp);
     if (type === "clandestin") gain("p", 7);
     if (type === "destabiliser") { e.pays[iso].stabilite = borne(e.pays[iso].stabilite - 8, 0, 100); adv.p = Math.max(0, adv.p - 6); adv.e = Math.max(0, adv.e - 3); }
     if (type === "espionnage") { gain("e", 4); adv.e = Math.max(0, adv.e - 3); c.budget = arrondi(c.budget + 0.5); }
@@ -1037,9 +1049,23 @@ export function iaJouer(e0: EtatPartie, camp: Camp): EtatPartie {
   SUR_PLACE = true;
   try { return iaJouerSurPlace(structuredClone(e0), camp); } finally { SUR_PLACE = false; }
 }
+// IA : une intervention au plus à la fois, seulement avec un casus belli et une expansion agressive sous 50 dans la région (75 si belliciste).
+export const IA_GUERRE = { proba: 0.35, cp: 55, multMax: 0.75 };
+function iaIntervenir(e: EtatPartie, camp: Camp) {
+  const c = e.camps[camp], bell = aTrait(e, camp, "belliciste");
+  if (e.interventions.some(i => i.camp === camp) || c.cp < IA_GUERRE.cp || tirer(e) >= IA_GUERRE.proba) return;
+  const plafond = bell ? AE.seuils[2] : AE.seuils[1];
+  const l = (e.casusBelli ?? []).filter(x => x.camp === camp && e.pays[x.iso] && x.iso !== "USA" && x.iso !== "CHN" && CASUS_BELLI[x.type].mult <= (bell ? 1 : IA_GUERRE.multMax)
+    && aeDuPays(e, camp, x.iso) + AE.intervention * CASUS_BELLI[x.type].mult < plafond);
+  if (!l.length) return;
+  const W = poidsPays(e); l.sort((a, b) => W[b.iso] - W[a.iso]);
+  // montée de l'échelle de coercition (intimidation, soutien) puis intervention, dans le premier pays où c'est possible
+  for (const x of l) for (const t of ["intervention", "soutien", "intimidation"] as TypeAction[]) if (!peutAgir(e, camp, t, x.iso)) { agir(e, camp, t, x.iso); return; } // sous SUR_PLACE : e modifié sur place
+}
 function iaJouerSurPlace(e: EtatPartie, camp: Camp): EtatPartie {
   const c = () => e.camps[camp];
   if (date(e.round).trimestre === 1 || !e.plans?.some(p => p.camp === camp)) iaPlans(e, camp); // séance annuelle des conseils
+  iaIntervenir(e, camp);
   if (c().briefing) {
     const b = BRIEFINGS[c().briefing!];
     const notes = b.options.map((o, i) => ({ i, v: valeurEffets(e, camp, o.effets, camp) - (o.cout.budget ?? 0) * 0.3 * prixBudget(e, camp) - (o.cout.cp ?? 0) * 0.1,
@@ -1564,19 +1590,7 @@ function echeancesPrets(e: EtatPartie) {
   e.prets = e.prets.filter(x => x.echeance > e.round);
 }
 
-// ---------- Interventions armées (issue cachée) ----------
-function suiviInterventions(e: EtatPartie) {
-  for (const it of e.interventions) {
-    const c = e.camps[it.camp]; c.budget = Math.max(0, c.budget - 1); c.fatigue = (c.fatigue ?? 0) + 0.5;
-    if (it.fin !== e.round) continue;
-    const p = e.pays[it.iso], pSucces = borne(0.5 + 0.4 * (p.influence[it.camp].m - p.influence[adversaire(it.camp)].m) / 100, 0.2, 0.85), ok = tirer(e) < pSucces;
-    if (ok) p.influence[it.camp].p = borne(p.influence[it.camp].p + 15, 0, 100);
-    else { p.influence[it.camp].p = borne(p.influence[it.camp].p - 10, 0, 100); c.cp = borne(c.cp - 8, 0, 100); }
-    noter(e, { type: "action", titre: `Fin de l'intervention ${enPays(it.iso, nomPays(it.iso))} : ${ok ? "régime ami installé" : "enlisement et retrait"}`, camp: it.camp, pays: [it.iso], visiblePour: [...CAMPS],
-      texte: ok ? "Le nouveau pouvoir est acquis à ton bloc (influence politique +15)." : "Les troupes se retirent sans avoir atteint leurs objectifs (influence politique −10, capital politique −8)." });
-  }
-  e.interventions = e.interventions.filter(x => x.fin > e.round);
-}
+// Interventions armées : voir guerre.ts (but, score de guerre, batailles, paix).
 
 // ---------- Crises en chaîne ----------
 // Une crise laissée sans réponse (aucun bloc n'a réagi) a 35 % de chances d'en provoquer une autre, 2 à 4 trimestres plus tard.
@@ -1753,7 +1767,9 @@ export function peutDeclarerGuerre(e: EtatPartie, camp: Camp, theatre: string): 
 }
 export function declarerGuerre(e0: EtatPartie, camp: Camp, theatre: string): EtatPartie {
   const err = peutDeclarerGuerre(e0, camp, theatre); if (err) throw new Error(err);
-  const e = copie(e0); e.guerre = { theatre, agresseur: camp, debut: e.round }; e.tension = 100; e.camps[camp].fatigue = (e.camps[camp].fatigue ?? 0) + 4;
+  const e = copie(e0); e.guerre = { theatre, agresseur: camp, debut: e.round }; e.tension = 100;
+  const defense = casusBelliDe(e, camp, camp === "OCC" ? "CHN" : "USA")?.type === "defense"; // riposte à l'attaque d'un allié : ×0,25 ; sinon rivalité ouverte ×1
+  gagnerAE(e, camp, THEATRES[theatre].pays[0], AE.guerre * CASUS_BELLI[defense ? "defense" : "rivalite"].mult); e.camps[camp].fatigue = (e.camps[camp].fatigue ?? 0) + 4;
   for (const i of ISO) if (i !== "USA" && i !== "CHN") memoriser(e, i, camp, -1);
   noter(e, { type: "historique", titre: `Guerre entre les États-Unis et la Chine : ${THEATRES[theatre].nom}`, pays: ["USA", "CHN", ...THEATRES[theatre].pays], visiblePour: [...CAMPS],
     texte: `Le ${nomBloc(camp)} ouvre les hostilités. Chaque trimestre de guerre ampute de ${GUERRE.pib * 100} % le PIB des deux puissances ; le risque d'escalade nucléaire grandit avec la durée.` });
@@ -1941,7 +1957,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
     for (const canal of ["p", "m", "c"] as Canal[]) inf[canal] = borne(inf[canal] - USURE * (inf[canal] - p.ancre[camp][canal]), 0, 100);
     inf.e = borne(inf.e + DERIVE_E * (cibleEconomique(e, iso, camp) - inf.e), 0, 100);
   }
-  appliquerOrientations(e); rapprochement(e); effetMemoire(e); usureOpinion(e); resoudreElections(e); echeancesPrets(e); suiviInterventions(e);
+  appliquerOrientations(e); rapprochement(e); effetMemoire(e); usureOpinion(e); resoudreElections(e); echeancesPrets(e); suiviGuerres(e, av => resolutionAuto(e, av)); majCasusBelli(e); suiviExpansion(e); suiviDirigeants(e);
   if (trimestre === 3) cloreSessionOnu(e);
   // forces de rappel : la tension retombe de 8 % de son excès sur 10 par trimestre, la stabilité revient vers 50 (5 %),
   // le capital politique se reconstitue de 1 point ; sans elles, les événements génériques saturaient tension et instabilité.
@@ -2012,12 +2028,14 @@ function seuilAtteint(e: EtatPartie): { titre: string; texte: string } | null {
   return null;
 }
 const DOCTRINES: Record<Camp, string[]> = { OCC: ["internationaliste", "interventionniste", "isolationniste", "pro-commerce"], CHN: ["développement pacifique", "nationaliste", "réformatrice"] };
-function election(e: EtatPartie, camp: Camp, pMaintien: number, titre: string) {
-  if (tirer(e) < pMaintien) { noter(e, { type: "politique", titre: `${titre} : continuité`, texte: `Le pouvoir en place est reconduit (probabilité ${(100 * pMaintien).toFixed(0)} %).`, camp, visiblePour: [...CAMPS] }); return; }
+function election(e: EtatPartie, camp: Camp, p0: number, titre: string) {
+  const pMaintien = maintienAvecPopularite(e, camp, p0); // popularité du dirigeant : décalage logistique de (popularité − 50) / 20
+  if (tirer(e) < pMaintien) { noter(e, { type: "politique", titre: `${titre} : continuité`, texte: `Le pouvoir en place est reconduit (probabilité ${(100 * pMaintien).toFixed(0)} %).`, camp, visiblePour: [...CAMPS] }); apresScrutin(e, camp, false); return; }
   const c = e.camps[camp], doctrines = DOCTRINES[camp].filter(d => d !== c.doctrine);
   c.doctrine = doctrines[Math.floor(tirer(e) * doctrines.length)]; c.cp = 60;
   for (const iso of ISO) if ((camp === "OCC" ? 1 : -1) * alignement(e, iso) >= 0.4) e.pays[iso].influence[camp].p = Math.max(0, e.pays[iso].influence[camp].p - 5);
   noter(e, { type: "politique", titre: `${titre} : alternance`, texte: `Nouveau dirigeant, doctrine ${c.doctrine}. Les alliés doutent ; capital politique remis à 60.`, camp, visiblePour: [...CAMPS] });
+  apresScrutin(e, camp, true);
 }
 
 // Un round complet sans intervention (IA pour les deux camps) : tests, avance rapide, IA contre IA.
@@ -2062,6 +2080,6 @@ export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
-  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e);
+  e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= [];
   return e;
 }

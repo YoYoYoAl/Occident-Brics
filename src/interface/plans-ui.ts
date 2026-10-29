@@ -98,11 +98,11 @@ export function panneauPlans(e: EtatPartie, camp: Camp): string {
 }
 export function panneauDuels(e: EtatPartie, camp: Camp): string {
   const l = duelsDuJoueur(e, camp);
-  if (!l.length) return `<p class="note">Aucun duel en attente. Les duels naissent aux jalons disputés de tes plans, ou quand l'adversaire riposte.</p>`;
+  if (!l.length) return `<p class="note">Aucun duel en attente. Les duels naissent aux jalons disputés de tes plans, quand l'adversaire riposte, et aux batailles décisives de tes guerres.</p>`;
   return `<p class="note">Joue le duel toi-même (2 à 4 minutes) ou laisse tes conseillers le régler (résultat selon la préparation, avec une part de hasard). Un duel non joué est réglé par tes conseillers à la fin du trimestre.</p>` +
     l.map(d => { const info = DUELS[d.type], av = avantageJoueur(d, camp), p = e.plans?.find(x => x.id === d.plan);
-      return `<article class="plan duel-attente"><header><strong>${esc(info.nom)}</strong><small>inspiré de ${esc(info.inspire)} · ${d.attaquant === camp ? "tu attaques" : "tu défends"}${d.motif === "riposte" ? " · riposte" : ""}</small></header>
-        <p>${esc(info.situation)}</p><small>${p ? esc(titrePlan(p)) : ""} · préparation ${av > 0.15 ? "favorable" : av < -0.15 ? "défavorable" : "équilibrée"} (${av >= 0 ? "+" : ""}${nb(av)})</small>
+      return `<article class="plan duel-attente"><header><strong>${esc(info.nom)}</strong><small>inspiré de ${esc(info.inspire)} · ${d.attaquant === camp ? "tu attaques" : "tu défends"}${d.motif === "riposte" ? " · riposte" : d.motif === "bataille" ? " · bataille décisive" : ""}</small></header>
+        <p>${esc(info.situation)}</p><small>${p ? esc(titrePlan(p)) : esc(d.titre)} · préparation ${av > 0.15 ? "favorable" : av < -0.15 ? "défavorable" : "équilibrée"} (${av >= 0 ? "+" : ""}${nb(av)})</small>
         <div class="d-boutons"><button data-jouer-duel="${d.id}" class="principal">Jouer le duel</button><button data-deleguer="${d.id}">Laisser faire mes conseillers</button></div></article>`; }).join("");
 }
 export function lierPlans(zone: HTMLElement, h: HotePlans) {
