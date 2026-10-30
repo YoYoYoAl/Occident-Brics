@@ -31,6 +31,20 @@ const el = <K extends keyof SVGElementTagNameMap>(nom: K, attrs: Record<string, 
   return x;
 };
 
+// Tracés simples des pays du jeu (même projection que la grande carte), pour les petites cartes des fenêtres (salle du conseil).
+let traces: { largeur: number; hauteur: number; pays: { iso: string; d: string }[] } | null = null;
+export function tracesPays(idsJeu: Map<string, string>) {
+  if (traces) return traces;
+  const tous = feature(monde as any, (monde as any).objects.countries) as unknown as FeatureCollection<Geometry, { name: string }>;
+  const cadre = { type: "Feature", properties: {}, geometry: { type: "MultiPoint", coordinates: [[LON_OUEST, LAT_SUD], [LON_EST - 0.01, LAT_NORD]] } } as Feature;
+  const projection = geoProjection(miller as any).rotate([-CENTRE, 0]).fitWidth(LARGEUR, cadre);
+  const hauteur = Math.round((projection([0, LAT_SUD])![1]) - (projection([0, LAT_NORD])![1]));
+  projection.translate([projection.translate()[0], projection.translate()[1] - projection([0, LAT_NORD])![1]]);
+  const chemin = geoPath(projection).digits(1);
+  traces = { largeur: LARGEUR, hauteur, pays: tous.features.filter(f => !GLACES.has(String(f.id))).map(f => ({ iso: idsJeu.get(String(f.id)) ?? "", d: chemin(f) ?? "" })).filter(x => x.d) };
+  return traces;
+}
+
 // Dessine la carte une fois ; colorer() et annoter() mettent à jour sans redessiner. Molette : zoom ; glisser : déplacer.
 export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string>, surClic: (iso3: string) => void) {
   const tous = feature(monde as any, (monde as any).objects.countries) as unknown as FeatureCollection<Geometry, { name: string }>;

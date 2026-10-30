@@ -122,3 +122,8 @@ export function lierPlans(zone: HTMLElement, h: HotePlans) {
   zone.querySelectorAll<HTMLButtonElement>("[data-jouer-duel]").forEach(b => b.onclick = () => h.jouerDuel(b.dataset.jouerDuel!));
   zone.querySelectorAll<HTMLButtonElement>("[data-deleguer]").forEach(b => b.onclick = () => h.tenter(() => conclureDuel(e(), b.dataset.deleguer!, null), "action"));
 }
+// Plans adverses repérés (avec la riposte), pour « Ce qui t'attend » du trimestre.
+export function plansAdverses(e: EtatPartie, camp: Camp): string {
+  const adv = plansVisibles(e, camp).filter(p => p.camp === adversaire(camp));
+  return adv.length ? `<h4>Orientations adverses repérées (${adv.length})</h4>` + adv.map(p => cartePlan(e, camp, p.id)).join("") : "";
+}

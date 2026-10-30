@@ -29,7 +29,7 @@ import { FAMILLES as FAMILLES_ATTRIBUTS, type Famille } from "../data/attributs"
 import { suivant } from "./alea";
 import { ZONES } from "./zones";
 import { CARTES_GENEREES } from "../contenu/cartes-generees";
-import { type Plan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
+import { type Plan, type BilanPlan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
 import { date, libelle, NB_ROUNDS } from "./temps";
 import { type Dirigeant, tirerDirigeants, normaliserDirigeants, suiviDirigeants, apresScrutin, maintienAvecPopularite, multDiplomatie, multIntendance, multRisque, bonusPutsch, aTrait } from "./dirigeants";
 import { type CasusBelli, type Coalition, type Intervention, type Controle, suiviRegions, partAnnexee, majCasusBelli, suiviExpansion, suiviGuerres, justifier, gagnerAE, facteurAE, coalitionContre, aeDuPays, nucleaire, casusBelliDe, AE, CASUS_BELLI } from "./guerre";
@@ -90,7 +90,7 @@ export interface EtatCamp {
   recherche?: Record<string, number>; technologies?: string[]; // points investis par technologie, percées obtenues
   apaise?: Record<string, number>; // dernière année d'apaisement par pays
   fabrique?: number; // dernière année (round / 4) où le camp a monté un dossier de casus belli
-  ajustement?: number; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
+  ajustement?: number; seance?: number; convocation?: number; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
 }
 export type TypeCarte = "camp" | "adverse" | "neutre";
 export const NOMS_TYPES: Record<TypeCarte, string> = { camp: "de ton camp", adverse: "adverse", neutre: "neutre" };
@@ -126,7 +126,7 @@ export interface EtatPartie {
   garanties?: { iso: string; camp: Camp }[]; // garanties de défense accordées // guerre directe entre les deux leaders // CACHÉ : gratitude (+) ou rancune (−) de chaque pays envers chaque bloc, de −10 à +10
   rapprochements: { iso: string; camp: Camp; restant: number }[]; // entraînements en cours (trimestres restants)
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
-  plans?: Plan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
+  plans?: Plan[]; bilansPlans?: BilanPlan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
   controles?: Controle[]; // régions gardées après une guerre
   alliances?: Alliance[]; // partenariats stratégiques (1) et alliances militaires intégrées (3) ; le niveau 2 est la garantie
   apaisement?: Record<string, Record<Camp, number>>; // gestes d'apaisement (réduisent la méfiance, déclinent)

@@ -86,6 +86,13 @@ export const PLANS = {
 export interface Plan {
   id: string; camp: Camp; objectif: ObjectifPlan; cible: string; debut: number; duree: number; intensite: Intensite;
   progres: number; jalons: number; resultats: number[]; vuPar: Camp[]; dernierDuel?: IdDuel;
+  reconduire?: boolean; depart?: Mesure; depense?: number; // reconduite à la fin si coché ; mesure au lancement et budget dépensé, pour le bilan
+}
+// Mesure d'une cible : influence moyenne du camp (sur le canal de l'objectif, ou totale) et penchant moyen vers le camp (−1 à +1).
+export interface Mesure { inf: number; align: number }
+export interface BilanPlan {
+  id: string; camp: Camp; objectif: ObjectifPlan; cible: string; titre: string; debut: number; fin: number; duree: number; intensite: Intensite;
+  issue: "reussie" | "abandonnee"; resultats: number[]; avant: Mesure; apres: Mesure; depense: number; reconduit: boolean; rival: boolean; vu: boolean;
 }
 export interface Duel {
   id: string; plan: string; type: IdDuel; attaquant: Camp; defenseur: Camp; avantage: number; round: number; graine: number;
@@ -151,36 +158,94 @@ export function peutLancerPlan(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible
   if (mes.length >= PLANS.max) return `Au plus ${PLANS.max} plans en cours : termine ou abandonne un plan d'abord.`;
   if (!ciblesPossibles(e, camp, o).some(x => x.id === cible)) return "Cette cible n'est pas possible pour cet objectif en ce moment.";
   if (mes.some(p => p.objectif === o && p.cible === cible)) return "Un plan identique est déjà en cours.";
-  if (date(e.round).trimestre !== 1 && c.ajustement === e.round) return "Hors séance annuelle (1er trimestre), un seul ajustement par trimestre.";
+  if (!seanceOuverte(e, camp) && c.ajustement === e.round) return "Hors séance annuelle (1er trimestre), un seul ajustement par trimestre.";
   if (c.budget < coutPlan(e, { objectif: o, intensite, camp })) return "Budget insuffisant pour le premier trimestre du plan.";
   return null;
 }
-export function lancerPlan(e0: EtatPartie, camp: Camp, o: ObjectifPlan, cible: string, duree: number, intensite: Intensite): EtatPartie {
+export function lancerPlan(e0: EtatPartie, camp: Camp, o: ObjectifPlan, cible: string, duree: number, intensite: Intensite, reconduire = false): EtatPartie {
   const err = peutLancerPlan(e0, camp, o, cible, duree, intensite); if (err) throw new Error(err);
   const e = structuredClone(e0);
-  lancerSurPlace(e, camp, o, cible, duree, intensite);
+  lancerSurPlace(e, camp, o, cible, duree, intensite, reconduire);
   return e;
 }
-function lancerSurPlace(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible: string, duree: number, intensite: Intensite) {
+function lancerSurPlace(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible: string, duree: number, intensite: Intensite, reconduire = false, auto = false) {
   const c = e.camps[camp];
-  if (date(e.round).trimestre !== 1) c.ajustement = e.round;
+  if (!auto && !seanceOuverte(e, camp)) c.ajustement = e.round;
   const p: Plan = { id: `p${e.round}_${camp}_${(e.plans ??= []).length}_${o}`, camp, objectif: o, cible, debut: e.round, duree, intensite, progres: 0, jalons: 0, resultats: [],
-    vuPar: intensite === 3 ? [adversaire(camp)] : [] };
+    vuPar: intensite === 3 ? [adversaire(camp)] : [], reconduire, depart: mesurer(e, camp, o, cible), depense: 0 };
   e.plans.push(p);
   outils.noter(e, { type: "action", titre: `Plan lancé : ${titrePlan(p)}`, texte: `${CONSEILS[OBJECTIFS[o].conseil].nom}, ${duree / 4} an${duree > 4 ? "s" : ""}, intensité ${NOMS_INTENSITE[intensite]}.`,
     camp, pays: paysDuPlan(p), visiblePour: intensite === 3 ? [...CAMPS] : [camp] });
 }
 export function abandonnerPlan(e0: EtatPartie, camp: Camp, id: string): EtatPartie {
   const p = (e0.plans ?? []).find(x => x.id === id && x.camp === camp); if (!p) throw new Error("Plan introuvable.");
-  if (date(e0.round).trimestre !== 1 && e0.camps[camp].ajustement === e0.round) throw new Error("Hors séance annuelle (1er trimestre), un seul ajustement par trimestre.");
+  if (!seanceOuverte(e0, camp) && e0.camps[camp].ajustement === e0.round) throw new Error("Hors séance annuelle (1er trimestre), un seul ajustement par trimestre.");
   const e = structuredClone(e0), q = e.plans!.find(x => x.id === id)!;
-  if (date(e.round).trimestre !== 1) e.camps[camp].ajustement = e.round;
+  if (!seanceOuverte(e, camp)) e.camps[camp].ajustement = e.round;
   // un plan abandonné garde la moitié de sa récompense, au prorata de sa progression
   if (q.progres >= 50) recompenser(e, q, 0.5);
+  noterBilan(e, q, "abandonnee", false);
   e.plans = e.plans!.filter(x => x.id !== id);
   outils.noter(e, { type: "action", titre: `Plan abandonné : ${titrePlan(q)}`, texte: q.progres >= 50 ? "Avancé à plus de la moitié : la moitié de la récompense est acquise." : "Trop tôt : l'effort est perdu.", camp, visiblePour: [camp] });
   return e;
 }
+// Séance du conseil : de droit au 1er trimestre ; convoquée une fois par an un autre trimestre (tout est alors libre ce trimestre-là).
+export const seanceOuverte = (e: EtatPartie, camp: Camp) => date(e.round).trimestre === 1 || e.camps[camp].seance === e.round;
+export function peutConvoquer(e: EtatPartie, camp: Camp): string | null {
+  if (date(e.round).trimestre === 1) return "La séance annuelle du conseil a lieu ce trimestre.";
+  if (e.camps[camp].seance === e.round) return "Le conseil est déjà réuni ce trimestre.";
+  if (e.camps[camp].convocation === date(e.round).annee) return "Le conseil a déjà été convoqué cette année : prochaine séance au 1er trimestre.";
+  return null;
+}
+export function convoquerConseil(e0: EtatPartie, camp: Camp): EtatPartie {
+  const err = peutConvoquer(e0, camp); if (err) throw new Error(err);
+  const e = structuredClone(e0), c = e.camps[camp];
+  c.seance = e.round; c.convocation = date(e.round).annee;
+  return e;
+}
+// Reconduire ou non une orientation à son arrivée : se règle à tout moment, sans coût.
+export function basculerReconduite(e0: EtatPartie, camp: Camp, id: string): EtatPartie {
+  const e = structuredClone(e0), p = e.plans?.find(x => x.id === id && x.camp === camp); if (!p) throw new Error("Plan introuvable.");
+  p.reconduire = !p.reconduire;
+  return e;
+}
+export function mesurer(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible: string): Mesure {
+  const def = OBJECTIFS[o], pays = paysDuPlan({ objectif: o, cible }).filter(i => e.pays[i]), s = sens(camp);
+  if (def.cible === "strat") { const z = e.zones[cible]; return { inf: z ? z[camp] : 0, align: 0 }; }
+  if (!pays.length) return { inf: 0, align: 0 };
+  const inf = pays.reduce((a, i) => { const x = e.pays[i].influence[camp]; return a + (def.canal ? x[def.canal] : (x.e + x.p + x.m + x.c) / 4); }, 0) / pays.length;
+  return { inf: arrondi(inf), align: Math.round(100 * s * pays.reduce((a, i) => a + alignement(e, i), 0) / pays.length) / 100 };
+}
+// Potentiel d'une cible pour un objectif (pour colorer la carte et trier les opportunités) : poids du pays × marge d'influence × freinage si le pays penche vers l'adversaire.
+export function impactCible(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible: string): number {
+  const def = OBJECTIFS[o], W = outils.poidsPays(e), s = sens(camp), adv = adversaire(camp);
+  const un = (i: string) => { const p = e.pays[i]; if (!p) return 0;
+    const a = s * alignement(e, i), x = p.influence[camp], marge = 1 - (def.canal ? x[def.canal] : (x.e + x.p + x.m + x.c) / 4) / 100;
+    const adverse = (p.influence[adv].p + p.influence[adv].e) / 200;
+    const base = o === "contrer" || o === "sanctions" ? adverse : o === "renverser" ? (1 - p.stabilite / 100) * (1 - Math.max(0, a)) : marge * (1 - 0.3 * Math.max(0, -a));
+    return (W[i] ?? 0) * base; };
+  if (def.cible === "rival" || def.cible === "strat") return 1;
+  const pays = paysDuPlan({ objectif: o, cible });
+  return pays.length ? pays.reduce((t, i) => t + un(i), 0) * (def.cible === "pays" ? 1 : 0.5) : 0;
+}
+// Gain d'influence estimé sur toute la durée (pour l'aperçu de la salle du conseil), hors duels et élan.
+export function gainEstime(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible: string, duree: number, intensite: Intensite): number {
+  const def = OBJECTIFS[o]; if (!def.canal) return 0;
+  const m = mesurer(e, camp, o, cible), unit = def.cible === "zone" ? PLANS.effetZone : PLANS.effetPays, k = intensite * (chefDe(e, camp, def.conseil) === "agressif" ? 1.2 : 1);
+  let inf = m.inf; for (let t = 0; t < duree; t++) inf += unit * k * (1 - inf / 100);
+  return arrondi(inf - m.inf);
+}
+function noterBilan(e: EtatPartie, p: Plan, issue: BilanPlan["issue"], reconduit: boolean) {
+  (e.bilansPlans ??= []).push({ id: p.id, camp: p.camp, objectif: p.objectif, cible: p.cible, titre: titrePlan(p), debut: p.debut, fin: e.round, duree: p.duree, intensite: p.intensite,
+    issue, resultats: [...p.resultats], avant: p.depart ?? mesurer(e, p.camp, p.objectif, p.cible), apres: mesurer(e, p.camp, p.objectif, p.cible), depense: arrondi(p.depense ?? 0),
+    reconduit, rival: !!planRival(e, p), vu: false });
+  if (e.bilansPlans.length > 30) e.bilansPlans.splice(0, e.bilansPlans.length - 30);
+}
+export const bilansNonVus = (e: EtatPartie, camp: Camp) => (e.bilansPlans ?? []).filter(b => b.camp === camp && !b.vu);
+export function marquerBilansVus(e0: EtatPartie, camp: Camp): EtatPartie {
+  const e = structuredClone(e0); for (const b of e.bilansPlans ?? []) if (b.camp === camp) b.vu = true; return e;
+}
+
 export function remplacerChef(e0: EtatPartie, camp: Camp, cs: Conseil): EtatPartie {
   if (date(e0.round).trimestre !== 1) throw new Error("On remplace un chef de conseil lors de la séance annuelle (1er trimestre).");
   if (e0.camps[camp].cp < 2) throw new Error("Capital politique insuffisant (2).");
@@ -266,7 +331,7 @@ export function avancerPlans(e: EtatPartie) {
   for (const p of [...e.plans]) {
     const c = e.camps[p.camp], cout = coutPlan(e, p), def = OBJECTIFS[p.objectif];
     if (c.budget < cout) { outils.noter(e, { type: "action", titre: `Plan à l'arrêt faute de budget : ${titrePlan(p)}`, texte: `Il faut ${String(cout).replace(".", ",")} de budget par trimestre.`, camp: p.camp, visiblePour: [p.camp] }); continue; }
-    c.budget = arrondi(c.budget - cout);
+    c.budget = arrondi(c.budget - cout); p.depense = arrondi((p.depense ?? 0) + cout);
     effetTrimestre(e, p);
     p.progres = Math.min(100, p.progres + vitesse(e, p));
     // détection par l'adversaire : un plan massif est vu tout de suite, un plan normal au premier jalon, un plan discret par le renseignement
@@ -290,6 +355,10 @@ export function avancerPlans(e: EtatPartie) {
       recompenser(e, p);
       e.plans = e.plans.filter(x => x.id !== p.id);
       outils.noter(e, { type: "action", titre: `Plan accompli : ${titrePlan(p)}`, texte: def.recompense, camp: p.camp, pays: paysDuPlan(p), visiblePour: p.vuPar.length || p.intensite > 1 ? [...CAMPS] : [p.camp] });
+      // reconduite seulement si la case était cochée, et si la cible reste possible et le budget suffit
+      const reconduit = !!p.reconduire && plansDe(e, p.camp).length < PLANS.max && ciblesPossibles(e, p.camp, p.objectif).some(x => x.id === p.cible) && c.budget >= cout;
+      noterBilan(e, p, "reussie", reconduit);
+      if (reconduit) lancerSurPlace(e, p.camp, p.objectif, p.cible, p.duree, p.intensite, true, true);
     }
   }
 }

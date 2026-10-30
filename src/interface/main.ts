@@ -8,12 +8,13 @@ import { FLUX, DETROITS } from "../data/flux";
 import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musique, musiqueEre, jouerHymne, aUnHymne, titreHymne, basculerMusique, musiqueActivee, relancerMusique, type Son } from "./sons";
 import { date as dateDuRound } from "../moteur/temps";
 import { ficheHtml } from "./fiche";
-import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur } from "./plans-ui";
+import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur, plansAdverses, seanceAnnuelle } from "./plans-ui";
+import { ouvrirConseil, bilanHtml, peutRelancer, relancer, resteTrimestres, NOM_DUREE, type HoteConseil } from "./conseil-ui";
 import { panneauDirigeant, panneauGuerre, lierGuerre, tableauRegions, blocAlliancePays } from "./guerre-ui";
 import { regionsCles } from "../moteur/guerre";
 import { jouerDuel } from "./duel-ui";
 import { salleDuels } from "./salle-duels";
-import { conclureDuel, enjeuxDuel, bilanDuel, paysDuPlan as paysDuPlanUi } from "../moteur/plans";
+import { conclureDuel, enjeuxDuel, bilanDuel, paysDuPlan as paysDuPlanUi, plansDe, OBJECTIFS as OBJ_PLANS, nomCible, planRival, seanceOuverte, peutConvoquer, bilansNonVus, marquerBilansVus, PLANS as REGLES_PLANS } from "../moteur/plans";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, FORMATS, formatDe, peutProlonger, prolonger, type Format, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
@@ -42,7 +43,7 @@ let carteOuverte: string | null = null;
 let journalVu = 0;
 let briefingVuAuRound = -1;
 // Photo avant la fin du trimestre, pour le récap des deux blocs (puissance, alignements).
-let avantTour: { puissance: Record<Camp, number>; alignements: Record<string, number> } | null = null;
+let avantTour: { puissance: Record<Camp, number>; alignements: Record<string, number>; budget?: number; cp?: number; tension?: number; progres?: Record<string, number> } | null = null;
 let debutRapport = 0, titreRapport = "";
 const CLE_OPTIONS = "occident-brics-options-carte";
 const options: OptionsCarte = (() => {
@@ -71,7 +72,8 @@ function tenter(f: () => EtatPartie, s: Son = "action") {
 }
 
 // ---------- Fenêtres ----------
-function ouvrir(html: string, liaisons: (b: HTMLElement) => void = () => {}) {
+function ouvrir(html: string, liaisons: (b: HTMLElement) => void = () => {}, classe = "") {
+  $("boite").className = `boite ${classe}`;
   $("boite").innerHTML = html;
   $("fenetre").hidden = false;
   liaisons($("boite"));
@@ -106,7 +108,7 @@ function choisirCamp() {
 
 function ligneJournal(j: EntreeJournal, avecReactions = false) {
   const classe = j.camp ? (j.camp === "OCC" ? "occ" : "chn") : "";
-  const effets = j.effets?.length ? `<small class="effets">Ce que ça change : ${j.effets.map(esc).join(" · ")}</small>` : "";
+  const effets = j.effets?.length ? `<div class="effets-p">${j.effets.map(x => `<span class="effet-p ${/(^|\s)[−-]\s?\d|▼|baisse|recul/.test(x) ? "baisse" : /\+\s?\d|▲|hausse/.test(x) ? "hausse" : ""}">${esc(x)}</span>`).join("")}</div>` : "";
   const img = j.type === "historique" || j.type === "generique" ? imageEvenement(j.source, j.famille) : undefined;
   const corps = `<strong>${esc(j.titre)}</strong>${j.texte ? `<br><span>${esc(j.texte)}</span>` : ""}${effets}${avecReactions ? boutonsReaction(j) : ""}`;
   return `<li class="j-${j.type} ${classe} ${img ? "avec-image" : ""}">${img ? `<img src="${img}" alt="" loading="lazy"><div>${corps}</div>` : corps}</li>`;
@@ -127,7 +129,7 @@ function boutonsReaction(j: EntreeJournal): string {
   const b = (["aider", "exploiter", "fermete", "apaiser"] as TypeReaction[]).map(t => ({ t, err: peutReagir(etat!, joueur(), index, t) }))
     .filter(x => !/leader adverse refuse|n'exploite que|Réservé aux crises|réponds par la fermeté/.test(x.err ?? ""));
   const prix = (t: TypeReaction) => REACTIONS[t].budget ? `${REACTIONS[t].budget} budget` : `${REACTIONS[t].cp} CP`;
-  return b.length ? `<div class="reactions">${b.map(x => `<button data-reagir="${x.t}" data-index="${index}" title="${esc(REACTIONS[x.t].texte)}" ${x.err ? "disabled" : ""}>${REACTIONS[x.t].nom} (${prix(x.t)})</button>`).join("")}${b.filter(x => x.err).map(x => `<small class="erreur">${REACTIONS[x.t].nom} : ${esc(x.err!)}</small>`).join("")}</div>` : "";
+  return b.length ? `<div class="reactions">${b.map(x => `<button data-reagir="${x.t}" data-index="${index}" title="${esc(REACTIONS[x.t].texte)}" ${x.err ? "disabled" : ""}><strong>${REACTIONS[x.t].nom} · ${prix(x.t)}</strong><small>${esc(REACTIONS[x.t].texte)}</small></button>`).join("")}${b.filter(x => x.err).map(x => `<small class="erreur">${REACTIONS[x.t].nom} : ${esc(x.err!)}</small>`).join("")}</div>` : "";
 }
 function lierReactions(zone: HTMLElement, apres: () => void) {
   zone.querySelectorAll<HTMLButtonElement>("[data-reagir]").forEach(b => b.onclick = () => {
@@ -177,21 +179,61 @@ function rapport(titre: string, debut = journalVu) {
   const section = (t: string, l: EntreeJournal[], r = false, note = "") => l.length ? `<h3>${t}</h3>${note}${liste(l, r)}` : "";
   const reste = etat!.camps[moi].reactions.length;
   const noteReaction = `<p class="note">Tu peux réagir à ${MAX_REACTIONS} événements par trimestre (${MAX_REACTIONS - reste} restant${MAX_REACTIONS - reste > 1 ? "s" : ""}, budget ${nombre(etat!.camps[moi].budget, 0)}). Aussi depuis l'onglet Main.</p>`;
-  ouvrir(`<h2>${titre} : ${libelle(etat!.round)}</h2>
-    ${recapBlocs(tout)}
+  ouvrir(`<div class="ov-tete"><div><span class="sc-sur">Ouverture du trimestre</span><h2>${titre} : ${libelle(etat!.round)}</h2></div>
+      <div class="ov-compteurs"><span>Réactions : <strong>${MAX_REACTIONS - reste} sur ${MAX_REACTIONS}</strong></span><span>Budget <strong>${nombre(etat!.camps[moi].budget, 1)}</strong></span></div></div>
+    <div class="ov"><div class="ov-gauche">
     ${section("Histoire et politique", histoire, true)}
-    ${section(`Ton camp (${NOM_CAMP[moi]}) est touché`, chezMoi, true, noteReaction)}
+    ${section(`Ton camp (${NOM_CAMP[moi]}) est touché : tu peux réagir`, chezMoi, true, noteReaction)}
     ${section(`Chez l'adversaire (${NOM_CAMP[adv]})`, chezAdv, true)}
     ${section("Conséquences de tes choix passés", consequences)}
     ${section("Dans le monde", retenus, true)}
     ${faitsDivers.length ? `<details><summary>${faitsDivers.length} fait${faitsDivers.length > 1 ? "s" : ""} divers et incident${faitsDivers.length > 1 ? "s" : ""} mineur${faitsDivers.length > 1 ? "s" : ""}</summary>${liste(faitsDivers)}</details>` : ""}
     ${autres.length ? `<details><summary>${autres.length} autre${autres.length > 1 ? "s" : ""} événement${autres.length > 1 ? "s" : ""} mineur${autres.length > 1 ? "s" : ""}, loin de ton jeu</summary>${liste(autres, true)}</details>` : ""}
     ${!histoire.length && !chezMoi.length && !chezAdv.length && !consequences.length && !retenus.length ? `<p class="note">Trimestre calme.</p>` : ""}
-    <div class="actions-fenetre"><button id="okRapport" class="principal">Continuer</button></div>`,
+    </div><aside class="ov-droite">${bilanOuverture()}${recapBlocs(tout)}
+    <button id="okRapport" class="principal ov-suite">${etat!.termine ? "Voir le résultat →" : "Passer au trimestre →"}</button></aside></div>`,
   b => {
-    lierReactions(b, () => { const y = b.scrollTop; rapport(titreRapport, debutRapport); $("boite").scrollTop = y; afficher(); });
-    b.querySelector<HTMLButtonElement>("#okRapport")!.onclick = () => { fermer(); if (etat!.termine) finDePartie(); else proposerBriefing(); };
-  });
+    lierReactions(b, () => { const y = b.querySelector(".ov-gauche")?.scrollTop ?? 0; rapport(titreRapport, debutRapport); const g = $("boite").querySelector(".ov-gauche"); if (g) g.scrollTop = y; afficher(); });
+    b.querySelector<HTMLButtonElement>("#okRapport")!.onclick = () => { fermer(); suiteOuverture(); };
+  }, "large ouverture");
+}
+
+// Colonne droite de l'ouverture : bilan chiffré du trimestre écoulé et avancée des orientations.
+function bilanOuverture(): string {
+  const e = etat!, moi = joueur(), c = e.camps[moi], a = avantTour, p1 = 100 * puissance(e, moi);
+  const tuile = (t: string, v: string, d: number | null, dec = 1, bon = 1) => `<div class="ov-tuile"><span>${t}</span><strong>${v}</strong>${d === null ? "<small>&nbsp;</small>"
+    : Math.abs(d) < 0.05 ? `<small>stable</small>` : `<small class="${d * bon > 0 ? "hausse" : "baisse"}">${d > 0 ? "▲" : "▼"} ${signe(d, dec)}</small>`}</div>`;
+  const mes = plansDe(e, moi);
+  return `<h3>Bilan du trimestre écoulé</h3><div class="ov-tuiles">
+    ${tuile("Puissance", `${nombre(p1, 1)} %`, a ? p1 - 100 * a.puissance[moi] : null, 2)}
+    ${tuile("Budget", nombre(c.budget, 1), a?.budget !== undefined ? c.budget - a.budget : null)}
+    ${tuile("Capital politique", nombre(c.cp, 0), a?.cp !== undefined ? c.cp - a.cp : null, 0)}
+    ${tuile("Tension", `${cran(e)} / 5`, a?.tension !== undefined ? cran(e) - a.tension : null, 0, -1)}</div>
+    <div class="ov-orient"><strong>Tes orientations</strong>${mes.length ? mes.map(p => { const d = a?.progres?.[p.id] !== undefined ? p.progres - a.progres[p.id] : null;
+      return `<div><span>${esc(OBJ_PLANS[p.objectif].nom)} · ${esc(nomCible(p))}</span><span class="p-barre"><span style="width:${Math.min(100, p.progres)}%"></span></span><small>${nombre(p.progres, 0)} %${d !== null && d > 0 ? ` (+${nombre(d, 0)})` : ""}</small></div>`; }).join("")
+      : `<span class="note">Aucune orientation : ouvre la salle du conseil.</span>`}</div>`;
+}
+
+// Après l'ouverture : bilans des orientations terminées, salle du conseil (séance annuelle), puis briefing.
+let conseilVuAuRound = -1;
+const hoteConseil = (apres: () => void = afficher): HoteConseil => ({ etat: () => etat!, camp: joueur, tenter, ouvrir, fermer, idsJeu, apres });
+function suiteOuverture() {
+  if (etat!.termine) { finDePartie(); return; }
+  const bl = bilansNonVus(etat!, joueur());
+  if (bl.length) { montrerBilans(bl); return; }
+  if (guide && seanceAnnuelle(etat!) && conseilVuAuRound !== etat!.round) { conseilVuAuRound = etat!.round; ouvrirConseil(hoteConseil(() => { afficher(); proposerBriefing(); })); return; }
+  proposerBriefing();
+}
+function montrerBilans(bl: ReturnType<typeof bilansNonVus>) {
+  etat = marquerBilansVus(etat!, joueur());
+  son("etape", 0.5);
+  ouvrir(bl.map((b, k) => bilanHtml(b) + `<div class="actions-fenetre">${b.reconduit ? "" : `<button data-relancer="${k}" ${peutRelancer(etat!, joueur(), b) ? `disabled title="${esc(peutRelancer(etat!, joueur(), b)!)}"` : ""}>Relancer (${NOM_DUREE[b.duree] ?? b.duree + " trimestres"})</button>`}</div>`).join("")
+    + `<div class="actions-fenetre"><button id="bpConseil">Ouvrir la salle du conseil</button><button id="bpSuite" class="principal">Continuer</button></div>`,
+  b => {
+    b.querySelectorAll<HTMLButtonElement>("[data-relancer]").forEach(x => x.onclick = () => { tenter(() => relancer(etat!, joueur(), bl[+x.dataset.relancer!]), "action"); x.disabled = true; x.textContent = "Relancée"; });
+    b.querySelector<HTMLButtonElement>("#bpConseil")!.onclick = () => { conseilVuAuRound = etat!.round; ouvrirConseil(hoteConseil(() => { afficher(); proposerBriefing(); })); };
+    b.querySelector<HTMLButtonElement>("#bpSuite")!.onclick = () => { fermer(); suiteOuverture(); };
+  }, "large");
 }
 
 // Récap des deux blocs : carte jouée, actions, réactions, évolution de la puissance et basculements.
@@ -343,21 +385,30 @@ function panneauMain(): string {
     const errAchat = peutAcheterPA(e, joueur());
     return `<div class="achat"><button id="acheter" ${errAchat ? `disabled title="${esc(errAchat)}"` : ""}>Acheter 1 point de crise (${PRIX_PA} budget)</button> <span class="note">2 par trimestre au plus.</span></div>`;
   };
-  const bascule = `<p class="note bascule-guide"><button id="basculeGuide">${guide ? "Vue complète" : "Tour guidé"}</button> ${guide ? "Le trimestre se joue étape par étape." : "Toutes les décisions sur une page."}</p>`;
+  const bascule = `<p class="note bascule-guide"><button id="basculeGuide">${guide ? "Vue détaillée" : "Vue en 3 décisions"}</button> ${guide ? "Le trimestre en 3 décisions." : "Toutes les commandes sur une page (ancienne vue)."}</p>`;
   if (!guide) return bascule + sEntete() + sEvenements() + panneauDirigeant(e, joueur()) + panneauPlans(e, joueur()) + panneauDuels(e, joueur()) + panneauGuerre(e, joueur()) + blocStrategie() + blocDiplomatie() + sCartes() + blocMinisteres() + sAgir() + sAchat();
-  if (etapeRound !== e.round) { etapeRound = e.round; etape = etapeUtile(ETAPES[0]) ? 0 : etapeSuivante(0); }
-  const x = ETAPES[etape];
-  let h = bascule + `<ol class="etapes">${ETAPES.map((y, k) => `<li><button data-etape="${k}" class="${k === etape ? "actif" : ""} ${etapeUtile(y) ? "" : "inutile"}" title="${etapeUtile(y) ? "" : y === "carte" ? "Carte jouée" : y === "evenements" || y === "plans" ? "Rien à décider" : y === "duels" ? "Aucun duel en attente" : modeDe(e, joueur(), y as Domaine) === "auto" ? "Ministre automatique" : "Actions jouées"}">${k + 1}. ${NOM_ETAPE(y)}</button></li>`).join("")}</ol>`;
-  if (x === "evenements") h += (sEvenements() || `<p class="note">Aucun événement ne te concerne directement ce trimestre.</p>`) + blocDiplomatie();
-  else if (x === "carte") h += sEntete() + sCartes();
-  else if (x === "plans") h += panneauDirigeant(e, joueur()) + panneauPlans(e, joueur());
-  else if (x === "duels") h += panneauDuels(e, joueur());
-  else if (x === "bilan") {
-    const restes = LISTE_DOMAINES.filter(d => (c.points?.[d] ?? 0) > 0);
-    h += `<p>${restes.length ? `Actions encore disponibles : ${restes.map(d => `${DOMAINES[d].nom.toLowerCase()} ${c.points![d]}${modeDe(e, joueur(), d) === "auto" ? " (le ministre les jouera)" : ""}`).join(", ")}.` : "Toutes les actions du trimestre sont jouées."} Budget restant : ${nombre(c.budget, 1)}.</p>`;
-    h += blocStrategie() + sAgir() + sAchat() + `<p><button id="finGuide" class="principal">Fin du trimestre</button></p>`;
-  } else h += blocDomaine(x) + (x === "defense" ? panneauGuerre(e, joueur()) : "") + sAgir();
-  if (x !== "bilan") h += `<p class="suite-guide"><button id="etapeSuivante" class="principal">${NOM_ETAPE(ETAPES[etapeSuivante(etape)])} ›</button></p>`;
+  // Le trimestre en 3 décisions (maquette 3) : ta carte, ce qui t'attend, des actions directes. Les orientations avancent seules.
+  const mes = plansDe(e, joueur()), conv = peutConvoquer(e, joueur()), ouverte = seanceOuverte(e, joueur());
+  const sOrient = `<div class="t-orient"><div class="t-orient-tete"><strong>Orientations en cours (${mes.length}/${REGLES_PLANS.max})</strong>
+      <button id="btnConseil" class="${ouverte ? "principal" : ""}">🏛 ${ouverte ? "Salle du conseil : séance ouverte" : conv ? "Salle du conseil" : "Convoquer le conseil"}</button></div>
+    ${mes.length ? mes.map(p => { const n = resteTrimestres(e, p.id);
+      return `<div class="t-plan"><strong>${esc(OBJ_PLANS[p.objectif].nom)} · ${esc(nomCible(p))}</strong><span class="p-barre"><span style="width:${Math.min(100, p.progres)}%"></span></span>
+        <small>${nombre(p.progres, 0)} % · environ ${n} trimestre${n > 1 ? "s" : ""}${planRival(e, p) ? " · disputée par l'adversaire" : ""}${p.reconduire ? " · ↻ reconduite" : " · s'arrête à l'arrivée"}</small></div>`; }).join("")
+      : `<p class="note">Aucune orientation : tes conseillers n'ont pas de cap. Ouvre la salle du conseil.</p>`}</div>`;
+  const carteJ = c.carteJouee ? e.journal.filter(j => j.type === "carte" && j.round === e.round && (j.joueParCamp ?? j.camp) === joueur()).pop() : undefined;
+  const decision = (n: number, titre: string, etatTxt: string, corps: string, faite = false) => `<section class="t-decision ${faite ? "faite" : ""}">
+    <header><span class="t-num">${faite ? "✓" : n}</span><strong>${titre}</strong><span class="t-etat">${etatTxt}</span></header>${corps}</section>`;
+  const attente = [sEvenements(), duelsDuJoueur(e, joueur()).length ? panneauDuels(e, joueur()) : "", plansAdverses(e, joueur()),
+    e.succession?.camp === joueur() ? panneauDirigeant(e, joueur()) : "", e.proposition?.de === adversaire(joueur()) ? blocDiplomatie() : "",
+    c.briefing ? `<p><button id="tBriefing" class="alerte-btn">Briefing en attente : décider</button></p>` : ""].filter(Boolean);
+  let h = bascule + sOrient;
+  h += decision(1, "Ta carte du trimestre", c.carteJouee ? "jouée" : c.main.length ? "à jouer" : "main vide",
+    c.carteJouee ? `<p class="note">${carteJ ? `<strong>${esc(carteJ.titre)}</strong>` : "Carte jouée ce trimestre."}</p>` : sEntete() + sCartes(), c.carteJouee || !c.main.length);
+  h += decision(2, "Ce qui t'attend", attente.length ? `${attente.length} sujet${attente.length > 1 ? "s" : ""}` : "rien d'urgent",
+    (attente.join("") || `<p class="note">Aucun duel, aucune crise, aucune riposte en attente.</p>`) + panneauGuerre(e, joueur()), !attente.length);
+  h += decision(3, "Actions directes", "facultatif", `<p class="note">Cible : le pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : ""}. Tes conseillers jouent seuls les points que tu laisses.</p>
+    ${sAgir().replace('<details class="agir">', '<details class="agir" open>')}${sAchat()}<details class="agir"><summary>Stratégie du bloc</summary>${blocStrategie()}</details>`);
+  h += `<p class="suite-guide"><button id="finGuide" class="principal">Fin du trimestre</button></p>`;
   return h;
 }
 
@@ -551,6 +602,8 @@ function lierPanneau(zone: HTMLElement) {
   zone.querySelectorAll<HTMLButtonElement>("[data-etape]").forEach(b => b.onclick = () => { etape = Number(b.dataset.etape); son("etape", 0.35); afficher(); });
   zone.querySelector<HTMLButtonElement>("#etapeSuivante")?.addEventListener("click", () => { etape = etapeSuivante(etape); son("etape", 0.35); afficher(); });
   zone.querySelector<HTMLButtonElement>("#finGuide")?.addEventListener("click", () => finTrimestre());
+  zone.querySelector<HTMLButtonElement>("#btnConseil")?.addEventListener("click", () => ouvrirConseil(hoteConseil()));
+  zone.querySelector<HTMLButtonElement>("#tBriefing")?.addEventListener("click", () => proposerBriefing(true));
   zone.querySelector<HTMLButtonElement>("#basculeGuide")?.addEventListener("click", () => { guide = !guide; try { localStorage.setItem(CLE_GUIDE, guide ? "oui" : "non"); } catch { /* stockage indisponible */ } afficher(); });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
   lierReactions(zone, afficher);
@@ -745,7 +798,8 @@ function finTrimestre() {
 }
 function terminer() {
   son("fin", 0.45);
-  avantTour = { puissance: { OCC: puissance(etat!, "OCC"), CHN: puissance(etat!, "CHN") }, alignements: Object.fromEntries(Object.keys(etat!.pays).map(i => [i, alignement(etat!, i)])) };
+  avantTour = { puissance: { OCC: puissance(etat!, "OCC"), CHN: puissance(etat!, "CHN") }, alignements: Object.fromEntries(Object.keys(etat!.pays).map(i => [i, alignement(etat!, i)])),
+    budget: etat!.camps[joueur()].budget, cp: etat!.camps[joueur()].cp, tension: cran(etat!), progres: Object.fromEntries((etat!.plans ?? []).map(p => [p.id, p.progres])) };
   etat = finRound(etat!);
   carteOuverte = null;
   afficher();
