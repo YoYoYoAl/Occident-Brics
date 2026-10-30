@@ -4,7 +4,7 @@ import { CAMPS, type Camp } from "./types";
 import type { EtatPartie } from "./partie";
 import { outils } from "./partie";
 import { date } from "./temps";
-import { nomUnique, renouvelerConseillers, prendreIllustration } from "./pouvoir";
+import { nomUnique, renouvelerConseillers, prendreIllustration, femme, DIRIGEANTS_ILLUSTRES } from "./pouvoir";
 
 export type Aptitude = "diplomatie" | "strategie" | "intendance" | "intrigue";
 export const APTITUDES: Record<Aptitude, { nom: string; aide: string }> = {
@@ -67,7 +67,8 @@ function nouveau(e: EtatPartie, camp: Camp): Dirigeant {
   const normale = () => Math.sqrt(-2 * Math.log(1 - tirer(e))) * Math.cos(2 * Math.PI * tirer(e));
   const apt = Object.fromEntries(LISTE_APTITUDES.map(a => [a, Math.max(TIRAGE.min, Math.min(TIRAGE.max, Math.round(TIRAGE.moyenne + TIRAGE.ecart * normale())))])) as Record<Aptitude, number>;
   const nom = nomUnique(e, camp, true); // jamais deux fois le même nom dans une partie
-  const illustre = prendreIllustration(e, [t1, t2].map(t => `dirigeant_${camp.toLowerCase()}_${t}`)); // portrait illustré d'un de ses traits, jamais deux fois
+  const l = DIRIGEANTS_ILLUSTRES[camp], ordre = [t1, t2, ...l.filter(t => t !== t1 && t !== t2)].filter(t => l.includes(t)); // ses traits d'abord, du même genre que son prénom
+  const illustre = prendreIllustration(e, ordre.map(t => `dirigeant_${camp.toLowerCase()}_${t}`), femme(camp, nom));
   return { nom, naissance: annee - (48 + Math.floor(tirer(e) * 20)), sante: 70 + Math.floor(tirer(e) * 31), popularite: 45 + Math.floor(tirer(e) * 16), aptitudes: apt, traits: [t1, t2], depuis: e.round, ...(illustre ? { illustre } : {}) };
 }
 export const noteDirigeant = (d: Dirigeant) => LISTE_APTITUDES.reduce((s, a) => s + d.aptitudes[a], 0) + d.traits.reduce((s, t) => s + TRAITS_DIRIGEANT[t].valeur, 0);

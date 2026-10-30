@@ -1,5 +1,8 @@
 // Portraits : illustrés (lot ob_8, attribués sans remise par le moteur) puis générés : un visage par numéro, jamais deux fois le même dans une partie.
 import { image } from "./images";
+import { DIRIGEANTS_ILLUSTRES } from "../moteur/pouvoir";
+// Secours (vivier épuisé) : une illustration choisie d'après le nom, jamais de visage dessiné.
+const SECOURS = [...DIRIGEANTS_ILLUSTRES.OCC.map(t => `dirigeant_occ_${t}`), ...DIRIGEANTS_ILLUSTRES.CHN.map(t => `dirigeant_chn_${t}`)];
 const PEAUX = ["#f1c9a5", "#e0ac84", "#c68a62", "#a8704a", "#8a5434", "#5e3a24"];
 const CHEVEUX = ["#1b1a1a", "#3b2a1e", "#6b4a2b", "#a0784a", "#c9c2b5", "#8a8a8a"];
 const VESTES = ["#1f2a3a", "#2b2f36", "#3a2b2b", "#24364a", "#3d3a2c", "#2e3d33"];
@@ -29,5 +32,5 @@ export function portraitSvg(n: number, militaire = false): string {
 }
 // Numéro stable pour un dirigeant (à partir de son nom, unique dans la partie).
 // Dirigeant : portrait illustré s'il en a reçu un (lot ob_8), sinon généré d'après son nom.
-export const visageDirigeant = (d: { nom: string; illustre?: string }) => { const s = d.illustre ? image(d.illustre) : undefined; return s ? `<img class="portrait-gen" src="${s}" alt="">` : portraitSvg(numeroNom(d.nom)); };
+export const visageDirigeant = (d: { nom: string; illustre?: string }) => { const s = (d.illustre && image(d.illustre)) || image(SECOURS[numeroNom(d.nom) % SECOURS.length]); return s ? `<img class="portrait-gen" src="${s}" alt="">` : ""; };
 export const numeroNom = (nom: string) => { let h = 0; for (const c of nom) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 1000 + (h % 100000); };

@@ -76,7 +76,7 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   const halo = el("filter", { id: "halo", x: "-5%", y: "-5%", width: "110%", height: "110%" });
   halo.innerHTML = `<feMorphology in="SourceAlpha" operator="dilate" radius="1.2" result="d"/><feGaussianBlur in="d" stdDeviation="1.6" result="b"/><feFlood flood-color="#9fd3ff" flood-opacity=".28"/><feComposite in2="b" operator="in" result="h"/><feMerge><feMergeNode in="h"/><feMergeNode in="SourceGraphic"/></feMerge>`;
   const degrade = el("radialGradient", { id: "vignette", cx: "50%", cy: "45%", r: "75%" });
-  degrade.innerHTML = `<stop offset="0" stop-color="#1e3a50" stop-opacity="0"/><stop offset="1" stop-color="#050b11" stop-opacity=".55"/>`;
+  degrade.innerHTML = `<stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#e9dcc2" stop-opacity=".35"/>`;
   // Relief : biseau éclairé du nord-ouest sur les terres (lumière spéculaire sur l'alpha flouté), en plus du halo des côtes.
   halo.innerHTML = `<feGaussianBlur in="SourceAlpha" stdDeviation="1.4" result="flou"/>
     <feSpecularLighting in="flou" surfaceScale="2.5" specularConstant=".55" specularExponent="16" lighting-color="#fff7e0" result="spec"><feDistantLight azimuth="225" elevation="42"/></feSpecularLighting>
@@ -86,9 +86,9 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
     <feMerge><feMergeNode in="h"/><feMergeNode in="eclaire"/></feMerge>`;
   // Océan : dégradé des grands fonds vers les plateaux, houle discrète, eaux peu profondes autour des côtes.
   const mer = el("linearGradient", { id: "mer", x1: "0", y1: "0", x2: "0", y2: "1" });
-  mer.innerHTML = `<stop offset="0" stop-color="#16324a"/><stop offset=".5" stop-color="#1b3d58"/><stop offset="1" stop-color="#10273a"/>`;
+  mer.innerHTML = `<stop offset="0" stop-color="#d7e8f2"/><stop offset=".5" stop-color="#c6dceb"/><stop offset="1" stop-color="#b4cfe1"/>`;
   const houle = el("pattern", { id: "houle", width: 40, height: 14, patternUnits: "userSpaceOnUse" });
-  houle.innerHTML = `<path d="M0 7 Q10 3 20 7 T40 7" fill="none" stroke="#8fc8ee" stroke-opacity=".07" stroke-width=".8"/>`;
+  houle.innerHTML = `<path d="M0 7 Q10 3 20 7 T40 7" fill="none" stroke="#5f8fb0" stroke-opacity=".12" stroke-width=".8"/>`;
   const flouCote = el("filter", { id: "flou-cote", x: "-10%", y: "-10%", width: "120%", height: "120%" });
   flouCote.innerHTML = `<feGaussianBlur stdDeviation="3"/>`;
   defs.append(motif, halo, degrade, mer, houle, flouCote);
@@ -140,18 +140,18 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
   let annotations: Record<string, Annotation> = {};
 
   // Le viewBox suit les proportions de l'écran : la carte remplit toujours la largeur, l'océan quadrillé comble le reste.
-  const kMin = () => 1;
+  const kMin = () => Math.min(1, hauteurVue / HAUTEUR); // carte entière visible (verrouillée)
   new ResizeObserver(() => {
     const r = svg.getBoundingClientRect(); if (!r.width || !r.height) return;
     hauteurVue = LARGEUR * r.height / r.width; svg.setAttribute("viewBox", `0 0 ${LARGEUR} ${hauteurVue}`);
-    if (k < kMin()) { k = kMin(); tx = (LARGEUR - LARGEUR * k) / 2; } appliquer();
+    if (k < kMin() || VERROU) { k = kMin(); tx = (LARGEUR - LARGEUR * k) / 2; } appliquer();
   }).observe(svg);
   // Zoom et déplacement
   let k = 1, tx = 0, ty = 0, glisse: { x: number; y: number; tx: number; ty: number; bouge: boolean } | null = null;
   const echelle = () => svg.getBoundingClientRect().width / LARGEUR || 1;
   function appliquer() {
     k = Math.min(ZOOM_MAX, Math.max(kMin(), k));
-    tx = Math.min(0, Math.max(LARGEUR * (1 - k), tx));
+    tx = k <= 1 ? (LARGEUR - LARGEUR * k) / 2 : Math.min(0, Math.max(LARGEUR * (1 - k), tx));
     ty = HAUTEUR * k >= hauteurVue ? Math.min(0, Math.max(hauteurVue - HAUTEUR * k, ty)) : (hauteurVue - HAUTEUR * k) / 2;
     zoom.setAttribute("transform", `translate(${tx},${ty}) scale(${k})`);
     svg.style.setProperty("--k", String(k));
@@ -174,7 +174,9 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
     const k2 = Math.min(ZOOM_MAX, Math.max(kMin(), k * f));
     tx = cx - (cx - tx) * (k2 / k); ty = cy - (cy - ty) * (k2 / k); k = k2; appliquer();
   }
+  const VERROU = true; // carte fixe : ni zoom à la molette ni déplacement au glisser
   svg.addEventListener("wheel", ev => {
+    if (VERROU) return;
     ev.preventDefault();
     const r = svg.getBoundingClientRect(), s = echelle();
     zoomer(ev.deltaY < 0 ? 1.25 : 0.8, (ev.clientX - r.left) / s, (ev.clientY - r.top) / s);
@@ -184,7 +186,7 @@ export function dessinerCarte(conteneur: HTMLElement, idsJeu: Map<string, string
     if (!glisse) return;
     const dx = ev.clientX - glisse.x, dy = ev.clientY - glisse.y;
     if (Math.abs(dx) + Math.abs(dy) > 4) glisse.bouge = true;
-    if (glisse.bouge) { const s = echelle(); tx = glisse.tx + dx / s; ty = glisse.ty + dy / s; appliquer(); }
+    if (glisse.bouge && !VERROU) { const s = echelle(); tx = glisse.tx + dx / s; ty = glisse.ty + dy / s; appliquer(); }
   });
   window.addEventListener("pointerup", ev => {
     const g = glisse; glisse = null;

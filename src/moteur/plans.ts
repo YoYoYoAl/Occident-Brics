@@ -11,7 +11,7 @@ import { nouvelleCampagne, tourCampagne, payerDettes, type Campagne } from "./ca
 import { installer, nouveauConseiller, risqueDestitution } from "./pouvoir";
 import { gagnerAE, appliquerBataille, facteurPlanAE, AE, SCORE } from "./guerre";
 import {
-  type EtatPartie, type Domaine, type TypeAction, alignement, nomPays, ZONES, THEATRES, ZONES_STRATEGIQUES, RIVERAINS, electionProchaine,
+  type EtatPartie, ACCELERATION, type Domaine, type TypeAction, alignement, nomPays, ZONES, THEATRES, ZONES_STRATEGIQUES, RIVERAINS, electionProchaine,
   partFamille, arrondi, DOMAINE_ACTION, TECHNOLOGIES, SEUIL_TECHNO, outils,
 } from "./partie";
 
@@ -548,4 +548,35 @@ export function iaPlans(e: EtatPartie, camp: Camp) {
 export function tirerChefs(e: EtatPartie) {
   e.chefs = { OCC: {}, CHN: {} };
   for (const camp of CAMPS) for (const cs of LISTE_CONSEILS) e.chefs[camp][cs] = LISTE_TRAITS[Math.floor(outils.tirer(e) * LISTE_TRAITS.length)];
+}
+
+// Accélérer une orientation avec des points d'opérations (cartes jouées pour leurs points).
+export function peutAccelerer(e: EtatPartie, camp: Camp, id: string, n: number): string | null {
+  const p = (e.plans ?? []).find(q => q.id === id);
+  if (!p || p.camp !== camp) return "Orientation inconnue.";
+  if (n < 1 || e.camps[camp].pa < n) return `Points d'opérations insuffisants (${n} requis, tu as ${e.camps[camp].pa}).`;
+  if (p.progres >= 99) return "Orientation déjà presque terminée.";
+  return null;
+}
+export function accelerer(e0: EtatPartie, camp: Camp, id: string, n: number): EtatPartie {
+  const err = peutAccelerer(e0, camp, id, n); if (err) throw new Error(err);
+  const e = structuredClone(e0), p = e.plans!.find(q => q.id === id)!;
+  e.camps[camp].pa -= n; p.progres = Math.min(99, p.progres + n * ACCELERATION.parPoint); // l'arrivée se joue au trimestre suivant (jalons, bilan)
+  return e;
+}
+
+// Contrer l'adversaire : freiner une de ses orientations révélées avec des points d'opérations.
+export const FREIN = { parPoint: 8 }; // recul par point, en points de % (estimation, à calibrer)
+export function peutFreiner(e: EtatPartie, camp: Camp, id: string, n: number): string | null {
+  const p = (e.plans ?? []).find(q => q.id === id);
+  if (!p || p.camp === camp || !p.vuPar.includes(camp)) return "Orientation adverse inconnue ou non révélée.";
+  if (n < 1 || e.camps[camp].pa < n) return `Points d'opérations insuffisants (${n} requis, tu as ${e.camps[camp].pa}).`;
+  if (p.progres <= 0) return "Cette orientation n'a pas encore avancé.";
+  return null;
+}
+export function freiner(e0: EtatPartie, camp: Camp, id: string, n: number): EtatPartie {
+  const err = peutFreiner(e0, camp, id, n); if (err) throw new Error(err);
+  const e = structuredClone(e0), p = e.plans!.find(q => q.id === id)!;
+  e.camps[camp].pa -= n; p.progres = Math.max(0, p.progres - n * FREIN.parPoint); p.jalons = PLANS.jalons.filter(j => p.progres >= j).length;
+  return e;
 }

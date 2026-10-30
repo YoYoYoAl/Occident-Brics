@@ -55,7 +55,7 @@ export const PUISSANCE4: DefDuel<S> = {
   resultat(s) { if (s.gagnant !== null) return s.gagnant === 0 ? 1 : 0; const [a, b] = majorites(s); return 0.15 + 0.7 * part(a, b); },
   vue(s) {
     const cases = [];
-    for (let l = L - 1; l >= 0; l--) for (let c = 0; c < C; c++) { const v = s.g[cell(c, l)]; cases.push({ t: v < 0 ? "" : "●", c: v === 0 ? "moi" : v === 1 ? "lui" : "vide", coup: !s.fini && hauteur(s, c) < L ? String(c) : undefined, titre: ELECTORATS[c] }); }
+    for (let l = L - 1; l >= 0; l--) for (let c = 0; c < C; c++) { const v = s.g[cell(c, l)]; cases.push({ t: v < 0 ? "" : "★", c: v === 0 ? "moi" : v === 1 ? "lui" : "vide", coup: !s.fini && hauteur(s, c) < L ? String(c) : undefined, titre: ELECTORATS[c] }); }
     const [a, b] = majorites(s);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : `Clique un électorat pour y lâcher un jeton (${MAX - s.poses[0]} restants). Aligne 4 jetons.`,
       scores: [`${a} électorat${a > 1 ? "s" : ""}`, `${b}`], grille: { cols: C, cases },

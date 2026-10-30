@@ -38,6 +38,7 @@ describe("v12", () => {
     const src = readFileSync("src/interface/main.ts", "utf8");
     expect(src).toMatch(/ETAPES: Etape\[\] = \["evenements", "carte", "plans", "duels", "defense", "eco", "diplo", "secret", "bilan"\]/);
     expect(src).toMatch(/modeDe\(e, joueur\(\), x\) !== "auto"/);
-    expect(src).toMatch(/id="basculeGuide"/);
+    // refonte 30/10 : le tour se joue en 3 phases (Le monde, Le conseil, Le front), le basculeur de guide a disparu
+    expect(src).toMatch(/PHASES = \[\["monde", "Le monde"\], \["conseil", "Le conseil"\], \["front", "Le front"\]\]/);
   });
 });

@@ -17,9 +17,14 @@ import { panneauDirigeant, panneauGuerre, lierGuerre, tableauRegions, blocAllian
 import { regionsCles } from "../moteur/guerre";
 import { jouerDuel } from "./duel-ui";
 import { salleDuels } from "./salle-duels";
+import { ouvrirPointsOperations, pertinence, bandeauCible, type HoteOperations } from "./operations-points-ui";
+import { coutPlan, CONSEILS, LISTE_CONSEILS } from "../moteur/plans";
+import { conseillerDe } from "../moteur/pouvoir";
+import { dirigeantDe } from "../moteur/dirigeants";
+import { visageDirigeant } from "./portraits";
 import { conclureDuel, enjeuxDuel, bilanDuel, paysDuPlan as paysDuPlanUi, plansDe, OBJECTIFS as OBJ_PLANS, nomCible, planRival, seanceOuverte, peutConvoquer, bilansNonVus, marquerBilansVus, PLANS as REGLES_PLANS } from "../moteur/plans";
 import {
-  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
+  creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, ciblesConseillees, operer, peutOperer, EPARGNE, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, FORMATS, formatDe, peutProlonger, prolonger, type Format, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
   decrireEffet, nomPays, serialiserPartie, chargerPartie, libelle, reagir, peutReagir, REACTIONS, MAX_REACTIONS, fluxActif, lienFlux,
   peutJouerCarte, budgetTrimestre, HISTORIQUES, typeCarte, typesManquants, carteObligatoire, NOMS_TYPES,
@@ -42,15 +47,20 @@ const avance = (x: number, d = 1, seuil = 0) => Math.abs(x) <= seuil || nombre(M
 let etat: EtatPartie | null = null;
 let paysChoisi: string | null = null;
 let onglet = "main";
+let phase: "monde" | "conseil" | "front" = "conseil";
+let vueCarte = false; // la carte est l'écran principal ; vrai = bandeau des phases replié
+let sceneMonde: { html: string; lier: (b: HTMLElement) => void } | null = null;
 let carteOuverte: string | null = null;
+let actionCiblee: TypeAction | null = null, pertinenceCible: Record<string, number> = {}; // opération en attente de son pays (carte en dégradé)
 let journalVu = 0;
 let briefingVuAuRound = -1;
 // Photo avant la fin du trimestre, pour le récap des deux blocs (puissance, alignements).
 let avantTour: { puissance: Record<Camp, number>; alignements: Record<string, number>; budget?: number; cp?: number; tension?: number; progres?: Record<string, number> } | null = null;
 let debutRapport = 0, titreRapport = "";
-const CLE_OPTIONS = "occident-brics-options-carte";
+let evtIdx = 0, evtDebut = -1; // événement affiché dans la fenêtre « Le monde » (un à la fois)
+const CLE_OPTIONS = "occident-brics-options-carte-v2"; // v2 (refonte) : carte épurée par défaut
 const options: OptionsCarte = (() => {
-  const defaut: OptionsCarte = { noms: true, influence: false, categories: false, sigles: false, legende: true, maritime: true, terrestre: true, aerien: false };
+  const defaut: OptionsCarte = { noms: true, influence: false, categories: false, sigles: false, legende: false, maritime: false, terrestre: false, aerien: false };
   try { return { ...defaut, ...JSON.parse(localStorage.getItem(CLE_OPTIONS) ?? "{}") }; } catch { return defaut; }
 })();
 // Pays hors jeu où se déroulent des conflits historiques : code ISO numérique de la carte.
@@ -59,7 +69,10 @@ const IDS_HORS_JEU: Record<string, string> = { AFG: "004", GEO: "268", LBN: "422
 
 const joueur = (): Camp => etat!.joueur ?? "OCC";
 const idsJeu = new Map(donnees.pays.map(p => [p.idCarte, p.iso3]));
-const carteMonde = dessinerCarte($("carte"), idsJeu, iso3 => { paysChoisi = iso3; onglet = "pays"; afficher(); });
+const carteMonde = dessinerCarte($("carte"), idsJeu, iso3 => { if (actionCiblee) { operer1(iso3); return; } paysChoisi = iso3; onglet = "pays"; vueCarte = false; afficher(); });
+// Opération ciblée : exécutée sur le pays cliqué, puis retour à la fenêtre des opérations s'il reste des points.
+function operer1(iso: string) { const t = actionCiblee!; try { etat = operer(etat!, joueur(), t, iso); son(sonAction(t)); message(`${ACTIONS[t].nom} : ${nomPays(iso)}.`); actionCiblee = null; afficher(); if (etat.camps[joueur()].pa > 0) ouvrirPointsOperations(hoteOperations()); } catch (err) { son("erreur"); message((err as Error).message); } }
+const hoteOperations = (): HoteOperations => ({ etat: () => etat!, camp: joueur, tenter: f => tenter(f), ouvrir, fermer, cibler: t => { actionCiblee = t; pertinenceCible = pertinence(etat!, joueur(), t); afficher(); } });
 
 function message(texte: string) {
   const m = $("message");
@@ -104,7 +117,7 @@ function choisirCamp() {
     b.querySelectorAll<HTMLButtonElement>("[data-camp]").forEach(x => x.onclick = () => {
     formatChoisi = (b.querySelector<HTMLInputElement>("input[name=format]:checked")?.value as Format) ?? "2000-2008";
     etat = creerPartie(Date.now() % 2147483647, x.dataset.camp as Camp, { generiques: true, ia: true, format: formatChoisi });
-    journalVu = 0; briefingVuAuRound = -1; paysChoisi = null; carteOuverte = null; onglet = "main";
+    journalVu = 0; briefingVuAuRound = -1; paysChoisi = null; carteOuverte = null; onglet = "main"; phase = "conseil";
     fermer(); rapport("Début de partie"); afficher(); jouerHymne(x.dataset.camp === "OCC" ? "USA" : "CHN");
   }); });
 }
@@ -179,26 +192,42 @@ function rapport(titre: string, debut = journalVu) {
   const monde = generiques.filter(j => !campTouche(j)).map(j => ({ j, n: importance(j) })).sort((a, b) => b.n - a.n);
   const retenus = monde.filter(x => x.n >= 3).slice(0, MAX_MONDE).map(x => x.j), autres = monde.map(x => x.j).filter(j => !retenus.includes(j));
   const liste = (l: EntreeJournal[], r = false) => `<ul class="journal">${l.map(j => ligneJournal(j, r)).join("")}</ul>`;
-  const section = (t: string, l: EntreeJournal[], r = false, note = "") => l.length ? `<h3>${t}</h3>${note}${liste(l, r)}` : "";
   const reste = etat!.camps[moi].reactions.length;
-  const noteReaction = `<p class="note">Tu peux réagir à ${MAX_REACTIONS} événements par trimestre (${MAX_REACTIONS - reste} restant${MAX_REACTIONS - reste > 1 ? "s" : ""}, budget ${nombre(etat!.camps[moi].budget, 0)}). Aussi depuis l'onglet Main.</p>`;
-  ouvrir(`<div class="ov-tete"><div><span class="sc-sur">Ouverture du trimestre</span><h2>${titre} : ${libelle(etat!.round)}</h2></div>
+  // Événements une fenêtre à la fois (façon EU4) : histoire, ton camp, l'adversaire, puis le monde ; le reste en journal compact.
+  // au plus MAX_UNE fenêtres : d'abord celles où tu peux réagir, puis l'histoire, puis le reste ; le surplus passe au journal compact
+  const MAX_UNE = 6, candidats = [...histoire, ...chezMoi, ...chezAdv, ...retenus];
+  const une = [...candidats.filter(j => boutonsReaction(j)), ...candidats.filter(j => !boutonsReaction(j))].slice(0, MAX_UNE).sort((x, y) => candidats.indexOf(x) - candidats.indexOf(y));
+  if (evtDebut !== debut) { evtDebut = debut; evtIdx = 0; }
+  evtIdx = Math.min(evtIdx, une.length);
+  const compact = [...candidats.filter(j => !une.includes(j)), ...consequences, ...faitsDivers, ...autres];
+  const journalCompact = compact.length ? `<div class="ev-compact"><h3>Ailleurs dans le monde · ${compact.length}</h3><ul>${compact.map(j => `<li class="g${Math.min(5, j.intensite ?? 1)}" ${j.pays?.[0] ? `data-voir-pays="${j.pays[0]}" title="Voir sur la carte"` : ""}><i></i><strong>${esc(j.titre)}</strong>${j.pays?.[0] ? `<small>${esc(nomPays(j.pays[0]))} ›</small>` : ""}</li>`).join("")}</ul></div>` : "";
+  function carteEvenement(l: EntreeJournal[]): string {
+    if (!l.length) return `<div class="ev-carte ev-fin"><p>Trimestre calme : aucun événement majeur.</p></div>`;
+    if (evtIdx >= l.length) return `<div class="ev-carte ev-fin"><h3>✓ ${l.length} événement${l.length > 1 ? "s" : ""} traité${l.length > 1 ? "s" : ""}</h3><p>Réactions utilisées : ${reste} sur ${MAX_REACTIONS}.</p><p><button data-ev="0">↺ Revoir les événements</button></p></div>`;
+    const j = l[evtIdx], img = j.type === "historique" || j.type === "generique" ? imageEvenement(j.source, j.famille) : undefined;
+    const t = campTouche(j), qui = histoire.includes(j) ? ["Histoire", "h"] : t === moi ? ["Ton camp est touché", "moi"] : t === adv ? ["Chez l'adversaire", "adv"] : ["Dans le monde", "monde"];
+    const effets = j.effets?.length ? `<div class="effets-p">${j.effets.map(x => `<span class="effet-p ${/(^|\s)[−-]\s?\d|▼|baisse|recul/.test(x) ? "baisse" : /\+\s?\d|▲|hausse/.test(x) ? "hausse" : ""}">${esc(x)}</span>`).join("")}</div>` : "";
+    const rx = boutonsReaction(j);
+    return `<div class="ev-carte ev-${qui[1]}">
+      <div class="ev-haut"><span class="ev-qui">${qui[0]}${j.pays?.[0] ? ` · ${esc(nomPays(j.pays[0]))}` : ""}</span><span class="ev-num">${evtIdx + 1} sur ${l.length}</span></div>
+      ${img ? `<img class="ev-image" src="${img}" alt="">` : ""}
+      <div class="ev-corps"><h3>${esc(j.titre)}</h3>${j.texte ? `<p>${esc(j.texte)}</p>` : ""}${effets}</div>
+      ${rx ? `<div class="ev-choix"><span class="ev-sur">Tes choix · ${MAX_REACTIONS - reste} réaction${MAX_REACTIONS - reste > 1 ? "s" : ""} restante${MAX_REACTIONS - reste > 1 ? "s" : ""}</span>${rx}</div>` : ""}
+      <div class="ev-nav">${evtIdx ? `<button data-ev="${evtIdx - 1}">← Précédent</button>` : "<span></span>"}<div class="ev-points">${l.map((_, k) => `<i class="${k === evtIdx ? "on" : k < evtIdx ? "vu" : ""}"></i>`).join("")}</div><button data-ev="${evtIdx + 1}" class="principal">${rx ? "Laisser faire →" : "Suivant →"}</button></div></div>`;
+  }
+  // Refonte : l'ouverture est la scène « Le monde » (plein écran, plus de fenêtre par-dessus)
+  sceneMonde = { html: `<div class="ov-tete"><div><span class="sc-sur">Le monde · ouverture du trimestre</span><h2>${titre} : ${libelle(etat!.round)}</h2></div>
       <div class="ov-compteurs"><span>Réactions : <strong>${MAX_REACTIONS - reste} sur ${MAX_REACTIONS}</strong></span><span>Budget <strong>${nombre(etat!.camps[moi].budget, 1)}</strong></span></div></div>
-    <div class="ov"><div class="ov-gauche">
-    ${section("Histoire et politique", histoire, true)}
-    ${section(`Ton camp (${NOM_CAMP[moi]}) est touché : tu peux réagir`, chezMoi, true, noteReaction)}
-    ${section(`Chez l'adversaire (${NOM_CAMP[adv]})`, chezAdv, true)}
-    ${section("Conséquences de tes choix passés", consequences)}
-    ${section("Dans le monde", retenus, true)}
-    ${faitsDivers.length ? `<details><summary>${faitsDivers.length} fait${faitsDivers.length > 1 ? "s" : ""} divers et incident${faitsDivers.length > 1 ? "s" : ""} mineur${faitsDivers.length > 1 ? "s" : ""}</summary>${liste(faitsDivers)}</details>` : ""}
-    ${autres.length ? `<details><summary>${autres.length} autre${autres.length > 1 ? "s" : ""} événement${autres.length > 1 ? "s" : ""} mineur${autres.length > 1 ? "s" : ""}, loin de ton jeu</summary>${liste(autres, true)}</details>` : ""}
-    ${!histoire.length && !chezMoi.length && !chezAdv.length && !consequences.length && !retenus.length ? `<p class="note">Trimestre calme.</p>` : ""}
-    </div><aside class="ov-droite">${bilanOuverture()}${recapBlocs(tout)}
-    <button id="okRapport" class="principal ov-suite">${etat!.termine ? "Voir le résultat →" : "Passer au trimestre →"}</button></aside></div>`,
-  b => {
-    lierReactions(b, () => { const y = b.querySelector(".ov-gauche")?.scrollTop ?? 0; rapport(titreRapport, debutRapport); const g = $("boite").querySelector(".ov-gauche"); if (g) g.scrollTop = y; afficher(); });
-    b.querySelector<HTMLButtonElement>("#okRapport")!.onclick = () => { fermer(); suiteOuverture(); };
-  }, "large ouverture");
+    <div class="ov"><div class="ov-gauche">${carteEvenement(une)}${journalCompact}</div>
+<aside class="ov-droite">${bilanOuverture()}${recapBlocs(tout)}
+    <button id="okRapport" class="principal ov-suite">${etat!.termine ? "Voir le résultat →" : "Continuer : le conseil →"}</button></aside></div>`,
+  lier: b => {
+    b.querySelectorAll<HTMLButtonElement>("[data-ev]").forEach(x => x.onclick = () => { evtIdx = Number(x.dataset.ev); rapport(titreRapport, debutRapport); });
+    b.querySelectorAll<HTMLElement>("[data-voir-pays]").forEach(x => x.onclick = () => { paysChoisi = x.dataset.voirPays!; onglet = "pays"; vueCarte = false; afficher(); });
+    lierReactions(b, () => { evtIdx++; const y = b.querySelector(".ov-gauche")?.scrollTop ?? 0; rapport(titreRapport, debutRapport); const g = $("boite").querySelector(".ov-gauche"); if (g) g.scrollTop = y; afficher(); });
+    b.querySelector<HTMLButtonElement>("#okRapport")!.onclick = () => { fermer(); phase = "conseil"; onglet = "main"; vueCarte = false; afficher(); window.scrollTo(0, 0); suiteOuverture(); };
+  } };
+  phase = "monde"; onglet = "main"; vueCarte = false; afficher();
 }
 
 // Colonne droite de l'ouverture : bilan chiffré du trimestre écoulé et avancée des orientations.
@@ -309,8 +338,7 @@ const cout = (c: { budget?: number; cp?: number }) => [c.budget ? `${c.budget} b
 
 // Tour guidé : le trimestre se déroule par étapes (événements, carte, économie, diplomatie, défense, secret, bilan) ;
 // un domaine en automatique ou sans action restante est sauté ; la barre d'étapes permet de revenir ou de sauter.
-const CLE_GUIDE = "occident-brics-tour-guide";
-let guide = (() => { try { return localStorage.getItem(CLE_GUIDE) !== "non"; } catch { return true; } })();
+const guide = true; // refonte : plus de « vue détaillée »
 let etape = 0, etapeRound = -1;
 type Etape = "evenements" | "carte" | "plans" | "duels" | Domaine | "bilan";
 const ETAPES: Etape[] = ["evenements", "carte", "plans", "duels", "defense", "eco", "diplo", "secret", "bilan"]; // plans pluriannuels puis duels ; les ministères sont en automatique (les conseils suivent les plans), sauf choix contraire
@@ -362,17 +390,27 @@ function panneauMain(): string {
           h += `<p class="alerte">Carte adverse : tu peux la jouer pour ses points, mais son événement se déclenche alors au profit de l'adversaire.</p>
             ${prev ? `<div class="mode prevision"><div><strong>Ce que l'adversaire en tirerait :</strong> ${esc(prev.titre)}</div><small>${prev.effets.map(esc).join("<br>")}</small></div>` : ""}`;
         } else k.modes.forEach((m, i) => {
-          const eligibles = m.cible === "pays" ? paysEligibles(e, joueur(), id, i) : [];
-          const pays = m.cible === "pays" ? (paysChoisi && eligibles.includes(paysChoisi) ? paysChoisi : undefined) : undefined;
-          if (m.cible === "pays") h += eligibles.length
-            ? `<label class="cible">Pays cible : <select data-cible>${pays ? "" : `<option value="">choisir (${eligibles.length} possibles)</option>`}${eligibles.map(x => `<option value="${x}" ${x === pays ? "selected" : ""}>${esc(nomPays(x))}</option>`).join("")}</select></label>`
-            : `<p class="alerte">Aucun pays ne remplit la condition en ce moment.</p>`;
-          const err = c.carteJouee ? "Carte déjà jouée ce trimestre." : errCarte ?? peutJouerMode(e, joueur(), id, i, pays);
-          h += `<div class="mode"><div><strong>${esc(m.nom)}</strong> <em>${cout(m.cout)}${m.cible === "pays" ? " · cible un pays" : ""}</em></div>
-            <small>${m.effets.map(ef => esc(decrireEffet(e, ef, joueur(), pays, 0.3))).join("<br>")}${m.caches?.length ? "<br><i>Conséquences incertaines possibles.</i>" : ""}</small>
+          if (m.cible === "pays") {
+            // cible conseillée : les 3 meilleurs pays en un clic, puis « autre pays » (opportunités en tête)
+            const tous = ciblesConseillees(e, joueur(), id, i, 999), top = tous.slice(0, 3);
+            const errBase = c.carteJouee ? "Carte déjà jouée ce trimestre." : errCarte;
+            h += `<div class="mode"><div><strong>${esc(m.nom)}</strong> <em>${cout(m.cout)}</em></div>`;
+            if (!tous.length) h += `<p class="alerte">Aucun pays ne remplit la condition en ce moment.</p>`;
+            else {
+              h += `<span class="ev-sur">Ton conseiller recommande</span><div class="cibles-top">${top.map(x => { const err = errBase ?? peutJouerMode(e, joueur(), id, i, x.iso);
+                return `<button data-jouer="${i}" data-pays="${x.iso}" ${err ? `disabled title="${esc(err)}"` : ""}><strong>${esc(nomPays(x.iso))}</strong><small>${m.effets.map(ef => esc(decrireEffet(e, ef, joueur(), x.iso, 0.3))).join("<br>")}</small></button>`; }).join("")}</div>`;
+              if (tous.length > 3) h += `<label class="cible">Autre pays : <select data-autre="${i}"><option value="">choisir parmi ${tous.length - 3} autres (joue la carte)</option>${tous.slice(3).map(x => `<option value="${x.iso}">${esc(nomPays(x.iso))}</option>`).join("")}</select></label>`;
+              if (m.caches?.length) h += `<small><i>Conséquences incertaines possibles.</i></small>`;
+            }
+            h += `</div>`;
+            return;
+          }
+          const err = c.carteJouee ? "Carte déjà jouée ce trimestre." : errCarte ?? peutJouerMode(e, joueur(), id, i, undefined);
+          h += `<div class="mode"><div><strong>${esc(m.nom)}</strong> <em>${cout(m.cout)}</em></div>
+            <small>${m.effets.map(ef => esc(decrireEffet(e, ef, joueur(), undefined, 0.3))).join("<br>")}${m.caches?.length ? "<br><i>Conséquences incertaines possibles.</i>" : ""}</small>
             <button data-jouer="${i}" ${err ? `disabled title="${esc(err)}"` : ""}>Jouer l'événement</button>${err ? `<small class="erreur">${esc(err)}</small>` : ""}</div>`;
         });
-        h += `<button data-points ${c.carteJouee || errCarte ? "disabled" : ""}>Jouer pour ${k.valeur} point${k.valeur > 1 ? "s" : ""} d'action</button>`;
+        h += `<button data-points ${c.carteJouee || errCarte ? "disabled" : ""}>Prendre ${k.valeur} point${k.valeur > 1 ? "s" : ""} d'opérations</button><p class="note">Ensuite, au choix : accélérer une orientation, agir sur un pays, ou garder les points (jusqu'à ${EPARGNE.max}).</p>`;
       }
       h += `</article>`;
     }
@@ -388,32 +426,54 @@ function panneauMain(): string {
     const errAchat = peutAcheterPA(e, joueur());
     return `<div class="achat"><button id="acheter" ${errAchat ? `disabled title="${esc(errAchat)}"` : ""}>Acheter 1 point de crise (${PRIX_PA} budget)</button> <span class="note">2 par trimestre au plus.</span></div>`;
   };
-  const bascule = `<p class="note bascule-guide"><button id="basculeGuide">${guide ? "Vue détaillée" : "Vue en 3 décisions"}</button> ${guide ? "Le trimestre en 3 décisions." : "Toutes les commandes sur une page (ancienne vue)."}</p>`;
-  if (!guide) return bascule + sEntete() + sEvenements() + panneauDirigeant(e, joueur()) + panneauPlans(e, joueur()) + panneauDuels(e, joueur()) + panneauGuerre(e, joueur()) + blocStrategie() + blocDiplomatie() + sCartes() + blocMinisteres() + sAgir() + sAchat();
-  // Le trimestre en 3 décisions (maquette 3) : ta carte, ce qui t'attend, des actions directes. Les orientations avancent seules.
+  // Refonte du 30/10 : un trimestre en 3 phases (le monde, le conseil, le front), un seul panneau à la fois, sans liste à rallonge.
   const mes = plansDe(e, joueur()), conv = peutConvoquer(e, joueur()), ouverte = seanceOuverte(e, joueur());
-  const sOrient = `<div class="t-orient"><div class="t-orient-tete"><strong>Orientations en cours (${mes.length}/${REGLES_PLANS.max})</strong>
-      <button id="btnConseil" class="${ouverte ? "principal" : ""}">🏛 ${ouverte ? "Salle du conseil : séance ouverte" : conv ? "Salle du conseil" : "Convoquer le conseil"}</button> <button data-pouvoir>👑 Pouvoir</button></div>
-    ${mes.length ? mes.map(p => { const n = resteTrimestres(e, p.id);
-      return `<div class="t-plan"><strong>${esc(OBJ_PLANS[p.objectif].nom)} · ${esc(nomCible(p))}</strong><span class="p-barre"><span style="width:${Math.min(100, p.progres)}%"></span></span>
-        <small>${nombre(p.progres, 0)} % · environ ${n} trimestre${n > 1 ? "s" : ""}${planRival(e, p) ? " · disputée par l'adversaire" : ""}${p.reconduire ? " · ↻ reconduite" : " · s'arrête à l'arrivée"}</small></div>`; }).join("")
-      : `<p class="note">Aucune orientation : tes conseillers n'ont pas de cap. Ouvre la salle du conseil.</p>`}</div>`;
+  // Repères de l'étape : ce qu'il faut faire (coché quand c'est fait), ce qu'on peut faire, à quoi ça sert.
+  const guideEtape = (faire: [string, boolean][], possible: string[], sert: string) => `<div class="ph-guide">
+    <div class="g-faire"><b>À faire</b>${faire.map(([t, ok]) => `<span class="${ok ? "ok" : ""}">${ok ? "✓" : "○"} ${t}</span>`).join("")}</div>
+    <div class="g-possible"><b>Possible</b>${possible.map(t => `<span>· ${t}</span>`).join("")}</div>
+    <div class="g-sert"><b>À quoi ça sert</b><span>${sert}</span></div></div>`;
+  const suite = (id: string, txt: string) => `<p class="ph-suite"><button id="${id}" class="principal grand">${txt}</button></p>`;
+  if (phase === "conseil") {
+    const d = dirigeantDe(e, joueur()), recu = budgetTrimestre(e, joueur()), engage = mes.reduce((a, p) => a + coutPlan(e, p), 0);
+    const part = (x: number) => Math.max(0, Math.min(100, 100 * x / Math.max(recu, 0.1)));
+    const orient = mes.length ? mes.map(p => { const n = resteTrimestres(e, p.id);
+      return `<div class="ph-plan"><strong>${esc(OBJ_PLANS[p.objectif].nom)} · ${esc(nomCible(p))}</strong><span class="p-barre"><span style="width:${Math.min(100, p.progres)}%"></span></span>
+        <small>${nombre(p.progres, 0)} % · encore ${n} trimestre${n > 1 ? "s" : ""} · ${nombre(coutPlan(e, p), 1)} budget / trimestre${planRival(e, p) ? " · disputée par l'adversaire" : ""}</small></div>`; }).join("")
+      : `<p class="ph-vide">Aucune orientation : tes conseillers attendent tes ordres.</p>`;
+    return `<section class="ph ph-conseil"><header class="ph-tete t-conseil"><span>Étape 2 sur 3</span><h2>Le conseil</h2><p>Ton équipe applique tes orientations. Tu fixes le cap, ils font le travail.</p></header>${guideEtape([["Donner au moins une orientation (salle du conseil)", mes.length > 0]], ["Changer un conseiller", "Préparer ta réélection (👑)", "Arrêter ou reconduire une orientation"], "Une orientation avance seule chaque trimestre et rapporte des points à l'arrivée. Elle coûte du budget tant qu'elle tourne.")}
+      <div class="ph-dirigeant">${d ? visageDirigeant(d) : ""}<div><span class="ph-sur">Ton dirigeant</span><strong>${esc(d?.nom ?? "")}</strong><small>popularité ${nombre(d?.popularite ?? 0, 0)}</small></div><button data-pouvoir>👑 Rester au pouvoir</button></div>
+      <div class="ph-droite"><div class="ph-conseillers">${LISTE_CONSEILS.map(cs => { const k = conseillerDe(e, joueur(), cs), im = k?.illustre ? image(k.illustre) : undefined;
+        return `<figure title="${esc(CONSEILS[cs].nom)} : ${esc(k?.nom ?? "")}">${im ? `<img src="${im}" alt="">` : ""}<figcaption><b>${esc(CONSEILS[cs].nom)}</b>${esc(k?.nom ?? "")}</figcaption></figure>`; }).join("")}</div>
+      <div class="ph-budget"><div class="ph-budget-tete"><strong>Budget</strong><span>${nombre(c.budget, 1)} en caisse</span></div>
+        <div class="ph-jauge"><span class="engage" style="width:${part(engage)}%"></span></div>
+        <small>Chaque trimestre tu reçois <strong>${nombre(recu, 1)}</strong>. Tes orientations en coûtent <strong>${nombre(engage, 1)}</strong>, il te reste <strong>${nombre(Math.max(0, recu - engage), 1)}</strong> pour réagir, jouer tes actions et payer les opérations.</small></div>
+      <h3>Tes orientations (${mes.length} sur ${REGLES_PLANS.max})</h3>${orient}
+      <p><button id="btnConseil" class="${ouverte ? "principal" : ""} grand">🏛 ${ouverte ? "Entrer dans la salle du conseil" : conv ? "Convoquer le conseil" : "Salle du conseil"}</button></p>
+      ${ouverte ? "" : `<p class="note">${conv ? "Hors séance annuelle, tu peux convoquer le conseil une fois par an." : "La prochaine séance a lieu au 1er trimestre."} Tes conseillers appliquent seuls les orientations.</p>`}</div>
+      ${suite("versFront", "Continuer : le front →")}</section>`;
+  }
   const carteJ = c.carteJouee ? e.journal.filter(j => j.type === "carte" && j.round === e.round && (j.joueParCamp ?? j.camp) === joueur()).pop() : undefined;
-  const decision = (n: number, titre: string, etatTxt: string, corps: string, faite = false) => `<section class="t-decision ${faite ? "faite" : ""}">
-    <header><span class="t-num">${faite ? "✓" : n}</span><strong>${titre}</strong><span class="t-etat">${etatTxt}</span></header>${corps}</section>`;
-  const attente = [alertesPouvoir(e, joueur()), blocCampagnesElectorales(e, joueur()), sEvenements(), duelsDuJoueur(e, joueur()).length ? panneauDuels(e, joueur()) : "", plansAdverses(e, joueur()),
+  const attente = [alertesPouvoir(e, joueur()), blocCampagnesElectorales(e, joueur()), duelsDuJoueur(e, joueur()).length ? panneauDuels(e, joueur()) : "", plansAdverses(e, joueur()),
     e.succession?.camp === joueur() ? panneauDirigeant(e, joueur()) : "", e.proposition?.de === adversaire(joueur()) ? blocDiplomatie() : "",
     c.briefing ? `<p><button id="tBriefing" class="alerte-btn">Briefing en attente : décider</button></p>` : ""].filter(Boolean);
-  let h = bascule + sOrient;
-  h += decision(1, "Ta carte du trimestre", c.carteJouee ? "jouée" : c.main.length ? "à jouer" : "main vide",
-    c.carteJouee ? `<p class="note">${carteJ ? `<strong>${esc(carteJ.titre)}</strong>` : "Carte jouée ce trimestre."}</p>` : sEntete() + sCartes(), c.carteJouee || !c.main.length);
-  h += decision(2, "Ce qui t'attend", attente.length ? `${attente.length} sujet${attente.length > 1 ? "s" : ""}` : "rien d'urgent",
-    (attente.join("") || `<p class="note">Aucun duel, aucune crise, aucune riposte en attente.</p>`) + panneauGuerre(e, joueur()), !attente.length);
-  h += decision(3, "Actions directes", "facultatif", `<p class="note">Cible : le pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : ""}. Tes conseillers jouent seuls les points que tu laisses.</p>
-    ${paysChoisi && paysChoisi !== "USA" && paysChoisi !== "CHN" ? `<p><button data-operations="${paysChoisi}" class="op-bouton">⚔ Opérations militaires : ${esc(nomPays(paysChoisi))}</button></p>` : ""}
-    ${sAgir().replace('<details class="agir">', '<details class="agir" open>')}${sAchat()}<details class="agir"><summary>Stratégie du bloc</summary>${blocStrategie()}</details>`);
-  h += `<p class="suite-guide"><button id="finGuide" class="principal">Fin du trimestre</button></p>`;
-  return h;
+  const guerre = panneauGuerre(e, joueur());
+  return `<section class="ph ph-front"><header class="ph-tete t-front"><span>Étape 3 sur 3</span><h2>Le front</h2><p>Règle les urgences, puis joue au plus une action. Clique un pays sur la carte pour agir sur lui.</p></header>${guideEtape([["Régler les urgences", !attente.length]], [`Jouer une action${c.carteJouee ? " (faite)" : ""}`, "Lancer une opération militaire sur un pays (clic sur la carte)", "Guerre et alliances"], "Les urgences (duels, élections, crises) se règlent ici. Une action donne un effet tout de suite sur un pays ou sur ton bloc.")}
+    <h3>À régler maintenant</h3>${attente.join("") || `<p class="ph-vide">Rien d'urgent : aucun duel, aucune crise, aucune élection à disputer.</p>`}${guerre}
+    ${paysChoisi && paysChoisi !== "USA" && paysChoisi !== "CHN" ? `<p><button data-operations="${paysChoisi}" class="op-bouton grand">⚔ Opérations militaires : ${esc(nomPays(paysChoisi))}</button></p>` : `<p class="note">Clique un pays sur la carte pour sa fiche et les opérations militaires.</p>`}
+    <h3>Ton action du trimestre ${c.carteJouee ? "· faite" : "· facultative"}</h3>
+    ${c.carteJouee ? `<p class="ph-vide">${carteJ ? `✓ ${esc(carteJ.titre)}` : "✓ Action jouée."}</p>` : sEntete() + `<div class="ph-cartes">${sCartes()}</div>`}
+    ${c.pa > 0 ? `<p><button id="btnPointsOp" class="op-entree grand">⚙ Opérations · ${c.pa} point${c.pa > 1 ? "s" : ""} à utiliser</button></p>` : ""}
+    ${suite("finGuide", "Fin du trimestre →")}</section>`;
+}
+
+// Bandeau des 3 phases du trimestre (Le monde → Le conseil → Le front).
+const PHASES = [["monde", "Le monde"], ["conseil", "Le conseil"], ["front", "Le front"]] as const;
+function bandeauPhases(): string {
+  const carte = `<button id="btnVueCarte" class="ph-carte ${vueCarte ? "actif" : ""}">${vueCarte ? "◂ Ouvrir" : phase === "monde" && onglet === "main" ? "🌍 Voir la carte" : "▸ Masquer"}</button>`;
+  if (onglet !== "main") return `<button id="retourTrimestre" class="ph-retour">← Retour au trimestre</button>${carte}`;
+  const k = PHASES.findIndex(x => x[0] === phase);
+  return PHASES.map(([id, nom], i) => `<button data-phase="${id}" class="${i === k && !vueCarte ? "actif" : i < k ? "faite" : ""}"><span>${i < k ? "✓" : i + 1}</span>${nom}</button>`).join(`<i class="ph-fleche">›</i>`) + carte;
 }
 
 // Un ministère : son mode et, en mode conseiller (ou dans le tour guidé), 6 options prêtes à jouer.
@@ -592,27 +652,34 @@ function panneauJournal(): string {
 }
 
 function lierPanneau(zone: HTMLElement) {
+  document.querySelectorAll<HTMLButtonElement>("[data-phase]").forEach(b => b.onclick = () => { const p = b.dataset.phase as typeof phase; vueCarte = false; if (p === "monde") { rapport(titreRapport || "Le monde ce trimestre", debutRapport); return; } phase = p; afficher(); });
+  $("retourTrimestre")?.addEventListener("click", () => { onglet = "main"; vueCarte = false; afficher(); });
+  $("btnVueCarte")?.addEventListener("click", () => { vueCarte = !vueCarte; afficher(); });
+  zone.querySelector<HTMLButtonElement>("#versFront")?.addEventListener("click", () => { phase = "front"; son("etape", 0.4); afficher(); $("contenu").scrollTop = 0; });
   zone.querySelectorAll<HTMLElement>("[data-carte]").forEach(art => {
     const id = art.dataset.carte!;
     art.querySelector("header")!.addEventListener("click", () => { carteOuverte = carteOuverte === id ? null : id; afficher(); });
     art.querySelectorAll<HTMLButtonElement>("[data-jouer]").forEach(b => b.onclick = () => {
       const mode = Number(b.dataset.jouer), m = carteDe(id).modes[mode];
-      tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "evenement", mode, pays: m.cible === "pays" ? paysChoisi ?? undefined : undefined }), "carte");
+      tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "evenement", mode, pays: m.cible === "pays" ? b.dataset.pays ?? paysChoisi ?? undefined : undefined }), "carte");
       carteOuverte = null; afficher();
     });
+    art.querySelectorAll<HTMLSelectElement>("[data-autre]").forEach(sel => sel.onchange = () => { if (!sel.value) return;
+      tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "evenement", mode: Number(sel.dataset.autre), pays: sel.value }), "carte"); carteOuverte = null; afficher(); });
     art.querySelector<HTMLButtonElement>("[data-points]")?.addEventListener("click", () => {
       tenter(() => jouerCarte(etat!, joueur(), { carte: id, usage: "points" }), "carte"); carteOuverte = null; afficher();
+      if (etat!.camps[joueur()].pa > 0) ouvrirPointsOperations(hoteOperations());
     });
   });
   zone.querySelectorAll<HTMLButtonElement>("[data-etape]").forEach(b => b.onclick = () => { etape = Number(b.dataset.etape); son("etape", 0.35); afficher(); });
   zone.querySelector<HTMLButtonElement>("#etapeSuivante")?.addEventListener("click", () => { etape = etapeSuivante(etape); son("etape", 0.35); afficher(); });
   zone.querySelector<HTMLButtonElement>("#finGuide")?.addEventListener("click", () => finTrimestre());
+  zone.querySelector<HTMLButtonElement>("#btnPointsOp")?.addEventListener("click", () => ouvrirPointsOperations(hoteOperations()));
   zone.querySelector<HTMLButtonElement>("#btnConseil")?.addEventListener("click", () => ouvrirConseil(hoteConseil()));
   lierCampagnes(zone, { etat: () => etat!, camp: joueur, tenter, ouvrir, fermer });
   zone.querySelectorAll<HTMLButtonElement>("[data-pouvoir]").forEach(b => b.onclick = () => ouvrirPouvoir({ etat: () => etat!, camp: joueur, tenter, ouvrir, fermer }));
   zone.querySelectorAll<HTMLButtonElement>("[data-operations]").forEach(b => b.onclick = () => ouvrirOperations({ etat: () => etat!, camp: joueur, tenter, ouvrir, fermer }, b.dataset.operations!));
   zone.querySelector<HTMLButtonElement>("#tBriefing")?.addEventListener("click", () => proposerBriefing(true));
-  zone.querySelector<HTMLButtonElement>("#basculeGuide")?.addEventListener("click", () => { guide = !guide; try { localStorage.setItem(CLE_GUIDE, guide ? "oui" : "non"); } catch { /* stockage indisponible */ } afficher(); });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));
   lierReactions(zone, afficher);
   lierPlans(zone, { etat: () => etat!, camp: joueur, tenter, jouerDuel: lancerDuel });
@@ -640,6 +707,19 @@ function lierPanneau(zone: HTMLElement) {
 }
 
 // ---------- Affichage ----------
+// Dégradé de pertinence pendant le choix du pays d'une opération (gris : impossible).
+function couleursCible(): Record<string, string> {
+  const v = pertinenceCible, max = Math.max(0.0001, ...Object.values(v)), out: Record<string, string> = {};
+  for (const iso of Object.keys(etat!.pays)) { const x = v[iso]; if (x === undefined || x <= 0 || peutOperer(etat!, joueur(), actionCiblee!, iso)) { out[iso] = "#e2ddd3"; continue; }
+    const k = Math.sqrt(x / max); out[iso] = `rgb(${Math.round(253 - k * 59)},${Math.round(231 - k * 163)},${Math.round(200 - k * 169)})`; }
+  return out;
+}
+function majBandeauCible() {
+  let b = document.querySelector<HTMLElement>(".zone-carte > .cible-hote"); if (!b) { b = document.createElement("div"); b.className = "cible-hote"; document.querySelector(".zone-carte")!.appendChild(b); }
+  b.innerHTML = actionCiblee ? bandeauCible(etat!, joueur(), actionCiblee, pertinenceCible) : "";
+  b.querySelectorAll<HTMLButtonElement>("[data-operer]").forEach(x => x.onclick = () => operer1(x.dataset.operer!));
+  b.querySelector<HTMLButtonElement>("#annulerCible")?.addEventListener("click", () => { actionCiblee = null; afficher(); ouvrirPointsOperations(hoteOperations()); });
+}
 function couleurs(): Record<string, string> {
   const e = etat!, vue = $<HTMLSelectElement>("vue").value, isos = Object.keys(e.pays);
   if (vue === "alignement") return Object.fromEntries(isos.map(i => [i, couleurAlignement(alignement(e, i))]));
@@ -742,17 +822,16 @@ function afficher() {
   $("camp").textContent = `Tu joues : ${NOM_CAMP[monCamp]}`;
   $("camp").className = monCamp === "OCC" ? "occ-t" : "chn-t";
   $("jauges").innerHTML = [
-    `<span title="Bilan = moyenne des décomptes annuels du bloc en avance. Progression actuelle : ${(x => (x >= 0 ? "USA " : "Chine ") + nombre(Math.abs(x)))(progression(e))}">Bilan <strong>${avance(b)}</strong></span>`,
-    `<span title="Moyenne des 5 familles (économie, population, ressources, armée, environnement) contrôlées par chaque camp">Puissance <strong class="occ-t">${nombre(100 * puissance(e, "OCC"), 0)} %</strong> / <strong class="chn-t">${nombre(100 * puissance(e, "CHN"), 0)} %</strong></span>`,
-    `<span title="Tension mondiale ${nombre(e.tension, 0)} / 100">Tension <strong>${cran(e)}/5</strong></span>`,
-    `<span title="Capital politique (élections, coûts)">CP <strong>${nombre(c.cp, 0)}</strong></span>`,
-    `<span title="Budget versé chaque trimestre : ${nombre(budgetTrimestre(e, monCamp), 1)} (socle + racine du PIB du leader) ; épargne plafonnée à 2 trimestres">Budget <strong>${nombre(c.budget, 1)}</strong></span>`,
-    `<span title="Actions du trimestre par domaine, puis points de crise (cartes jouées pour leurs points)">${LISTE_DOMAINES.map(d => `${DOMAINES[d].nom.slice(0, d === "secret" ? 6 : 4)}. <strong>${c.points?.[d] ?? 0}</strong>`).join(" · ")} · Crise <strong>${nombre(c.pa, 0)}</strong></span>`,
+    `<span class="jauge" title="Budget en caisse ; tu reçois ${nombre(budgetTrimestre(e, monCamp), 1)} par trimestre (socle + racine du PIB du leader), épargne plafonnée à 2 trimestres">💰 Budget <strong>${nombre(c.budget, 1)}</strong></span>`,
+    `<span class="jauge" title="Bilan = moyenne des décomptes annuels. Progression actuelle : ${(x => (x >= 0 ? "USA " : "Chine ") + nombre(Math.abs(x)))(progression(e))}">🏆 En tête <strong>${avance(b)}</strong></span>`,
+    `<span class="jauge" title="Capital politique : élections, coûts politiques">🗳 Capital <strong>${nombre(c.cp, 0)}</strong></span>`,
+    `<span class="jauge" title="Tension mondiale ${nombre(e.tension, 0)} / 100">⚠ Tension <strong>${cran(e)}/5</strong></span>`,
     c.briefing ? `<button id="btnBriefing" class="alerte-btn">Briefing en attente</button>` : "",
   ].join("");
   $("btnBriefing")?.addEventListener("click", () => proposerBriefing(true));
   carteMonde.regler(options);
-  carteMonde.colorer(couleurs(), legende());
+  carteMonde.colorer(actionCiblee ? couleursCible() : couleurs(), actionCiblee ? `<div class="note">Pertinence de l'action : <span class="degrade"></span> faible → forte</div>` : legende());
+  majBandeauCible();
   carteMonde.tracerFlux(FLUX.filter(f => !f.depuis || f.depuis <= Math.floor(e.round / 4) + 2000).map(f => ({ id: f.id, mode: f.mode, portee: f.portee, volume: f.volume, trace: f.trace, actif: fluxActif(e, f),
     titre: `${f.nom} (${f.mode}, ${f.portee === "mondial" ? "mondial" : "régional"}, volume ${f.volume}/5 estimé)${fluxActif(e, f) ? "" : " : COUPÉ par un blocage"}` })),
     [...ZONES_STRATEGIQUES.map(z => { const p = e.zones[z.id], d = p.OCC - p.CHN; return { id: `z_${z.id}`, position: z.position, taille: 1.2, marqueur: { symbole: "◈", couleur: Math.abs(d) < 5 ? "#8a8f98" : d > 0 ? "#3d78d6" : "#d4402f", titre: `Zone stratégique : ${z.nom}. Présence bloc USA ${nombre(p.OCC, 0)}, bloc Chine ${nombre(p.CHN, 0)}. ${z.texte}` } }; }),
@@ -766,9 +845,11 @@ function afficher() {
   document.querySelectorAll<HTMLButtonElement>("[data-option]").forEach(b => b.classList.toggle("actif", options[b.dataset.option as keyof OptionsCarte]));
   carteMonde.choisir(paysChoisi);
   document.querySelectorAll<HTMLButtonElement>("[data-onglet]").forEach(x => x.classList.toggle("actif", x.dataset.onglet === onglet));
+  $("phases").innerHTML = bandeauPhases();
   const zone = $("contenu");
-  zone.innerHTML = onglet === "main" ? panneauMain() : onglet === "pays" ? panneauPays() : onglet === "score" ? panneauScore() : panneauJournal();
-  lierPanneau(zone);
+  document.body.classList.toggle("vue-carte", vueCarte); document.body.classList.toggle("phase-monde", phase === "monde" && onglet === "main" && !vueCarte); document.body.classList.toggle("fiche-ouverte", vueCarte && onglet === "pays");
+  if (onglet === "main" && phase === "monde" && sceneMonde) { zone.innerHTML = `<section class="scene scene-monde">${sceneMonde.html}</section>`; sceneMonde.lier(zone); lierPanneau(zone); }
+  else { zone.innerHTML = `<section class="scene">${onglet === "main" ? panneauMain() : onglet === "pays" ? panneauPays() : onglet === "score" ? panneauScore() : panneauJournal()}</section>`; lierPanneau(zone); }
   $<HTMLButtonElement>("btnFin").disabled = e.termine;
 }
 
@@ -793,7 +874,7 @@ function finTrimestre() {
   if (carteObligatoire(etat, joueur())) {
     son("erreur");
     ouvrir(`<h2>Carte obligatoire</h2><p>Chaque année, tu dois jouer au moins une carte de chaque type présent dans ta main. Il te reste : ${typesManquants(etat, joueur()).map(t => `carte ${NOMS_TYPES[t]}`).join(", ")}, et plus assez de trimestres pour attendre.</p>
-      <div class="actions-fenetre"><button id="revenir" class="principal">Choisir une carte</button></div>`, b => { b.querySelector<HTMLButtonElement>("#revenir")!.onclick = () => { fermer(); onglet = "main"; afficher(); }; });
+      <div class="actions-fenetre"><button id="revenir" class="principal">Choisir une carte</button></div>`, b => { b.querySelector<HTMLButtonElement>("#revenir")!.onclick = () => { fermer(); onglet = "main"; phase = "front"; afficher(); }; });
     return;
   }
   if (!c.carteJouee && c.main.length) {
@@ -809,7 +890,7 @@ function terminer() {
   avantTour = { puissance: { OCC: puissance(etat!, "OCC"), CHN: puissance(etat!, "CHN") }, alignements: Object.fromEntries(Object.keys(etat!.pays).map(i => [i, alignement(etat!, i)])),
     budget: etat!.camps[joueur()].budget, cp: etat!.camps[joueur()].cp, tension: cran(etat!), progres: Object.fromEntries((etat!.plans ?? []).map(p => [p.id, p.progres])) };
   etat = finRound(etat!);
-  carteOuverte = null;
+  carteOuverte = null; phase = "monde"; onglet = "main";
   afficher();
   rapport(etat.termine ? "Dernier trimestre" : "Rapport du trimestre");
 }

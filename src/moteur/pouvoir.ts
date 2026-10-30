@@ -44,16 +44,32 @@ export const marquerNomPris = (e: EtatPartie, nom: string) => { if (!(e.nomsPris
 export interface Conseiller { nom: string; trait: Trait; portrait: number; depuis: number; illustre?: string } // portrait : numéro unique dans la partie (illustré ou généré)
 // Portrait illustré (lot ob_8 : 8 par siège et par bloc), attribué sans remise et sans tirage : ensuite, portrait généré.
 export const ILLUSTRES_PAR_SIEGE = 8;
-export function prendreIllustration(e: EtatPartie, candidats: string[]): string | undefined {
-  const pris = (e.imagesPrises ??= []), x = candidats.find(c => !pris.includes(c)); if (x) pris.push(x); return x;
+// Genre des portraits illustrés (contrôle visuel des planches, 30/10) : le portrait suit le prénom, jamais l'inverse.
+const PORTRAITS_F = new Set("conseiller_chn_culture_5 conseiller_chn_culture_7 conseiller_chn_culture_8 conseiller_chn_economie_3 conseiller_chn_economie_6 conseiller_chn_infrastructures_7 conseiller_chn_infrastructures_8 conseiller_chn_international_5 conseiller_chn_international_7 conseiller_chn_militaire_5 conseiller_chn_politique_1 conseiller_chn_politique_4 conseiller_chn_politique_5 conseiller_chn_politique_7 conseiller_chn_politique_8 conseiller_occ_culture_1 conseiller_occ_culture_3 conseiller_occ_culture_5 conseiller_occ_economie_1 conseiller_occ_economie_4 conseiller_occ_economie_5 conseiller_occ_economie_6 conseiller_occ_economie_7 conseiller_occ_economie_8 conseiller_occ_infrastructures_2 conseiller_occ_infrastructures_6 conseiller_occ_international_1 conseiller_occ_international_2 conseiller_occ_international_4 conseiller_occ_international_5 conseiller_occ_militaire_2 conseiller_occ_militaire_8 conseiller_occ_politique_1 conseiller_occ_politique_3 conseiller_occ_politique_4 conseiller_occ_politique_5 conseiller_occ_politique_6 dirigeant_chn_colerique dirigeant_chn_corrompu dirigeant_chn_pacificateur dirigeant_chn_pragmatique dirigeant_chn_reformateur dirigeant_chn_stratege dirigeant_chn_veteran dirigeant_occ_austere dirigeant_occ_autoritaire dirigeant_occ_belliciste dirigeant_occ_charismatique dirigeant_occ_corrompu dirigeant_occ_impulsif dirigeant_occ_multilateraliste dirigeant_occ_negociateur dirigeant_occ_pacificateur dirigeant_occ_paranoiaque dirigeant_occ_populiste dirigeant_occ_prudent dirigeant_occ_reformateur dirigeant_occ_stratege dirigeant_occ_technocrate dirigeant_occ_veteran dirigeant_occ_visionnaire".split(" "));
+const PRENOMS_F: Record<Camp, Set<string>> = {
+  OCC: new Set(["Margaret", "Ellen", "Catherine", "Laura", "Diane", "Ruth", "Helen", "Joan", "Nora", "Paula", "Carol", "Sylvia", "Irene", "Martha", "Alice", "Lorraine", "Judith", "Beatrice"]),
+  CHN: new Set(["Xiaoling", "Lihua", "Shumin", "Ruolan", "Huimin", "Xiuying", "Yanping", "Lanfang", "Chunhua", "Meiling", "Yuqing", "Fengyi", "Suhua", "Lirong", "Xinyue"]),
+};
+export const femme = (camp: Camp, nom: string) => nom.split(" ").some(m => PRENOMS_F[camp].has(m));
+// Dirigeants illustrés retenus (18 portraits chinois écartés : faux idéogrammes ou ressemblance avec un dirigeant réel).
+export const DIRIGEANTS_ILLUSTRES: Record<Camp, string[]> = {
+  OCC: "austere autoritaire batisseur belliciste charismatique colerique corrompu idealiste impulsif intrigant multilateraliste nationaliste negociateur orateur pacificateur paranoiaque populiste pragmatique prudent reformateur stratege technocrate veteran visionnaire".split(" "),
+  CHN: "charismatique colerique corrompu intrigant multilateraliste nationaliste pacificateur paranoiaque populiste pragmatique reformateur stratege technocrate veteran visionnaire".split(" "),
+};
+// Premier portrait libre parmi les candidats, du même genre que le nom.
+export function prendreIllustration(e: EtatPartie, candidats: string[], f?: boolean): string | undefined {
+  const pris = (e.imagesPrises ??= []), x = candidats.find(c => !pris.includes(c) && (f === undefined || PORTRAITS_F.has(c) === f)); if (x) pris.push(x); return x;
 }
 const listeTraits = () => Object.keys(TRAITS) as Trait[]; // à l'appel : import circulaire avec plans.ts
 export function nouveauConseiller(e: EtatPartie, camp: Camp, cs: Conseil, trait?: Trait): Conseiller {
   const l = listeTraits(), t = trait ?? l[Math.floor(outils.tirer(e) * l.length)];
   const titre = TITRES[cs]?.[camp];
   e.portraitsPris = (e.portraitsPris ?? 0) + 1;
-  const illustre = prendreIllustration(e, Array.from({ length: ILLUSTRES_PAR_SIEGE }, (_, i) => `conseiller_${camp.toLowerCase()}_${cs}_${i + 1}`));
-  return { nom: `${titre ? titre + " " : ""}${nomUnique(e, camp)}`, trait: t, portrait: e.portraitsPris, depuis: e.round, ...(illustre ? { illustre } : {}) };
+  const nom = nomUnique(e, camp), c = camp.toLowerCase(), siege = (x: Conseil) => Array.from({ length: ILLUSTRES_PAR_SIEGE }, (_, i) => `conseiller_${c}_${x}_${i + 1}`);
+  // d'abord son siège, puis (hors militaires) les autres sièges civils du bloc
+  const autres = cs === "militaire" ? [] : LISTE_CONSEILS.filter(x => x !== cs && x !== "militaire").flatMap(siege);
+  const illustre = prendreIllustration(e, [...siege(cs), ...autres], femme(camp, nom));
+  return { nom: `${titre ? titre + " " : ""}${nom}`, trait: t, portrait: e.portraitsPris, depuis: e.round, ...(illustre ? { illustre } : {}) };
 }
 export const conseillerDe = (e: EtatPartie, camp: Camp, cs: Conseil): Conseiller | null => e.conseillers?.[camp]?.[cs] ?? null;
 export function installer(e: EtatPartie, camp: Camp, cs: Conseil, c: Conseiller) {

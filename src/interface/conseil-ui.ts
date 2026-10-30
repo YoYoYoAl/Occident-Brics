@@ -9,7 +9,7 @@ import {
 } from "../moteur/plans";
 import { TRAITS_DIRIGEANT } from "../moteur/dirigeants";
 import { conseillerDe, choisirConseiller, type Conseiller } from "../moteur/pouvoir";
-import { portraitSvg, visageDirigeant } from "./portraits";
+import { visageDirigeant } from "./portraits";
 import { DUELS } from "../duels/catalogue";
 import { alignement, budgetTrimestre, libelle, nomPays, type EtatPartie } from "../moteur/partie";
 import { date } from "../moteur/temps";
@@ -108,7 +108,7 @@ export function salleHtml(e: EtatPartie, camp: Camp, h: HoteConseil): string {
         ${date(e.round).trimestre === 1 ? `<button data-chef="${cs}" class="sc-chef" title="2 CP : un nouveau chef, au trait tiré au hasard">Remplacer</button>` : ""}</div>`; }).join("")}</div>
   </header>
   ${camp === e.joueur && e.pouvoir?.recrutement?.length ? `<div class="sc-recrutement"><strong>Sièges à pourvoir après le changement de dirigeant</strong><span class="note">Le premier candidat est installé d'office ; tu peux en choisir un autre.</span>
-    ${e.pouvoir.recrutement.map(r => `<div class="sc-siege"><span>${esc(CONSEILS[r.conseil].nom)}</span>${r.candidats.map((x, k) => `<button data-recruter="${r.conseil}:${k}" class="${conseillerDe(e, camp, r.conseil)?.nom === x.nom ? "actif" : ""}">${portraitSvg(x.portrait, r.conseil === "militaire")}<strong>${esc(x.nom)}</strong><small>${TRAITS[x.trait].nom}</small></button>`).join("")}</div>`).join("")}</div>` : ""}
+    ${e.pouvoir.recrutement.map(r => `<div class="sc-siege"><span>${esc(CONSEILS[r.conseil].nom)}</span>${r.candidats.map((x, k) => `<button data-recruter="${r.conseil}:${k}" class="${conseillerDe(e, camp, r.conseil)?.nom === x.nom ? "actif" : ""}">${visage(x, r.conseil)}<strong>${esc(x.nom)}</strong><small>${TRAITS[x.trait].nom}</small></button>`).join("")}</div>`).join("")}</div>` : ""}
   <div class="sc-corps">
     <section class="sc-gauche">
       <div class="sc-legende"><strong>${esc(def.nom)}</strong><span>Impact estimé :</span>${ECHELLE.map(x => `<i style="background:${x}"></i>`).join("")}<span>fort</span><i style="background:${IMPOSSIBLE}"></i><span>impossible</span></div>
@@ -147,8 +147,8 @@ export function salleHtml(e: EtatPartie, camp: Camp, h: HoteConseil): string {
 
 // Portrait d'un conseiller : illustré pour les 6 premiers du joueur, généré ensuite (jamais deux fois le même).
 function visage(k: Conseiller | null, cs: Conseil): string {
-  const img = k?.illustre ? image(k.illustre) : k && k.portrait <= 12 ? image(`conseiller_${IMG_CONSEIL[cs]}`) : undefined;
-  return img ? `<img src="${img}" alt="">` : k ? portraitSvg(k.portrait, cs === "militaire") : silhouette("#3a4b5a");
+  const img = (k?.illustre && image(k.illustre)) || (k ? image(`conseiller_${IMG_CONSEIL[cs]}`) : undefined);
+  return img ? `<img src="${img}" alt="">` : silhouette("#3a4b5a");
 }
 export function ouvrirConseil(h: HoteConseil) {
   const e = h.etat(), camp = h.camp();

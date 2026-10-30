@@ -8,53 +8,43 @@
 </head>
 <body>
   <header class="barre">
-    <div class="titre">Occident vs BRICS <span class="version">v0.5 · <span id="format"></span> · <span id="periode"></span></span></div>
+    <div class="titre">Occident <span>vs</span> BRICS <span class="version" hidden><span id="format"></span> · <span id="periode"></span></span></div>
     <div class="date"><strong id="date">2000 T1</strong> <span id="camp"></span></div>
     <div class="jauges" id="jauges"></div>
     <div class="controles">
       <button id="btnFin" class="principal" title="Terminer le trimestre (Entrée)">Fin du trimestre</button>
-      <select id="vue" title="Couleur de la carte">
-        <option value="alignement">Carte : alignement</option>
-        <option value="militaire">Carte : présence militaire</option>
-        <option value="population">Carte : population</option>
-        <option value="pib">Carte : PIB</option>
-        <option value="stabilite">Carte : stabilité</option>
-        <option value="environnement">Carte : environnement local</option>
-        <option value="commerce">Carte : complémentarité commerciale</option>
-      </select>
-      <button id="btnSauver">Sauver</button>
-      <button id="btnCharger">Charger</button>
-      <button id="btnExporter" title="Télécharger la sauvegarde">Exporter</button>
-      <label class="bouton" title="Charger un fichier de sauvegarde">Importer<input id="fichier" type="file" accept=".json" hidden></label>
-      <button id="btnSon" title="Couper ou remettre le son">🔊 Son</button>
-      <button id="btnMusique" title="Couper ou remettre la musique">♪ Musique</button>
-      <button id="btnAide" title="Règles du jeu, symboles et sigles (touche ?)">Règles</button>
-      <button id="btnNouvelle">Nouvelle partie</button>
+      <details class="menu" id="menu"><summary>☰ Menu</summary>
+        <div class="menu-liste">
+          <h4>Consulter</h4>
+          <div class="menu-ligne"><button data-onglet="score">Score</button><button data-onglet="journal">Journal</button><button id="btnAide" title="Règles du jeu (touche ?)">Règles</button></div>
+          <h4>Carte</h4>
+          <select id="vue" title="Couleur de la carte">
+            <option value="alignement">Couleur : alignement</option>
+            <option value="militaire">Couleur : présence militaire</option>
+            <option value="population">Couleur : population</option>
+            <option value="pib">Couleur : PIB</option>
+            <option value="stabilite">Couleur : stabilité</option>
+            <option value="environnement">Couleur : environnement local</option>
+            <option value="commerce">Couleur : complémentarité commerciale</option>
+          </select>
+          <div class="menu-ligne couches">
+            <button data-option="noms">Noms</button><button data-option="influence">Influence</button><button data-option="categories">Catégories</button><button data-option="sigles">Sigles</button>
+            <button data-option="maritime">⚓ Maritime</button><button data-option="terrestre">🛤 Terrestre</button><button data-option="aerien">✈ Aérien</button><button data-option="legende">Légende</button>
+          </div>
+          <h4>Partie</h4>
+          <div class="menu-ligne"><button id="btnSauver">Sauver</button><button id="btnCharger">Charger</button><button id="btnExporter">Exporter</button><label class="bouton">Importer<input id="fichier" type="file" accept=".json" hidden></label><button id="btnNouvelle">Nouvelle partie</button></div>
+          <h4>Affichage et son</h4>
+          <div class="menu-ligne"><button id="btnSon">🔊 Son</button><button id="btnMusique">♪ Musique</button><button id="btnPanneau">◧ Panneau</button><button id="btnPleinEcran">⛶ Plein écran</button></div>
+        </div>
+      </details>
     </div>
   </header>
   <main>
     <div class="zone-carte">
       <div id="carte" class="carte" aria-label="Carte du monde"></div>
-      <div class="outils-carte" role="toolbar" aria-label="Affichage de la carte">
-        <button data-option="noms" title="Afficher ou masquer le nom des pays">Noms</button>
-        <button data-option="influence" title="Influence totale bloc USA · bloc Chine sur chaque pays">Influence</button>
-        <button data-option="categories" title="Influence par catégorie : économique, politique, militaire, culturelle">Catégories</button>
-        <button data-option="sigles" title="Organisations (OTAN, UE, OCS, BRIC…) et puissances nucléaires">Sigles</button>
-        <button data-option="maritime" title="Routes maritimes mondiales et régionales, détroits">⚓ Maritime</button>
-        <button data-option="terrestre" title="Routes, rail et oléoducs">🛤 Terrestre</button>
-        <button data-option="aerien" title="Grandes lignes aériennes">✈ Aérien</button>
-        <button data-option="legende" title="Afficher ou masquer la légende">Légende</button>
-        <button id="btnPanneau" title="Masquer ou afficher le panneau de droite">◧ Panneau</button>
-        <button id="btnPleinEcran" title="Plein écran">⛶ Plein écran</button>
-      </div>
     </div>
     <aside class="panneau">
-      <nav class="onglets">
-        <button data-onglet="main" class="actif">Main</button>
-        <button data-onglet="pays">Pays</button>
-        <button data-onglet="score">Score</button>
-        <button data-onglet="journal">Journal</button>
-      </nav>
+      <nav class="phases" id="phases" aria-label="Déroulé du trimestre"></nav>
       <section id="contenu" class="contenu"></section>
     </aside>
   </main>

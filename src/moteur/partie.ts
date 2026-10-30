@@ -532,8 +532,8 @@ export function debutRound(e0: EtatPartie, dejaCopie = false): EtatPartie {
   }
   // 5. briefings déclenchés
   for (const camp of CAMPS) {
-    const c = e.camps[camp]; c.points = pointsDeBase(); c.pa = 0; c.paParPays = {}; c.paAchetes = 0; c.carteJouee = false; c.reactions = [];
-    if (RESERVE.trimestres.includes(trimestre)) { c.pa = c.reserve ?? 0; c.reserve = 0; } // réserve d'opérations ciblées : début et fin d'année
+    const c = e.camps[camp], garde = Math.min(EPARGNE.max, Math.max(0, c.pa)); c.points = pointsDeBase(); c.pa = garde; c.paParPays = {}; c.paAchetes = 0; c.carteJouee = false; c.reactions = [];
+    if (RESERVE.trimestres.includes(trimestre)) { c.pa += c.reserve ?? 0; c.reserve = 0; } // réserve d'opérations ciblées : début et fin d'année
     c.briefing = TOUS_BRIEFINGS.find(b => b.camp === camp && !e.briefingsFaits.includes(b.id) && declenche(e, b))?.id ?? null;
   }
   return e;
@@ -1048,6 +1048,11 @@ function valeurEffet(e: EtatPartie, camp: Camp, ef: Effet, joueur: Camp, paysTir
 const prixBudget = (e: EtatPartie, camp: Camp) => 6 / Math.max(6, e.camps[camp].budget);
 const valeurEffets = (e: EtatPartie, camp: Camp, effets: Effet[], joueur: Camp, pays?: string) => effets.reduce((v, ef) => v + valeurEffet(e, camp, ef, joueur, pays), 0);
 
+// Cibles conseillées pour un mode ciblé : les pays éligibles classés par valeur estimée (même barème que l'IA, sans hasard).
+export function ciblesConseillees(e: EtatPartie, camp: Camp, idCarte: string, mode: number, n = 3): { iso: string; valeur: number }[] {
+  const m = CARTES[idCarte]?.modes[mode]; if (!m || m.cible !== "pays") return [];
+  return paysEligibles(e, camp, idCarte, mode).map(iso => ({ iso, valeur: valeurEffets(e, camp, m.effets, camp, iso) })).sort((a, b) => b.valeur - a.valeur).slice(0, n);
+}
 function meilleurMode(e: EtatPartie, camp: Camp, c: Carte): { mode: number; pays?: string; valeur: number } | null {
   let best: { mode: number; pays?: string; valeur: number } | null = null;
   c.modes.forEach((m, i) => {
@@ -2112,5 +2117,22 @@ export function chargerPartie(texte: string): EtatPartie {
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
   if (e.chefs && !e.conseillers) nommerConseillers(e); // sauvegarde antérieure à la v31 : conseillers nommés
   e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); else normaliserDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= []; e.controles ??= []; e.alliances ??= [];
+  return e;
+}
+
+// ---------- Points d'opérations (cartes jouées pour leurs points, 30/10) ----------
+// Trois usages : accélérer une orientation, agir sur un pays (sans toucher aux points des ministres), ou les garder (report plafonné).
+export const EPARGNE = { max: 6 };          // points gardés d'un trimestre à l'autre (estimation, à calibrer)
+export const ACCELERATION = { parPoint: 10 }; // progression d'une orientation par point (en points de %, estimation)
+const sansMinistres = (e: EtatPartie, camp: Camp): EtatPartie => ({ ...e, camps: { ...e.camps, [camp]: { ...e.camps[camp], points: Object.fromEntries(LISTE_DOMAINES.map(d => [d, 0])) as Record<Domaine, number> } } });
+export function peutOperer(e: EtatPartie, camp: Camp, type: TypeAction, iso: string): string | null {
+  const c = e.camps[camp], a = ACTIONS[type];
+  if (c.pa < a.pa) return `Points d'opérations insuffisants (${a.pa} requis, tu as ${c.pa}).`;
+  return peutAgir(sansMinistres(e, camp), camp, type, iso);
+}
+export function operer(e0: EtatPartie, camp: Camp, type: TypeAction, iso: string): EtatPartie {
+  const err = peutOperer(e0, camp, type, iso); if (err) throw new Error(err);
+  const e = agir(sansMinistres(e0, camp), camp, type, iso);
+  e.camps[camp].points = structuredClone(e0.camps[camp].points); // les points des ministres restent intacts
   return e;
 }
