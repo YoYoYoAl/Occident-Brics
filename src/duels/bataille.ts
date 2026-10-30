@@ -41,6 +41,12 @@ export const BATAILLE: DefDuel<S> = {
     while (!s.fini && s.nbTirs[0] >= MAX + s.bonusTirs) tirer(s, 1, iaCible(s));
     return s;
   },
+  // Conseil honnête : seulement les échos sonar reçus (jamais la position réelle des sous-marins).
+  aide(s) {
+    const libres = [...Array(N * N).keys()].filter(i => s.tirs[0][i] === undefined), echos = Object.entries(s.tirs[0]).filter(([, v]) => v > 0).map(([i, v]) => [+i, v]);
+    const note = (c: number) => echos.every(([i, v]) => d(c, i) >= v) ? 1 + echos.filter(([i, v]) => d(c, i) === v).length : 0;
+    return String(libres.reduce((a, b) => note(b) > note(a) ? b : a, libres[0]));
+  },
   resultat(s) { if (s.coules[0] >= NB) return 1; if (s.coules[1] >= NB) return 0; return Math.max(0, Math.min(1, 0.5 + (s.coules[0] - s.coules[1]) / (2 * NB))); },
   vue(s) {
     const cases = [...Array(N * N).keys()].map(i => { const v = s.tirs[0][i]; return { t: v === undefined ? "" : v === -1 ? "💥" : String(v), c: v === undefined ? "eau" : v === -1 ? "touche" : "sonar", coup: !s.fini && v === undefined ? String(i) : undefined }; });

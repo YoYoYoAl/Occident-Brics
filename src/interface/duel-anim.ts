@@ -16,12 +16,15 @@ export const IMAGE_DUEL: Record<IdDuel, string> = {
 // Coup de démonstration : le conseil du duel s'il en a un, sinon le coup qui donne le meilleur résultat
 // après la réponse de l'adversaire (un coup d'avance, au plus 24 essais et 200 ms ; égalités tirées au hasard).
 // Testé sur les 22 duels dans tests/acceptation-v22.test.ts.
+// Duels où l'essai d'un coup révélerait l'information cachée (choix simultané, cartes ou pièces cachées) et qui n'ont pas de conseil honnête.
+export const INFO_CACHEE = ["streetfighter", "coup", "stratego"];
 export function coupDemo(def: DefDuel<any>, s: EtatBase, hasard: () => number): string | null {
   const l = def.coups(s); if (!l.length) return null;
   if (def.aide) { try { const a = def.aide(s); if (l.includes(a)) return a; } catch { /* pas de conseil dans cette phase */ } }
   if (l.includes("vu")) return "vu";
   const c = l.filter(x => x !== "temps"); if (!c.length) return l[0];
   for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(hasard() * (i + 1)); [c[i], c[j]] = [c[j], c[i]]; }
+  if (INFO_CACHEE.includes(def.id)) return c[0]; // jeu à information cachée : jouer le coup sur l'état réel dévoilerait les pièces adverses
   let meilleurs: string[] = [], max = -1; const t0 = Date.now();
   for (const x of c.slice(0, 24)) {
     if (Date.now() - t0 > 200 && meilleurs.length) break;

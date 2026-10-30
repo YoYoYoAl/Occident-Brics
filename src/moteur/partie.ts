@@ -92,7 +92,7 @@ export interface EtatCamp {
   recherche?: Record<string, number>; technologies?: string[]; // points investis par technologie, percées obtenues
   apaise?: Record<string, number>; // dernière année d'apaisement par pays
   fabrique?: number; // dernière année (round / 4) où le camp a monté un dossier de casus belli
-  ajustement?: number; seance?: number; convocation?: number; dette?: { parTrimestre: number; fin: number }; coup?: { iso: string; fin: number }; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
+  ajustement?: number; seance?: number; convocation?: number; dette?: { parTrimestre: number; fin: number }; dettes?: { parTrimestre: number; fin: number }[]; coup?: { iso: string; fin: number }; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
 }
 export type TypeCarte = "camp" | "adverse" | "neutre";
 export const NOMS_TYPES: Record<TypeCarte, string> = { camp: "de ton camp", adverse: "adverse", neutre: "neutre" };
@@ -2096,9 +2096,9 @@ export const outils = { noter, tirer, borne, memoriser, poidsPays, percee };
 export function serialiserPartie(e: EtatPartie): string { return JSON.stringify(e); }
 export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
-  if (e.chefs && !e.conseillers) nommerConseillers(e); // sauvegarde antérieure à la v31 : conseillers nommés
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
+  if (e.chefs && !e.conseillers) nommerConseillers(e); // sauvegarde antérieure à la v31 : conseillers nommés
   e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); else normaliserDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= []; e.controles ??= []; e.alliances ??= [];
   return e;
 }

@@ -128,7 +128,7 @@ export function salleHtml(e: EtatPartie, camp: Camp, h: HoteConseil): string {
         <div><span>Budget / trimestre</span><strong>${nb(cout)}</strong><small>${nb(cout * sc.duree)} sur ${NOM_DUREE[sc.duree]}</small></div>
         <div><span>Influence gagnée</span><strong>${def.canal && sc.cible ? `≈ +${nb(gain, 0)}` : "—"}</strong><small>${def.canal && !sc.cible ? "choisis une cible" : def.canal ? `${NOM_CANAL[def.canal]}${def.cible === "pays" ? "" : " par pays"}, hors duels` : "effet hors influence"}</small></div>
         <div><span>Duels possibles</span><small>${def.duels.map(x => esc(DUELS[x].nom)).join(", ")}</small></div>
-        <p><strong>À l'arrivée :</strong> ${esc(def.recompense)}</p>
+        <p><strong>À l'arrivée :</strong> ${esc(def.recompense)} <span class="note">Valeurs pour une intensité normale : ×0,5 en discret, ×1,5 en massif, puis de ×0,5 à ×1,5 selon les duels.</span></p>
       </div>
       <div class="sc-valider"><label><input type="checkbox" id="scReconduire" ${sc.reconduire ? "checked" : ""}> Reconduire à la fin</label>
         <button id="scAjouter" class="principal" ${err ? `disabled title="${esc(err)}"` : ""}>Ajouter au programme</button></div>
@@ -206,7 +206,7 @@ export function bilanHtml(b: BilanPlan): string {
   return `<article class="bp ${reussie ? "reussie" : "abandonnee"}">
     <header class="bp-tete"><div><span class="sc-sur">Orientation ${reussie || b.issue === "echouee" ? "terminée" : "abandonnée"} · ${esc(CONSEILS[def.conseil].nom)}</span><h2>${esc(b.titre)}</h2>
       <span class="note">${esc(libelle(b.debut))} → ${esc(libelle(b.fin))} · ${n} trimestre${n > 1 ? "s" : ""} · intensité ${NOMS_INTENSITE[b.intensite]}</span></div><span class="bp-badge">${badge}</span></header>
-    <p>${reussie ? `Objectif atteint. <strong>${esc(def.recompense)}</strong>` : b.issue === "echouee" ? "L'objectif n'est pas atteint : pas de récompense." : "L'orientation a été arrêtée avant son terme."}</p>
+    <p>${reussie ? `Objectif atteint. <strong>${esc(def.recompense)}</strong>${b.facteur ? ` <span class="note">Effet réel : ×${nb(b.facteur, 2)} (intensité ${NOMS_INTENSITE[b.intensite]}, duels).</span>` : ""}` : b.issue === "echouee" ? "L'objectif n'est pas atteint : pas de récompense." : "L'orientation a été arrêtée avant son terme."}</p>
     <div class="bp-chiffres">
       <div><span>Ton influence${def.canal ? ` ${NOM_CANAL[def.canal]}` : ""}</span><strong>${nb(b.avant.inf, 0)} → ${nb(b.apres.inf, 0)}</strong><small class="${dInf >= 0 ? "hausse" : "baisse"}">${dInf >= 0 ? "▲" : "▼"} ${sg(dInf, 0)}</small></div>
       <div><span>Penchant de la cible</span><strong>${sg(b.avant.align, 2)} → ${sg(b.apres.align, 2)}</strong><small class="${dAl >= 0 ? "hausse" : "baisse"}">${dAl >= 0 ? "▲ vers toi" : "▼ vers l'adversaire"}</small></div>

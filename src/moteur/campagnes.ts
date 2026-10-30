@@ -90,9 +90,13 @@ export function tourCampagne(e: EtatPartie, p: Plan) {
 }
 const enPays = (iso: string) => `${/^[AEIOUÉ]/.test(nomPays(iso)) ? "en" : "au"} ${nomPays(iso)}`;
 // Dettes de campagne (promesses économiques) : payées chaque trimestre pendant un an après le scrutin.
+// Une dette par campagne : une deuxième campagne ne prolonge pas la première.
 export function payerDettes(e: EtatPartie) {
-  for (const camp of CAMPS) { const d = e.camps[camp].dette; if (!d) continue;
-    if (e.round <= d.fin) e.camps[camp].budget = arrondi(e.camps[camp].budget - d.parTrimestre); else delete e.camps[camp].dette; }
+  for (const camp of CAMPS) { const k = e.camps[camp];
+    if (k.dette) { (k.dettes ??= []).push(k.dette); delete k.dette; } // sauvegarde antérieure : dette unique
+    if (!k.dettes?.length) continue;
+    for (const d of k.dettes) if (e.round <= d.fin) k.budget = arrondi(k.budget - d.parTrimestre);
+    k.dettes = k.dettes.filter(d => e.round < d.fin); }
 }
 // Au scrutin : apport des campagnes à l'écart (positif = bloc USA), fraude démasquée ou non. Appelé par resoudreElections.
 export function apportCampagnes(e: EtatPartie, iso: string): number {
@@ -115,7 +119,7 @@ export function issueCampagnes(e: EtatPartie, iso: string, gagnant: Camp | null)
   for (const p of (e.plans ?? []).filter(x => x.cible === iso && x.campagne && x.campagne.scrutin === e.round)) {
     const c = p.campagne!;
     if (!c.resultat) c.resultat = gagnant === p.camp ? "gagne" : "perdu";
-    if (c.leviers.promesses > 0) e.camps[p.camp].dette = { parTrimestre: arrondi((e.camps[p.camp].dette?.parTrimestre ?? 0) + CAMPAGNE.dette * c.leviers.promesses), fin: e.round + CAMPAGNE.dureeDette };
+    if (c.leviers.promesses > 0) (e.camps[p.camp].dettes ??= []).push({ parTrimestre: arrondi(CAMPAGNE.dette * c.leviers.promesses), fin: e.round + CAMPAGNE.dureeDette });
     if (c.resultat === "perdu") e.camps[p.camp].coup = { iso, fin: e.round + 1 };
     finies.push(p);
   }

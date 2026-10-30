@@ -70,7 +70,7 @@ function formulaire(e: EtatPartie, camp: Camp): string {
     <label>Cible : <select id="pCible">${cibles.map(x => `<option value="${esc(x.id)}" ${x.id === form.cible ? "selected" : ""}>${esc(x.nom)}</option>`).join("")}</select></label>
     <div class="p-choix">Durée : ${DUREES.map(d => `<button data-duree="${d}" class="${d === form.duree ? "actif" : ""}">${NOM_DUREE[d]}</button>`).join("")}</div>
     <div class="p-choix">Intensité : ${([1, 2, 3] as Intensite[]).map(i => `<button data-intensite="${i}" class="${i === form.intensite ? "actif" : ""}" title="${i === 3 ? "Visible par l'adversaire dès le lancement" : i === 1 ? "Discret : plus lent, moins cher" : ""}">${NOMS_INTENSITE[i]}</button>`).join("")}</div>
-    <p class="note">${esc(def.texte)} À l'arrivée : ${esc(def.recompense)} Coût : ${nb(cout)} budget par trimestre.${def.secret ? " Opération secrète : risque de scandale." : ""}${def.conteste ? " Cible disputée : duel dès le premier jalon." : ""} Duels possibles : ${def.duels.map(d => esc(DUELS[d].nom)).join(", ")}.</p>
+    <p class="note">${esc(def.texte)} À l'arrivée : ${esc(def.recompense)} (intensité normale : ×0,5 discret, ×1,5 massif, ±50 % selon les duels). Coût : ${nb(cout)} budget par trimestre.${def.secret ? " Opération secrète : risque de scandale." : ""}${def.conteste ? " Cible disputée : duel dès le premier jalon." : ""} Duels possibles : ${def.duels.map(d => esc(DUELS[d].nom)).join(", ")}.</p>
     <button id="pLancer" class="principal" ${err ? `disabled title="${esc(err)}"` : ""}>Lancer le plan</button>${err ? `<small class="erreur">${esc(err)}</small>` : ""}
   </div>`;
 }

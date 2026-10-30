@@ -55,7 +55,7 @@ describe("v29 : campagnes électorales", () => {
     expect(plansDe(e, "OCC").filter(x => x.objectif === "election")).toHaveLength(0);
     const b = bilansNonVus(e, "OCC").find(x => x.objectif === "election")!;
     expect(["reussie", "echouee"]).toContain(b.issue);
-    expect(e.camps.OCC.dette).toMatchObject({ parTrimestre: CAMPAGNE.dette * 2 });
+    expect(e.camps.OCC.dettes?.[e.camps.OCC.dettes.length - 1]).toMatchObject({ parTrimestre: CAMPAGNE.dette * 2 });
     const x = structuredClone(e), avant = x.camps.OCC.budget; payerDettes(x);
     expect(x.camps.OCC.budget).toBeCloseTo(avant - CAMPAGNE.dette * 2, 5);
     if (b.issue === "echouee") expect(e.camps.OCC.coup).toMatchObject({ iso: "MEX" });

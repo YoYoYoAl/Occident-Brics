@@ -20,7 +20,7 @@ export interface HoteOperations {
 export type Niveau = 1 | 2 | 3 | 4 | 5;
 export const NIVEAUX: Record<Niveau, { nom: string; texte: string; base: number }> = {
   1: { nom: "Pression", texte: "Manœuvres, démonstration de force : le pays plie s'il ne penche pas vers l'adversaire.", base: 0 },
-  2: { nom: "Opération limitée", texte: `Frappe ciblée, raid ou blocus d'un trimestre : influence militaire adverse −${FRAPPE.perte}, stabilité −${FRAPPE.stabilite}.`, base: FRAPPE.ae },
+  2: { nom: "Opération limitée", texte: `Frappe ciblée ou raid : influence militaire adverse −${FRAPPE.perte}, la tienne +${FRAPPE.gain}, stabilité −${FRAPPE.stabilite}, tension +${FRAPPE.tension}.`, base: FRAPPE.ae },
   3: { nom: "Guerre par procuration", texte: "Armer un camp, conseillers, frappes : sans soldats au sol.", base: 0 },
   4: { nom: "Intervention", texte: "Troupes au sol, but de guerre, score de guerre jusqu'à ±100, batailles décisives.", base: AE.intervention },
   5: { nom: "Guerre ouverte", texte: "Contre l'autre puissance, sur un théâtre. Seulement si la tension atteint 80.", base: AE.guerre },

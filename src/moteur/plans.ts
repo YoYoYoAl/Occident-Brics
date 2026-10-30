@@ -48,7 +48,7 @@ export const OBJECTIFS: Record<ObjectifPlan, DefObjectif> = {
   commerce: { nom: "Développer le commerce", conseil: "economie", cible: "pays", canal: "e", duels: ["jaipur", "korsar"],
     texte: "Influence économique chaque trimestre dans le pays.", recompense: "Accord commercial : influence économique +12, croissance du pays +0,4 point pendant 2 ans." },
   sanctions: { nom: "Sanctionner", conseil: "economie", cible: "pays", canal: null, duels: ["korsar", "jaipur"], conteste: true,
-    texte: "Freine l'économie du pays et l'influence adverse.", recompense: "Embargo : croissance du pays −1 point pendant 2 ans, influence économique adverse −8." },
+    texte: "Freine l'économie du pays et l'influence adverse.", recompense: "Embargo : croissance du pays −1 point pendant 2 ans, influence économique adverse −8, tension +2." },
   partenariat: { nom: "Nouer un partenariat stratégique", conseil: "international", cible: "pays", canal: "p", duels: ["quarto", "coup"],
     texte: "Influence politique chaque trimestre ; le conseil militaire suit.", recompense: "Partenariat signé : influence politique +8 et militaire +8 ; garantie de défense si le pays penche nettement vers toi." },
   influence: { nom: "S'étendre dans une région", conseil: "international", cible: "zone", canal: "p", duels: ["longhorn", "sept"],
@@ -56,7 +56,7 @@ export const OBJECTIFS: Record<ObjectifPlan, DefObjectif> = {
   election: { nom: "Peser sur une élection", conseil: "politique", cible: "pays", canal: "p", duels: ["puissance4", "skull"], conteste: true,
     texte: "Ouvre une campagne électorale jusqu'au scrutin : 4 leviers, sondages, fraude possible ; coup d'État si le scrutin est perdu.", recompense: "Le vainqueur te doit sa victoire : influence politique +10, adverse −5." },
   renverser: { nom: "Renverser le régime", conseil: "politique", cible: "pays", canal: "p", duels: ["echecs", "othello", "coup"], secret: true, conteste: true,
-    texte: "Opposition financée, officiers approchés : le pays se fragilise.", recompense: "Régime ami : influence politique au moins 55, adverse au plus 20, stabilité −12." },
+    texte: "Opposition financée, officiers approchés : le pays se fragilise.", recompense: "Régime ami : influence politique au moins 55, adverse au plus 20, stabilité −12 (si l'effet réel atteint ×0,5 ; sinon le régime vacille mais tient)." },
   contrer: { nom: "Contrer l'adversaire", conseil: "politique", cible: "pays", canal: null, duels: ["skull", "coup", "stratego"], secret: true, conteste: true,
     texte: "Fait reculer l'influence adverse chaque trimestre.", recompense: "Influence politique adverse −12 et économique −6." },
   espionnage: { nom: "Infiltrer le rival", conseil: "politique", cible: "rival", canal: null, duels: ["mastermind", "simon"], secret: true,
@@ -64,7 +64,7 @@ export const OBJECTIFS: Record<ObjectifPlan, DefObjectif> = {
   presence: { nom: "Installer une présence militaire", conseil: "militaire", cible: "strat", canal: "m", duels: ["onitama", "bataille"],
     texte: "Présence croissante dans une zone stratégique.", recompense: "Présence +15 dans la zone." },
   detroit: { nom: "Contrôler un détroit", conseil: "militaire", cible: "detroit", canal: "m", duels: ["go", "bataille", "onitama"], conteste: true,
-    texte: "Influence militaire chez les riverains.", recompense: "Blocage du détroit pendant 1 an (les flux qui le traversent sont coupés), tension +5." },
+    texte: "Influence militaire chez les riverains.", recompense: "Influence militaire +4 chez les riverains ; blocage du détroit pendant 1 an (les flux qui le traversent sont coupés) et tension +5 si l'effet réel atteint ×0,5." },
   frontiere: { nom: "Prendre l'avantage sur un front", conseil: "militaire", cible: "theatre", canal: "m", duels: ["memoire44", "schotten", "stratego", "streetfighter"], conteste: true,
     texte: "Influence militaire dans les pays du théâtre.", recompense: "Influence militaire +10 sur le théâtre, adverse −8, tension +4." },
   infrastructures: { nom: "Grands chantiers régionaux", conseil: "infrastructures", cible: "zone", canal: "e", duels: ["santorini", "sept"],
@@ -94,7 +94,7 @@ export interface Plan {
 export interface Mesure { inf: number; align: number }
 export interface BilanPlan {
   id: string; camp: Camp; objectif: ObjectifPlan; cible: string; titre: string; debut: number; fin: number; duree: number; intensite: Intensite;
-  issue: "reussie" | "abandonnee" | "echouee"; resultats: number[]; avant: Mesure; apres: Mesure; depense: number; reconduit: boolean; rival: boolean; vu: boolean;
+  issue: "reussie" | "abandonnee" | "echouee"; resultats: number[]; avant: Mesure; apres: Mesure; depense: number; reconduit: boolean; rival: boolean; vu: boolean; facteur?: number; // facteur : multiplicateur réel de la récompense
 }
 export interface Duel {
   id: string; plan: string; type: IdDuel; attaquant: Camp; defenseur: Camp; avantage: number; round: number; graine: number;
@@ -238,10 +238,10 @@ export function gainEstime(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible: st
   let inf = m.inf; for (let t = 0; t < duree; t++) inf += unit * k * (1 - inf / 100);
   return arrondi(inf - m.inf);
 }
-function noterBilan(e: EtatPartie, p: Plan, issue: BilanPlan["issue"], reconduit: boolean) {
+function noterBilan(e: EtatPartie, p: Plan, issue: BilanPlan["issue"], reconduit: boolean, facteur = 0) {
   (e.bilansPlans ??= []).push({ id: p.id, camp: p.camp, objectif: p.objectif, cible: p.cible, titre: titrePlan(p), debut: p.debut, fin: e.round, duree: p.duree, intensite: p.intensite,
     issue, resultats: [...p.resultats], avant: p.depart ?? mesurer(e, p.camp, p.objectif, p.cible), apres: mesurer(e, p.camp, p.objectif, p.cible), depense: arrondi(p.depense ?? 0),
-    reconduit, rival: !!planRival(e, p), vu: false });
+    reconduit, rival: !!planRival(e, p), vu: false, facteur });
   if (e.bilansPlans.length > 30) e.bilansPlans.splice(0, e.bilansPlans.length - 30);
 }
 export const bilansNonVus = (e: EtatPartie, camp: Camp) => (e.bilansPlans ?? []).filter(b => b.camp === camp && !b.vu);
@@ -301,8 +301,10 @@ function pisteTechno(e: EtatPartie, camp: Camp): string | null {
 }
 
 // Récompense de fin de plan, pondérée par la réussite des duels (0,5 à 1,5) et l'intensité.
+// Multiplicateur de la récompense : ×1 à intensité normale et duels moyens ; ×0,5 discret, ×1,5 massif ; de ×0,5 à ×1,5 selon les duels.
+export const facteurRecompense = (p: Plan, part = 1) => part * (0.5 + (p.resultats.length ? p.resultats.reduce((a, b) => a + b, 0) / p.resultats.length : 0.5)) * p.intensite / 2;
 function recompenser(e: EtatPartie, p: Plan, part = 1) {
-  const f = part * (0.5 + (p.resultats.length ? p.resultats.reduce((a, b) => a + b, 0) / p.resultats.length : 0.5)) * p.intensite / 2;
+  const f = facteurRecompense(p, part);
   const adv = adversaire(p.camp), pays = paysDuPlan(p), s = sens(p.camp);
   const inf = (iso: string, c: Camp, canal: Canal, x: number) => { const v = e.pays[iso]?.influence[c]; if (v) v[canal] = outils.borne(v[canal] + x * (x > 0 ? 1 - v[canal] / 100 : 1), 0, 100); };
   const efs: Effet[] = [];
@@ -315,6 +317,7 @@ function recompenser(e: EtatPartie, p: Plan, part = 1) {
     case "election": inf(p.cible, p.camp, "p", 10 * f); inf(p.cible, adv, "p", -5 * f); break;
     case "renverser": { const x = e.pays[p.cible]; if (f >= 0.5) { x.influence[p.camp].p = Math.max(x.influence[p.camp].p, 55); x.influence[adv].p = Math.min(x.influence[adv].p, 20); }
       x.stabilite = outils.borne(x.stabilite - 12, 0, 100); if (f >= 0.5) gagnerAE(e, p.camp, p.cible, AE.renverser * f);
+      if (f < 0.5) { outils.noter(e, { type: "action", titre: `Le régime vacille ${nomPays(p.cible).match(/^[AEIOUÉ]/) ? "en" : "au"} ${nomPays(p.cible)}`, famille: "coup_etat", texte: "Manifestations et défections fragilisent le pouvoir (stabilité −12), mais il tient.", pays: [p.cible], visiblePour: [...CAMPS] }); break; }
       outils.noter(e, { type: "action", titre: `Coup d'État ${nomPays(p.cible).match(/^[AEIOUÉ]/) ? "en" : "au"} ${nomPays(p.cible)}`, famille: "coup_etat", texte: "Le régime tombe ; les nouveaux dirigeants restent discrets sur leurs soutiens étrangers.", pays: [p.cible], visiblePour: [...CAMPS] }); break; }
     case "contrer": inf(p.cible, adv, "p", -12 * f); inf(p.cible, adv, "e", -6 * f); break;
     case "espionnage": e.camps[p.camp].budget = arrondi(e.camps[p.camp].budget + 3 * f); e.camps[p.camp].revelation = e.round + 8; break;
@@ -365,11 +368,12 @@ export function avancerPlans(e: EtatPartie) {
 // Fin d'une orientation : récompense si réussie, bilan, puis reconduite seulement si la case était cochée (cible encore possible, budget suffisant).
 export function finirPlan(e: EtatPartie, p: Plan, issue: "reussie" | "echouee") {
   const def = OBJECTIFS[p.objectif], c = e.camps[p.camp], cout = coutPlan(e, p);
+  const f = issue === "reussie" ? facteurRecompense(p) : 0;
   if (issue === "reussie") recompenser(e, p);
   e.plans = (e.plans ?? []).filter(x => x.id !== p.id);
-  outils.noter(e, { type: "action", titre: `${issue === "reussie" ? "Plan accompli" : "Plan manqué"} : ${titrePlan(p)}`, texte: issue === "reussie" ? def.recompense : "L'objectif n'est pas atteint.", camp: p.camp, pays: paysDuPlan(p), visiblePour: p.vuPar.length || p.intensite > 1 ? [...CAMPS] : [p.camp] });
+  outils.noter(e, { type: "action", titre: `${issue === "reussie" ? "Plan accompli" : "Plan manqué"} : ${titrePlan(p)}`, texte: issue === "reussie" ? `${def.recompense} Effet réel : ×${String(Math.round(f * 100) / 100).replace(".", ",")} (intensité et duels).` : "L'objectif n'est pas atteint.", camp: p.camp, pays: paysDuPlan(p), visiblePour: p.vuPar.length || p.intensite > 1 ? [...CAMPS] : [p.camp] });
   const reconduit = !!p.reconduire && plansDe(e, p.camp).length < PLANS.max && ciblesPossibles(e, p.camp, p.objectif).some(x => x.id === p.cible) && c.budget >= cout;
-  noterBilan(e, p, issue, reconduit);
+  noterBilan(e, p, issue, reconduit, f);
   if (reconduit) lancerSurPlace(e, p.camp, p.objectif, p.cible, p.duree, p.intensite, true, true);
 }
 
