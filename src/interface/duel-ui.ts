@@ -8,6 +8,7 @@ import type { Vue, Case, EtatBase } from "../duels/moteur";
 import type { Duel, Enjeux } from "../moteur/plans";
 import { image } from "./images";
 import { IMAGE_DUEL, coupDemo, changements } from "./duel-anim";
+import { TUTOS, tutoHtml } from "./duel-tuto";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const txt = (s: string) => esc(s).replace(/\n/g, "<br>");
@@ -62,7 +63,7 @@ function caseHtml(c: Case, i: string, anim?: string): string {
 }
 // Plateau, rangées, boutons et journal d'une vue ; anim marque les cases qui viennent de changer.
 function plateauHtml(v: Vue, journal: string[], anim: Map<string, string>): string {
-  let h = `<p class="d-statut">${txt(v.statut)}${v.chrono ? ` <strong class="d-chrono" id="dChrono">${Math.ceil(v.chrono)} s</strong>` : ""}</p>`;
+  let h = `<p class="d-statut"><b class="d-atoi">À toi</b>${txt(v.statut)}${v.chrono ? ` <strong class="d-chrono" id="dChrono">${Math.ceil(v.chrono)} s</strong>` : ""}</p>`;
   // une grille dont les cases portent du texte (noms, effectifs) garde des cases larges ; sinon cases carrées et pions ronds
   const texte = v.grille?.cases.some(c => c.t.length > 3 || c.t.includes("\n"));
   if (v.grille) h += `<div class="d-plateau"><div class="d-grille ${v.grille.c ?? ""} ${texte ? "texte" : ""}" style="grid-template-columns:repeat(${v.grille.cols},minmax(0,1fr));--cols:${v.grille.cols}">${v.grille.cases.map((c, i) => caseHtml(c, `g${i}`, anim.get(`g${i}`))).join("")}</div></div>`;
@@ -115,6 +116,11 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
       conseils--; (e.currentTarget as HTMLButtonElement).textContent = `💡 Conseil (${conseils})`; (e.currentTarget as HTMLButtonElement).disabled = !conseils;
       hote.boite.querySelector(`[data-coup="${CSS.escape(c)}"]`)?.classList.add("conseil"); hote.son("etape");
     });
+    // premier coup guidé : la case conseillée est entourée et une bulle dit quoi faire (sans consommer de conseil)
+    if (!s.fini && s.tour === 0 && TUTOS[d.type]) {
+      const c = coupDemo(def, s, alea(d.graine)), cible = c ? Array.from(hote.boite.querySelectorAll<HTMLElement>(`[data-coup="${CSS.escape(c)}"]`)).pop() : undefined;
+      if (cible) { cible.classList.add("guide"); cible.insertAdjacentHTML("beforeend", `<span class="guide-bulle">Commence ici</span>`); }
+    }
     if (s.fini) hote.son(pct >= 60 ? "victoire" : pct < 40 ? "defaite" : "etape");
     if (v.flash) flasher(hote.boite, v, animation, () => jouer("vu"));
     if (v.chrono) {
@@ -176,11 +182,11 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
   // écran d'ouverture : la situation, l'essentiel des règles en trois blocs, la démo et la partie
   hote.boite.innerHTML = `<div class="duel ${decor(d.type)}">${banniereDuel(d.type, hote.titre)}
     <p class="d-but"><strong>But :</strong> ${esc(f.but)}</p>${enjeuxHtml(hote.enjeux)}
-    <div class="d-cartes">
+    ${TUTOS[d.type] ? tutoHtml(TUTOS[d.type]!) + `<p class="note">Ta préparation : ${av > 0.15 ? "favorable" : av < -0.15 ? "défavorable" : "équilibrée"} (${av >= 0 ? "+" : ""}${av.toFixed(1).replace(".", ",")}). ${esc(f.preparation)} Au-delà de 60 % : victoire ; sous 40 % : défaite.</p>` : `<div class="d-cartes">
       <section><h4>① À ton tour</h4><ol>${f.tour.map(t => `<li>${esc(t)}</li>`).join("")}</ol></section>
       <section><h4>② Fin de partie</h4><p>${esc(f.fin)}</p><p class="note">Au-delà de 60 % : victoire ; sous 40 % : défaite ; entre les deux : match nul.</p></section>
       <section><h4>③ Astuce</h4><p>${esc(f.conseil)}</p><p class="note">Ta préparation : ${av > 0.15 ? "favorable" : av < -0.15 ? "défavorable" : "équilibrée"} (${av >= 0 ? "+" : ""}${av.toFixed(1).replace(".", ",")}). ${esc(f.preparation)}</p></section>
-    </div>
+    </div>`}
     <div class="actions-fenetre"><button id="dDemo">▶ Voir la démo animée</button><button id="dCommencer" class="principal">Jouer</button></div></div>`;
   hote.ouvrir();
   hote.boite.querySelector<HTMLButtonElement>("#dCommencer")!.onclick = () => { hote.son("etape"); rendre(); };

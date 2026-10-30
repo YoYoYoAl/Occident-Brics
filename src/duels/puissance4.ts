@@ -4,6 +4,7 @@ import { type DefDuel, type EtatBase, base, copie, bonus, hasard, choisir, distr
 
 const C = 6, L = 5, MAX = 9;
 export const ELECTORATS = ["Villes", "Banlieues", "Campagnes", "Jeunes", "Retraités", "Diaspora"];
+const ICONES = ["🏙", "🏘", "🌾", "🎓", "🧓", "✈"];
 interface S extends EtatBase { g: number[]; poses: [number, number]; avantage: number; gagnant: number | null }
 const cell = (c: number, l: number) => l * C + c; // l = 0 en bas
 const hauteur = (s: S, c: number) => { let l = 0; while (l < L && s.g[cell(c, l)] >= 0) l++; return l; };
@@ -55,10 +56,10 @@ export const PUISSANCE4: DefDuel<S> = {
   resultat(s) { if (s.gagnant !== null) return s.gagnant === 0 ? 1 : 0; const [a, b] = majorites(s); return 0.15 + 0.7 * part(a, b); },
   vue(s) {
     const cases = [];
-    for (let l = L - 1; l >= 0; l--) for (let c = 0; c < C; c++) { const v = s.g[cell(c, l)]; cases.push({ t: v < 0 ? "" : "★", c: v === 0 ? "moi" : v === 1 ? "lui" : "vide", coup: !s.fini && hauteur(s, c) < L ? String(c) : undefined, titre: ELECTORATS[c] }); }
+    for (let l = L - 1; l >= 0; l--) for (let c = 0; c < C; c++) { const v = s.g[cell(c, l)]; cases.push({ t: v < 0 ? "" : "★", c: `${v === 0 ? "moi" : v === 1 ? "lui" : "vide"} col${c}`, coup: !s.fini && hauteur(s, c) < L ? String(c) : undefined, titre: ELECTORATS[c] }); }
     const [a, b] = majorites(s);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : `Clique un électorat pour y lâcher un jeton (${MAX - s.poses[0]} restants). Aligne 4 jetons.`,
-      scores: [`${a} électorat${a > 1 ? "s" : ""}`, `${b}`], grille: { cols: C, cases },
-      rangees: [{ cases: ELECTORATS.map(t => ({ t, c: "etiquette" })) }] };
+      scores: [`${a} électorat${a > 1 ? "s" : ""}`, `${b}`], grille: { cols: C, cases, c: "p4" },
+      rangees: [{ cases: ELECTORATS.map((t, k) => ({ t: `${ICONES[k]}\n${t}`, c: "etiquette" })) }] };
   },
 };
