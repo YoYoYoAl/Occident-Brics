@@ -3,7 +3,7 @@ import { HISTORIQUES_ERE1 } from "../src/contenu/historiques";
 import { describe, it, expect } from "vitest";
 import trajectoires from "../src/data/trajectoires.json";
 import { FAMILLES } from "../src/contenu/generiques";
-import {
+import { pibReference,
   creerPartie, roundAutomatique, serialiserPartie, chargerPartie, partFamille, NOMS_FAMILLES, SEUILS, finRound, jouerCarte, alignement, bilan, ROUNDS_TRANCHE, type EtatPartie,
 } from "../src/moteur/partie";
 import { CAMPS, CANAUX } from "../src/moteur/types";
@@ -29,13 +29,13 @@ describe("Tranche 2000-2008 : moteur", () => {
     const devies = new Set(HISTORIQUES_ERE1.filter(h => h.compensationSiAbsent && !e.historiquesFaits.includes(h.id)).flatMap(h => h.pays));
     for (const iso of Object.keys(e.pays)) {
       if (devies.has(iso)) continue;
-      const reel = TRAJ[iso].pib[9]; // niveau annuel 2009 = sortie du 4e trimestre 2008
+      const reel = pibReference(iso, 36); // v34 : valeurs annuelles au milieu de l'année, donc début 2009 = entre 2008 et 2009
       expect(Math.abs(e.pays[iso].pib / reel - 1), iso).toBeLessThan(0.01);
     }
     let dans = 0, total = 0;
     for (let g = 1; g <= 40; g++) {
       const x = jouer(creerPartie(g, null, { generiques: true, ia: false }));
-      for (const iso of Object.keys(x.pays)) { total++; if (Math.abs(x.pays[iso].pib / TRAJ[iso].pib[9] - 1) <= 0.1) dans++; }
+      for (const iso of Object.keys(x.pays)) { total++; if (Math.abs(x.pays[iso].pib / pibReference(iso, 36) - 1) <= 0.1) dans++; }
     }
     expect(dans / total).toBeGreaterThanOrEqual(0.9);
   }, 60_000);

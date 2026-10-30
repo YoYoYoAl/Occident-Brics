@@ -1,6 +1,6 @@
 // v15 : histoire réelle 2025-octobre 2026 et projections jusqu'en 2035.
 import { describe, it, expect } from "vitest";
-import { creerPartie, finRound, HISTORIQUES, ELECTIONS_PAYS, pibReference, tolerancePib, type EtatPartie } from "../src/moteur/partie";
+import { creerPartie, finRound, HISTORIQUES, ELECTIONS_PAYS, pibReference, type EtatPartie } from "../src/moteur/partie";
 import { CROISSANCE_PROJETEE } from "../src/data/croissance-projetee";
 import { HISTORIQUES_RECENTS } from "../src/contenu/historiques3";
 import { PROJECTIONS } from "../src/contenu/projections";
@@ -41,14 +41,12 @@ describe("v15 — 2025 à 2035", () => {
     expect(ELECTIONS_PAYS.filter(x => x.annee > 2026).length).toBeGreaterThanOrEqual(40);
   });
 
-  it("5. PIB de référence : croissance FMI (ou estimation) après 2022, tolérance 10 % jusqu'en 2026 puis 35 % fin 2035", () => {
+  it("5. PIB de référence : croissance FMI (ou estimation) après 2022 (valeurs annuelles au milieu de l'année)", () => {
     const src = Object.values(CROISSANCE_PROJETEE);
     expect(src.filter(c => c.source === "fmi").length).toBe(83);
     expect(src.every(c => c.g.every(Number.isFinite) && c.g[3] > -5 && c.g[3] < 12)).toBe(true);
     const [g23, g24, g25, gm] = CROISSANCE_PROJETEE.CHN.g.map(x => 1 + x / 100);
-    expect(pibReference("CHN", 4 * 26) / pibReference("CHN", 4 * 22)).toBeCloseTo(g23 * g24 * g25 * gm, 9);
-    expect(pibReference("CHN", 4 * 35) / pibReference("CHN", 4 * 26)).toBeCloseTo(Math.pow(gm, 9), 9);
-    expect(tolerancePib(0)).toBe(0.1); expect(tolerancePib(4 * 27)).toBe(0.1);
-    expect(tolerancePib(4 * 36)).toBeCloseTo(0.35, 9); expect(tolerancePib(143)).toBeGreaterThan(0.34);
+    expect(pibReference("CHN", 4 * 26 + 2) / pibReference("CHN", 4 * 22 + 2)).toBeCloseTo(g23 * g24 * g25 * gm, 9);
+    expect(pibReference("CHN", 4 * 35 + 2) / pibReference("CHN", 4 * 26 + 2)).toBeCloseTo(Math.pow(gm, 9), 9);
   });
 });

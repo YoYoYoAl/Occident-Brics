@@ -4,7 +4,7 @@ import { CAMPS, type Camp } from "./types";
 import type { EtatPartie } from "./partie";
 import { outils } from "./partie";
 import { date } from "./temps";
-import { nomUnique, renouvelerConseillers } from "./pouvoir";
+import { nomUnique, renouvelerConseillers, prendreIllustration } from "./pouvoir";
 
 export type Aptitude = "diplomatie" | "strategie" | "intendance" | "intrigue";
 export const APTITUDES: Record<Aptitude, { nom: string; aide: string }> = {
@@ -43,7 +43,7 @@ export const TRAITS_DIRIGEANT: Record<TraitDirigeant, { nom: string; aide: strin
   multilateraliste: { nom: "Multilatéraliste", aide: "Diplomatie +2 ; popularité d'équilibre −2.", apt: { diplomatie: 2 }, popularite: -2, valeur: 2 },
 };
 export const LISTE_TRAITS_DIRIGEANT = Object.keys(TRAITS_DIRIGEANT) as TraitDirigeant[];
-export interface Dirigeant { nom: string; naissance: number; sante: number; popularite: number; aptitudes: Record<Aptitude, number>; traits: TraitDirigeant[]; depuis: number }
+export interface Dirigeant { nom: string; naissance: number; sante: number; popularite: number; aptitudes: Record<Aptitude, number>; traits: TraitDirigeant[]; depuis: number; illustre?: string }
 
 const PRENOMS: Record<Camp, string[]> = {
   OCC: ["Daniel", "Margaret", "Robert", "Ellen", "Thomas", "Catherine", "Walter", "Laura", "Henry", "Diane", "Franklin", "Ruth", "Grant", "Helen"],
@@ -67,7 +67,8 @@ function nouveau(e: EtatPartie, camp: Camp): Dirigeant {
   const normale = () => Math.sqrt(-2 * Math.log(1 - tirer(e))) * Math.cos(2 * Math.PI * tirer(e));
   const apt = Object.fromEntries(LISTE_APTITUDES.map(a => [a, Math.max(TIRAGE.min, Math.min(TIRAGE.max, Math.round(TIRAGE.moyenne + TIRAGE.ecart * normale())))])) as Record<Aptitude, number>;
   const nom = nomUnique(e, camp, true); // jamais deux fois le même nom dans une partie
-  return { nom, naissance: annee - (48 + Math.floor(tirer(e) * 20)), sante: 70 + Math.floor(tirer(e) * 31), popularite: 45 + Math.floor(tirer(e) * 16), aptitudes: apt, traits: [t1, t2], depuis: e.round };
+  const illustre = prendreIllustration(e, [t1, t2].map(t => `dirigeant_${camp.toLowerCase()}_${t}`)); // portrait illustré d'un de ses traits, jamais deux fois
+  return { nom, naissance: annee - (48 + Math.floor(tirer(e) * 20)), sante: 70 + Math.floor(tirer(e) * 31), popularite: 45 + Math.floor(tirer(e) * 16), aptitudes: apt, traits: [t1, t2], depuis: e.round, ...(illustre ? { illustre } : {}) };
 }
 export const noteDirigeant = (d: Dirigeant) => LISTE_APTITUDES.reduce((s, a) => s + d.aptitudes[a], 0) + d.traits.reduce((s, t) => s + TRAITS_DIRIGEANT[t].valeur, 0);
 export function tirerDirigeants(e: EtatPartie) { e.dirigeants = { OCC: nouveau(e, "OCC"), CHN: nouveau(e, "CHN") }; e.succession = null; }

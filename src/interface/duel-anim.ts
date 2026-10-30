@@ -1,17 +1,11 @@
 // Présentation des duels, sans DOM : illustration de chaque duel, coup joué par la démonstration animée
 // (et par le bouton « Conseil »), et repérage des cases qui changent d'un coup à l'autre pour les animer.
-import type { IdDuel } from "../duels/catalogue";
+import { type IdDuel, LISTE_DUELS } from "../duels/catalogue";
 import type { DefDuel, EtatBase, Vue, Case } from "../duels/moteur";
 
 // Illustration d'en-tête : une image existante du jeu qui montre la situation du duel.
-export const IMAGE_DUEL: Record<IdDuel, string> = {
-  jaipur: "famille_accord_commercial", longhorn: "briefing_diplomatie", sept: "carte_route_de_la_soie", quarto: "famille_traite_majeur",
-  puissance4: "famille_election_rupture", echecs: "famille_coup_etat", othello: "famille_revolution", coup: "famille_scandale_dirigeant",
-  skull: "famille_poussee_ideologique", mastermind: "carte_snowden", simon: "famille_cyberattaque", korsar: "famille_sanctions_embargo",
-  lostcities: "famille_percee_technologique", santorini: "carte_iles_artificielles", onitama: "carte_mer_de_chine", go: "famille_blocage_detroit",
-  bataille: "carte_aukus", memoire44: "famille_guerre_interetatique", streetfighter: "famille_incident_militaire", schotten: "famille_conflit_frontalier",
-  stratego: "famille_guerre_civile", perudo: "famille_proliferation_nucleaire",
-};
+// Bandeaux dédiés (lot ob_9, une scène par duel, sans texte) : duel_<id>.
+export const IMAGE_DUEL = Object.fromEntries(LISTE_DUELS.map(k => [k, `duel_${k}`])) as Record<IdDuel, string>;
 
 // Coup de démonstration : le conseil du duel s'il en a un, sinon le coup qui donne le meilleur résultat
 // après la réponse de l'adversaire (un coup d'avance, au plus 24 essais et 200 ms ; égalités tirées au hasard).

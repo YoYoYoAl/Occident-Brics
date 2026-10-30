@@ -579,7 +579,7 @@ function panneauScore(): string {
     <h3>Seuils de défaite</h3><ul class="conseillers"><li>Banqueroute : PIB du leader à moins de ${nombre(100 * SEUILS.banqueroute, 0)} % de son sommet.</li>
     <li>Effondrement démographique : population du leader sous ${nombre(100 * SEUILS.population, 0)} % de 2000.</li>
     <li>Catastrophe climatique (défaite commune) : réchauffement de ${nombre(SEUILS.climat)} °C (actuel ${nombre(e.ecartTemp, 2)} °C).</li></ul>
-    <p class="note">Pénurie : si ton poids économique dépasse davantage qu'en 2000 la part des ressources que tu contrôles, la croissance de ton leader est freinée.</p>`;
+    <p class="note">Pénurie : si l'écart entre ton poids économique et la part des ressources que tu contrôles se creuse plus que ne le voudrait la seule évolution historique (pertes d'alliés riches en ressources, essor sans ressources), la croissance de ton leader est freinée. Le PIB n'est jamais ramené vers l'histoire : seule la tendance de croissance réelle sert de repère, et un pays peut s'effondrer ou s'envoler.</p>`;
   return h;
 }
 

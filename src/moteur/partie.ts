@@ -47,9 +47,9 @@ export const ROUNDS_TRANCHE = 36; // ère 1 : 2000 T1 à 2008 T4
 // Formules de partie : l'ère 1 seule, l'ère 1 prolongée jusqu'en 2025, ou un départ réel en 2008 jusqu'en 2025.
 export type Format = "2000-2008" | "2000-2035" | "2008-2035";
 export const FORMATS: Record<Format, { debut: number; fin: number; nom: string; komi: number; egalite: number }> = {
-  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 4.5, egalite: 0.25 }, // v21, 200 parties IA : 41 / 21 / 38 %, aucune défaite
-  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 16.5, egalite: 0.2 }, // v21, 200 parties IA : 38,5 / 22 / 39 %, 0,5 % banqueroute USA
-  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 13.1, egalite: 0.25 }, // v21, 200 parties IA : 39 / 20,5 / 40 %, 0,5 % banqueroute USA
+  "2000-2008": { debut: 0, fin: 35, nom: "Fin de l'unipolarité (2000-2008)", komi: 4.4, egalite: 0.29 }, // v34 (sans rappel), 200 parties IA : 39 / 20 / 41 %, aucune défaite
+  "2000-2035": { debut: 0, fin: 143, nom: "Partie longue (2000-2035)", komi: 17.8, egalite: 0.27 }, // v34 (sans rappel), 200 parties IA : 40 / 19,5 / 40,5 % (dont 2 % de banqueroute USA)
+  "2008-2035": { debut: 32, fin: 143, nom: "Montée des BRICS (2008-2035)", komi: 14.4, egalite: 0.28 }, // v34 (sans rappel), 200 parties IA : 39,5 / 20,5 / 40 % (dont 4,5 % de banqueroute USA)
 };
 export const formatDe = (e: EtatPartie) => FORMATS[(e.reglages.format ?? "2000-2008").replace("2025", "2035") as Format]; // sauvegardes v14 : formats « -2025 » prolongés
 // Part moyenne du komi dans le bilan : le décompte k (sur n) en compte k/n, la moyenne vaut (n + 1) / 2n.
@@ -110,7 +110,7 @@ export interface EtatPartie {
   drapeaux: string[]; historiquesFaits: string[]; briefingsFaits: string[];
   pioche: string[]; defausse: string[]; retirees: string[];
   attente: EffetPrevu[]; journal: EntreeJournal[];
-  scoreDepart: number; termine: boolean; resultat: string | null; decomptes: number[]; deficitDepart: Record<Camp, number>;
+  scoreDepart: number; termine: boolean; resultat: string | null; decomptes: number[]; deficitDepart: Record<Camp, number>; deriveEco?: Record<Camp, number[]>;
   reglages: Reglages;
   conflits: Conflit[]; // conflits armés en cours (symboles sur la carte)
   blocages: { detroit: string; fin: number }[]; // détroits fermés : les flux qui les traversent sont coupés
@@ -128,7 +128,7 @@ export interface EtatPartie {
   garanties?: { iso: string; camp: Camp }[]; // garanties de défense accordées // guerre directe entre les deux leaders // CACHÉ : gratitude (+) ou rancune (−) de chaque pays envers chaque bloc, de −10 à +10
   rapprochements: { iso: string; camp: Camp; restant: number }[]; // entraînements en cours (trimestres restants)
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
-  pouvoir?: EtatPouvoir; conseillers?: Record<Camp, Partial<Record<Conseil, Conseiller>>>; nomsPris?: string[]; portraitsPris?: number; // pouvoir du joueur, conseillers nommés, noms et portraits déjà utilisés
+  pouvoir?: EtatPouvoir; conseillers?: Record<Camp, Partial<Record<Conseil, Conseiller>>>; nomsPris?: string[]; portraitsPris?: number; imagesPrises?: string[]; // pouvoir du joueur, conseillers nommés, noms et portraits déjà utilisés
   plans?: Plan[]; bilansPlans?: BilanPlan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
   controles?: Controle[]; // régions gardées après une guerre
   alliances?: Alliance[]; // partenariats stratégiques (1) et alliances militaires intégrées (3) ; le niveau 2 est la garantie
@@ -354,7 +354,8 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
   e.pioche = melanger(e, paquet(2000));
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
-  for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
+  for (const camp of CAMPS) e.deficitDepart[camp] = ecartRessources(e, camp);
+  e.deriveEco = deriveEconomique(e);
   e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); nommerConseillers(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return debutRound(e, true);
 }
@@ -392,7 +393,8 @@ function depart2008(graine: number, joueur: Camp | null, reglages: Reglages): Et
   e.camps.OCC.cp = 50; e.camps.CHN.cp = 70; // estimation : usure de l'Irak et crise financière côté occidental
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
-  for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
+  for (const camp of CAMPS) e.deficitDepart[camp] = ecartRessources(e, camp);
+  e.deriveEco = deriveEconomique(e);
   e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); nommerConseillers(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return e;
 }
@@ -1885,20 +1887,19 @@ function croissanceReference(iso: string, annee: number, e: EtatPartie): number 
   const y = pibParHab(e.pays[iso]), yUSA = pibParHab(e.pays.USA);
   return Math.min(0.06, 0.5 * tendancePib(iso) + 0.5 * (0.015 + 0.01 * Math.max(0, Math.log(yUSA / y))));
 }
-// Trajectoire de référence sans chocs : données réelles, puis croissance tendancielle constante (estimation de jeu).
-// Règle validée : le PIB suit la trajectoire de référence à 10 % près (35 % en 2035) ; au-delà, une force de rappel ramène vers la bande.
-export const RAPPEL_PIB = 0.5, RAPPEL_INTERNE = 0.25; // rappel : 50 % par an de l'excès hors bande ; 25 % par an de l'écart dans la bande (corrige la dérive moyenne des chocs, estimation de jeu)
-// Tolérance : 10 % jusqu'en 2026 (années réelles), puis élargie linéairement jusqu'à 35 % fin 2035 (années projetées).
-export function tolerancePib(round: number): number { return 0.1 + 0.25 * Math.max(0, Math.min(1, (round / 4 - 27) / 9)); }
+// Trajectoire de référence sans chocs (sert seulement de repère : tendance et pénurie) : données réelles, puis croissance projetée.
+// Calage : une valeur annuelle est la moyenne de l'année, placée au milieu de l'année (début du 3e trimestre) ; la croissance
+// d'une année se répartit donc du 3e trimestre de l'année précédente au 2e de l'année : les crises tombent à la bonne date (2009 : de mi-2008 à mi-2009).
+// Plus aucune force de rappel : un pays peut s'écarter durablement de l'histoire (effondrement, essor), seule la tendance de croissance reste réelle.
 // Après 2022 : croissance projetée (FMI ou estimation) si le pays est renseigné et sa série complète jusqu'en 2022.
 function tauxProjete(iso: string, annee: number): number | null {
   const c = CROISSANCE_PROJETEE[iso], t = TRAJ[iso].pib;
   if (!c || annee < 2022 || t.length !== 23 || !Number.isFinite(t[22])) return null;
   return c.g[Math.min(3, annee - 2022)] / 100;
 }
-export function pibReference(iso: string, round: number): number {
+function referenceAnnuelle(iso: string, x: number): number { // x : années depuis le milieu de 2000
   const t = TRAJ[iso].pib; let last = t.length - 1; while (last > 0 && !Number.isFinite(t[last])) last--;
-  const x = round / 4, k = Math.floor(x);
+  const k = Math.max(0, Math.floor(x));
   if (k < last) return t[k] * Math.pow(t[k + 1] / t[k], x - k);
   if (tauxProjete(iso, 2022) !== null) { let v = t[last]; for (let a = 2022; a < 2000 + k; a++) v *= 1 + tauxProjete(iso, a)!; return v * Math.pow(1 + tauxProjete(iso, 2000 + k)!, x - k); }
   const yUSA = TRAJ.USA.pib[TRAJ.USA.pib.length - 1] / TRAJ.USA.population[TRAJ.USA.population.length - 1];
@@ -1906,10 +1907,16 @@ export function pibReference(iso: string, round: number): number {
   const g = Math.min(0.06, 0.5 * tendancePib(iso) + 0.5 * (0.015 + 0.01 * Math.max(0, Math.log(yUSA / y))));
   return t[last] * Math.pow(1 + g, x - last);
 }
-function rappel(iso: string, round: number, pib: number): number {
-  const d = Math.log(pib / pibReference(iso, round)), tol = tolerancePib(round);
-  return -RAPPEL_INTERNE * d - (Math.abs(d) <= tol ? 0 : RAPPEL_PIB * (d - Math.sign(d) * tol));
+// PIB de référence au début du round : part de la valeur 2000 au 1er trimestre 2000, comme la partie
+export function pibReference(iso: string, round: number): number {
+  return TRAJ[iso].pib[0] * referenceAnnuelle(iso, (round - 2) / 4) / referenceAnnuelle(iso, -0.5);
 }
+// année dont la croissance s'applique au trimestre : 1er semestre → croissance de l'année, 2e semestre → celle de l'année suivante
+// Centrage des chocs : la tendance réelle contient déjà la dose moyenne de crises ; les événements tirés au hasard (pertes nettes
+// d'environ 0,75 point par an et par pays, mesure sur 4 parties sans IA) sont donc compensés en moyenne, sans viser aucune trajectoire.
+// Un pays frappé garde sa perte ; seule la moyenne mondiale reste sur la tendance (estimation de jeu, calibrée).
+export const CENTRAGE = 0.75;
+export const anneeCroissance = (annee: number, trimestre: number) => trimestre <= 2 ? Math.max(2000, annee - 1) : annee;
 const TENDANCE: Record<string, number> = {};
 function tendancePib(iso: string): number {
   if (TENDANCE[iso] !== undefined) return TENDANCE[iso];
@@ -1950,8 +1957,7 @@ export function finRound(e0: EtatPartie): EtatPartie {
   const monde = pibMonde(e), contagion = CONTAGION * ISO.reduce((s, i) => s + ecart[i] * e.pays[i].pib / monde, 0);
   for (const iso of ISO) {
     const p = e.pays[iso];
-    // une guerre entre leaders sort leurs économies de la trajectoire de référence : pas de force de rappel pour eux
-    const g = croissanceReference(iso, annee, e) + ecart[iso] + contagion + (e.guerre && (iso === "USA" || iso === "CHN") ? 0 : rappel(iso, e.round, p.pib));
+    const g = croissanceReference(iso, anneeCroissance(annee, trimestre), e) + ecart[iso] + contagion + (e.reglages.generiques ? CENTRAGE / 100 : 0);
     p.pib *= Math.pow(1 + g, 0.25); cacheMonde = null;
     // effet papillon : petit choc de niveau permanent, sans rebond, qui fait diverger chaque partie de l'histoire
     if (e.reglages.generiques) p.pib *= Math.exp(PAPILLON * normale(e));
@@ -1980,10 +1986,10 @@ export function finRound(e0: EtatPartie): EtatPartie {
   e.tension = borne(e.tension - 0.08 * (e.tension - 10), 0, 100);
   for (const iso of ISO) e.pays[iso].stabilite += 0.05 * (50 - e.pays[iso].stabilite);
   for (const camp of CAMPS) e.camps[camp].cp = borne(e.camps[camp].cp + 1, 0, 100);
-  // pénurie de ressources : si l'écart entre le poids économique d'un camp et les ressources qu'il contrôle se creuse
-  // par rapport à 2000 (déjà contenu dans la trajectoire réelle), la croissance de son leader est freinée
+  // pénurie de ressources décidée par la partie : seul compte l'écart (poids économique − ressources contrôlées) creusé
+  // AU-DELÀ de ce que la trajectoire historique produit d'elle-même ; l'essor réel de la Chine n'est donc pas pénalisé
   for (const camp of CAMPS) {
-    const deficit = Math.max(0, deficitRessources(e, camp) - e.deficitDepart[camp]);
+    const deficit = Math.max(0, ecartRessources(e, camp) - e.deficitDepart[camp] - (e.deriveEco?.[camp][e.round] ?? 0));
     if (deficit > 0) e.pays[camp === "OCC" ? "USA" : "CHN"].bonus.push({ points: -PENURIE * deficit, reste: 1 });
   }
   // guerre entre leaders, crise nucléaire, puis seuils extrêmes : défaite immédiate
@@ -2033,7 +2039,13 @@ export function prolonger(e0: EtatPartie): EtatPartie {
   return debutRound(e, true);
 }
 
-const deficitRessources = (e: EtatPartie, camp: Camp) => Math.max(0, partFamille(e, camp, "economie") - partFamille(e, camp, "ressources"));
+export const ecartRessources = (e: EtatPartie, camp: Camp) => partFamille(e, camp, "economie") - partFamille(e, camp, "ressources");
+// Dérive historique de la part économique de chaque camp, alignements de départ figés et PIB de référence : ce que l'histoire seule produit
+export function deriveEconomique(e: EtatPartie): Record<Camp, number[]> {
+  const poids = Object.fromEntries(CAMPS.map(c => [c, Object.fromEntries(ISO.map(i => [i, poidsCamp(e, c, i)]))])) as Record<Camp, Record<string, number>>;
+  const part = (c: Camp, r: number) => { let n = 0, d = 0; for (const i of ISO) { const m = pibReference(i, r) * QUALITE.economie[i]; n += m * poids[c][i]; d += m; } return n / d; };
+  return Object.fromEntries(CAMPS.map(c => { const p0 = part(c, e.round); return [c, Array.from({ length: NB_ROUNDS }, (_, r) => r < e.round ? 0 : part(c, r) - p0)]; })) as Record<Camp, number[]>;
+}
 const PENURIE = 5; // points de croissance annuelle perdus par unité de déficit (part économique − part des ressources)
 export const SEUILS = { population: 0.9, banqueroute: 0.8, climat: 3 };
 function seuilAtteint(e: EtatPartie): { titre: string; texte: string } | null {

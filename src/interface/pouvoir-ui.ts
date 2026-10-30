@@ -7,7 +7,7 @@ import { DIRIGEANT, maintienAvecPopularite } from "../moteur/dirigeants";
 import { ELECTIONS_PAYS, nomPays, alignement, agir, peutAgir, libelle, type EtatPartie } from "../moteur/partie";
 import { date } from "../moteur/temps";
 import type { Camp } from "../moteur/types";
-import { portraitSvg, numeroNom } from "./portraits";
+import { visageDirigeant } from "./portraits";
 import type { Son } from "./sons";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
@@ -73,7 +73,7 @@ function blocEtranger(e: EtatPartie, camp: Camp): string {
 }
 export function pouvoirHtml(e: EtatPartie, camp: Camp): string {
   const d = e.dirigeants?.[camp];
-  return `<div class="pv"><header class="pv-tete">${d ? portraitSvg(numeroNom(d.nom)) : ""}<div><span class="sc-sur">Rester au pouvoir</span><h2>${esc(d?.nom ?? "")}</h2>
+  return `<div class="pv"><header class="pv-tete">${d ? visageDirigeant(d) : ""}<div><span class="sc-sur">Rester au pouvoir</span><h2>${esc(d?.nom ?? "")}</h2>
     <span>${d ? `Au pouvoir depuis ${date(d.depuis).annee} · popularité ${Math.round(d.popularite)} · capital politique ${Math.round(e.camps[camp].cp)} · mandats de ${camp === "OCC" ? DIRIGEANT.mandatOCC : DIRIGEANT.mandatCHN} ans au plus${camp === "CHN" && e.pouvoir?.limiteAbolie ? " (limite abolie)" : ""}` : ""}</span></div></header>
     <div class="pv-corps">${camp === "OCC" ? blocUSA(e) : blocChine(e)}${blocEtranger(e, camp)}</div>
     <p class="note">Après un changement de dirigeant : réélection, tu remanies librement (2 capital par chef, en janvier) ; successeur, 3 à 4 conseillers restent ; alternance, 0 ou 1. Chaque nouveau conseiller a un nom et un portrait jamais vus dans la partie.</p>

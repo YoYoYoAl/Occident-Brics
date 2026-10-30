@@ -41,13 +41,19 @@ export function nomUnique(e: EtatPartie, camp: Camp, partie = false): string {
 export const marquerNomPris = (e: EtatPartie, nom: string) => { if (!(e.nomsPris ??= []).includes(nom)) e.nomsPris.push(nom); };
 
 // ---------- Conseillers ----------
-export interface Conseiller { nom: string; trait: Trait; portrait: number; depuis: number } // portrait : numéro unique dans la partie (illustré ou généré)
+export interface Conseiller { nom: string; trait: Trait; portrait: number; depuis: number; illustre?: string } // portrait : numéro unique dans la partie (illustré ou généré)
+// Portrait illustré (lot ob_8 : 8 par siège et par bloc), attribué sans remise et sans tirage : ensuite, portrait généré.
+export const ILLUSTRES_PAR_SIEGE = 8;
+export function prendreIllustration(e: EtatPartie, candidats: string[]): string | undefined {
+  const pris = (e.imagesPrises ??= []), x = candidats.find(c => !pris.includes(c)); if (x) pris.push(x); return x;
+}
 const listeTraits = () => Object.keys(TRAITS) as Trait[]; // à l'appel : import circulaire avec plans.ts
 export function nouveauConseiller(e: EtatPartie, camp: Camp, cs: Conseil, trait?: Trait): Conseiller {
   const l = listeTraits(), t = trait ?? l[Math.floor(outils.tirer(e) * l.length)];
   const titre = TITRES[cs]?.[camp];
   e.portraitsPris = (e.portraitsPris ?? 0) + 1;
-  return { nom: `${titre ? titre + " " : ""}${nomUnique(e, camp)}`, trait: t, portrait: e.portraitsPris, depuis: e.round };
+  const illustre = prendreIllustration(e, Array.from({ length: ILLUSTRES_PAR_SIEGE }, (_, i) => `conseiller_${camp.toLowerCase()}_${cs}_${i + 1}`));
+  return { nom: `${titre ? titre + " " : ""}${nomUnique(e, camp)}`, trait: t, portrait: e.portraitsPris, depuis: e.round, ...(illustre ? { illustre } : {}) };
 }
 export const conseillerDe = (e: EtatPartie, camp: Camp, cs: Conseil): Conseiller | null => e.conseillers?.[camp]?.[cs] ?? null;
 export function installer(e: EtatPartie, camp: Camp, cs: Conseil, c: Conseiller) {
