@@ -9,6 +9,9 @@ import { jouer as son, basculerSon, sonActif, jouerEvenement, jouerJingle, musiq
 import { date as dateDuRound } from "../moteur/temps";
 import { ficheHtml } from "./fiche";
 import { panneauPlans, panneauDuels, lierPlans, plansUtiles, duelsDuJoueur, avantageJoueur, plansAdverses, seanceAnnuelle } from "./plans-ui";
+import { blocCampagnesElectorales, lierCampagnes } from "./campagne-ui";
+import { ouvrirOperations } from "./operations-ui";
+import { alertesPouvoir, ouvrirPouvoir } from "./pouvoir-ui";
 import { ouvrirConseil, bilanHtml, peutRelancer, relancer, resteTrimestres, NOM_DUREE, type HoteConseil } from "./conseil-ui";
 import { panneauDirigeant, panneauGuerre, lierGuerre, tableauRegions, blocAlliancePays } from "./guerre-ui";
 import { regionsCles } from "../moteur/guerre";
@@ -390,7 +393,7 @@ function panneauMain(): string {
   // Le trimestre en 3 décisions (maquette 3) : ta carte, ce qui t'attend, des actions directes. Les orientations avancent seules.
   const mes = plansDe(e, joueur()), conv = peutConvoquer(e, joueur()), ouverte = seanceOuverte(e, joueur());
   const sOrient = `<div class="t-orient"><div class="t-orient-tete"><strong>Orientations en cours (${mes.length}/${REGLES_PLANS.max})</strong>
-      <button id="btnConseil" class="${ouverte ? "principal" : ""}">🏛 ${ouverte ? "Salle du conseil : séance ouverte" : conv ? "Salle du conseil" : "Convoquer le conseil"}</button></div>
+      <button id="btnConseil" class="${ouverte ? "principal" : ""}">🏛 ${ouverte ? "Salle du conseil : séance ouverte" : conv ? "Salle du conseil" : "Convoquer le conseil"}</button> <button data-pouvoir>👑 Pouvoir</button></div>
     ${mes.length ? mes.map(p => { const n = resteTrimestres(e, p.id);
       return `<div class="t-plan"><strong>${esc(OBJ_PLANS[p.objectif].nom)} · ${esc(nomCible(p))}</strong><span class="p-barre"><span style="width:${Math.min(100, p.progres)}%"></span></span>
         <small>${nombre(p.progres, 0)} % · environ ${n} trimestre${n > 1 ? "s" : ""}${planRival(e, p) ? " · disputée par l'adversaire" : ""}${p.reconduire ? " · ↻ reconduite" : " · s'arrête à l'arrivée"}</small></div>`; }).join("")
@@ -398,7 +401,7 @@ function panneauMain(): string {
   const carteJ = c.carteJouee ? e.journal.filter(j => j.type === "carte" && j.round === e.round && (j.joueParCamp ?? j.camp) === joueur()).pop() : undefined;
   const decision = (n: number, titre: string, etatTxt: string, corps: string, faite = false) => `<section class="t-decision ${faite ? "faite" : ""}">
     <header><span class="t-num">${faite ? "✓" : n}</span><strong>${titre}</strong><span class="t-etat">${etatTxt}</span></header>${corps}</section>`;
-  const attente = [sEvenements(), duelsDuJoueur(e, joueur()).length ? panneauDuels(e, joueur()) : "", plansAdverses(e, joueur()),
+  const attente = [alertesPouvoir(e, joueur()), blocCampagnesElectorales(e, joueur()), sEvenements(), duelsDuJoueur(e, joueur()).length ? panneauDuels(e, joueur()) : "", plansAdverses(e, joueur()),
     e.succession?.camp === joueur() ? panneauDirigeant(e, joueur()) : "", e.proposition?.de === adversaire(joueur()) ? blocDiplomatie() : "",
     c.briefing ? `<p><button id="tBriefing" class="alerte-btn">Briefing en attente : décider</button></p>` : ""].filter(Boolean);
   let h = bascule + sOrient;
@@ -407,6 +410,7 @@ function panneauMain(): string {
   h += decision(2, "Ce qui t'attend", attente.length ? `${attente.length} sujet${attente.length > 1 ? "s" : ""}` : "rien d'urgent",
     (attente.join("") || `<p class="note">Aucun duel, aucune crise, aucune riposte en attente.</p>`) + panneauGuerre(e, joueur()), !attente.length);
   h += decision(3, "Actions directes", "facultatif", `<p class="note">Cible : le pays choisi sur la carte${paysChoisi ? ` (<strong>${esc(nomPays(paysChoisi))}</strong>)` : ""}. Tes conseillers jouent seuls les points que tu laisses.</p>
+    ${paysChoisi && paysChoisi !== "USA" && paysChoisi !== "CHN" ? `<p><button data-operations="${paysChoisi}" class="op-bouton">⚔ Opérations militaires : ${esc(nomPays(paysChoisi))}</button></p>` : ""}
     ${sAgir().replace('<details class="agir">', '<details class="agir" open>')}${sAchat()}<details class="agir"><summary>Stratégie du bloc</summary>${blocStrategie()}</details>`);
   h += `<p class="suite-guide"><button id="finGuide" class="principal">Fin du trimestre</button></p>`;
   return h;
@@ -554,6 +558,7 @@ function panneauPays(): string {
   } else h += `<p class="note">Leader de camp : pas de cible d'influence.</p>`;
   // Données 2000 et qualificatifs de la v0.1 (attributs en 5 familles)
   const etatV01 = { pays: { [iso]: { population: p.population } }, round: e.round } as unknown as EtatJeu;
+  if (iso !== "USA" && iso !== "CHN") h += `<p><button data-operations="${iso}" class="op-bouton">⚔ Opérations militaires et guerre</button></p>`;
   h += blocAlliancePays(e, joueur(), iso);
   if (regionsCles(iso) || (e.controles ?? []).some(c => c.iso === iso) || e.interventions.some(i => i.iso === iso)) h += `<details class="qualificatifs" open><summary>Régions</summary>${tableauRegions(e, iso, e.interventions.find(i => i.iso === iso))}</details>`;
   h += `<details class="qualificatifs"><summary>Qualificatifs du pays (données 2000)</summary>${ficheHtml(iso, etatV01).replace(/<h2>.*?<\/h2>/, "")}</details>`;
@@ -603,6 +608,9 @@ function lierPanneau(zone: HTMLElement) {
   zone.querySelector<HTMLButtonElement>("#etapeSuivante")?.addEventListener("click", () => { etape = etapeSuivante(etape); son("etape", 0.35); afficher(); });
   zone.querySelector<HTMLButtonElement>("#finGuide")?.addEventListener("click", () => finTrimestre());
   zone.querySelector<HTMLButtonElement>("#btnConseil")?.addEventListener("click", () => ouvrirConseil(hoteConseil()));
+  lierCampagnes(zone, { etat: () => etat!, camp: joueur, tenter, ouvrir, fermer });
+  zone.querySelectorAll<HTMLButtonElement>("[data-pouvoir]").forEach(b => b.onclick = () => ouvrirPouvoir({ etat: () => etat!, camp: joueur, tenter, ouvrir, fermer }));
+  zone.querySelectorAll<HTMLButtonElement>("[data-operations]").forEach(b => b.onclick = () => ouvrirOperations({ etat: () => etat!, camp: joueur, tenter, ouvrir, fermer }, b.dataset.operations!));
   zone.querySelector<HTMLButtonElement>("#tBriefing")?.addEventListener("click", () => proposerBriefing(true));
   zone.querySelector<HTMLButtonElement>("#basculeGuide")?.addEventListener("click", () => { guide = !guide; try { localStorage.setItem(CLE_GUIDE, guide ? "oui" : "non"); } catch { /* stockage indisponible */ } afficher(); });
   zone.querySelector<HTMLButtonElement>("#acheter")?.addEventListener("click", () => tenter(() => acheterPA(etat!, joueur())));

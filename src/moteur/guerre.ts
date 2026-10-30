@@ -388,3 +388,28 @@ export function suiviGuerres(e: EtatPartie, resolution: (av: number) => number) 
 }
 export const dansZone = (iso: string, zone: string) => zoneDe(iso) === zone;
 export { vers as penche };
+
+// ---------- Opération limitée (refonte, maquette 6 : cran 2 de l'escalade) ----------
+// Frappe ciblée, raid ou blocus d'un trimestre : moins coûteuse qu'une intervention, sans occupation. Valeurs proposées, à calibrer.
+export const FRAPPE = { budget: 3, cp: 3, ae: 8, tension: 3, stabilite: 5, perte: 8, gain: 4, fatigue: 1 };
+export function peutFrapper(e: EtatPartie, camp: Camp, iso: string): string | null {
+  const p = e.pays[iso]; if (!p || iso === "USA" || iso === "CHN") return "Cible impossible : une frappe contre l'autre puissance serait une guerre ouverte.";
+  if (nucleaire(iso, 2000 + Math.floor(e.round / 4))) return "Puissance nucléaire : une frappe y est exclue.";
+  if (e.garanties?.some(g => g.iso === iso && g.camp === adversaire(camp))) return "Ce pays est sous garantie de défense adverse : ce serait une guerre ouverte.";
+  if (vers(e, camp, iso) >= 0.4) return "On ne frappe pas un allié.";
+  const c = e.camps[camp];
+  if (c.budget < FRAPPE.budget) return `Budget insuffisant (${FRAPPE.budget}).`;
+  if (c.cp < FRAPPE.cp) return `Capital politique insuffisant (${FRAPPE.cp}).`;
+  return null;
+}
+export function frapper(e0: EtatPartie, camp: Camp, iso: string): EtatPartie {
+  const err = peutFrapper(e0, camp, iso); if (err) throw new Error(err);
+  const e = structuredClone(e0), c = e.camps[camp], p = e.pays[iso], adv = adversaire(camp);
+  c.budget = Math.round(10 * (c.budget - FRAPPE.budget)) / 10; c.cp = borne(c.cp - FRAPPE.cp, 0, 100); c.fatigue = (c.fatigue ?? 0) + FRAPPE.fatigue;
+  const j = justifier(e, camp, iso, FRAPPE.ae);
+  p.influence[adv].m = Math.max(0, p.influence[adv].m - FRAPPE.perte); p.influence[camp].m = borne(p.influence[camp].m + FRAPPE.gain, 0, 100);
+  p.stabilite = borne(p.stabilite - FRAPPE.stabilite, 0, 100); e.tension = borne(e.tension + FRAPPE.tension, 0, 100); outils.memoriser(e, iso, camp, -2);
+  outils.noter(e, { type: "action", titre: `Frappe ciblée : ${nomPays(iso)}`, famille: "incident_militaire", camp, pays: [iso], visiblePour: [...CAMPS],
+    texte: `${j.cb ? `Justification : ${CASUS_BELLI[j.cb].nom.toLowerCase()}.` : "Sans justification : agression (capital politique −10)."} Influence militaire adverse −${FRAPPE.perte}, stabilité −${FRAPPE.stabilite}, tension +${FRAPPE.tension}, expansion agressive +${Math.round(j.ae)}.` });
+  return e;
+}

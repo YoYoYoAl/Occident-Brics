@@ -42,6 +42,17 @@ export function banniereDuel(type: Duel["type"], sousTitre: string): string {
   const src = image(IMAGE_DUEL[type]), info = DUELS[type];
   return `<header class="d-banniere"${src ? ` style="background-image:url('${src}')"` : ""}><div><small>${esc(info.situation)} · ${esc(sousTitre)}</small><h2>${esc(info.nom)}</h2></div></header>`;
 }
+// Décors des duels (maquette 8) : 6 ambiances, chaque duel reçoit celle de sa situation.
+export const DECORS = { studio: "Soir d'élection", etatmajor: "Nuit du putsch", sonar: "Chasse sous-marine", marche: "Marché des contrats", gouffre: "Bord du gouffre", place: "Place de la révolution" } as const;
+export type Decor = keyof typeof DECORS;
+export const DECOR_DUEL: Record<Duel["type"], Decor> = {
+  puissance4: "studio", skull: "studio", sept: "studio",
+  echecs: "etatmajor", coup: "etatmajor", longhorn: "etatmajor", memoire44: "etatmajor", schotten: "etatmajor", stratego: "etatmajor", streetfighter: "etatmajor",
+  bataille: "sonar", onitama: "sonar", go: "sonar", mastermind: "sonar", simon: "sonar",
+  jaipur: "marche", korsar: "marche", lostcities: "marche", santorini: "marche", quarto: "marche",
+  perudo: "gouffre", othello: "place",
+};
+const decor = (type: Duel["type"]) => `decor-${DECOR_DUEL[type] ?? "etatmajor"}`;
 // Petite vignette pour les listes de duels.
 export const vignette = (type: Duel["type"]) => { const src = image(IMAGE_DUEL[type]); return src ? `<i class="d-vignette" style="background-image:url('${src}')"></i>` : ""; };
 
@@ -89,7 +100,7 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
   function rendre() {
     const v: Vue = def.vue(s), anim = changements(avant, v); avant = null;
     const pct = Math.round(100 * def.resultat(s));
-    let h = `<div class="duel">${banniereDuel(d.type, hote.titre)}${scoresHtml(v)}
+    let h = `<div class="duel ${decor(d.type)}">${banniereDuel(d.type, hote.titre)}${scoresHtml(v)}
       <p class="d-regle">${esc(info.principe)}</p>${s.fini ? enjeuxHtml(hote.enjeux, pct) : `<details class="d-regles"><summary>Enjeu pour la partie</summary>${enjeuxHtml(hote.enjeux)}</details>`}
       <details class="d-regles"><summary>Règles complètes</summary>${ficheRegles(d.type)}</details>` + plateauHtml(v, s.journal, anim);
     h += s.fini
@@ -120,7 +131,7 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
     const h = alea(d.graine), fin = () => ds.fini || ds.tour >= TOURS_DEMO || n >= COUPS_DEMO;
     const afficher = () => {
       const v = def.vue(ds), anim = changements(prec, v);
-      hote.boite.innerHTML = `<div class="duel demo">${banniereDuel(d.type, "Démonstration")}<p class="d-legende" id="dLegende">${esc(legende)}</p>${scoresHtml(v)}
+      hote.boite.innerHTML = `<div class="duel demo ${decor(d.type)}">${banniereDuel(d.type, "Démonstration")}<p class="d-legende" id="dLegende">${esc(legende)}</p>${scoresHtml(v)}
         <div class="d-scene">${plateauHtml(v, ds.journal, anim)}<span class="d-pointeur" id="dPointeur"${pos ? ` style="opacity:1;transform:${pos}"` : ""}></span></div>
         <div class="actions-fenetre">${fin() ? `<button id="dRevoir">Revoir la démo</button>` : `<button id="dPasser">Passer la démo</button>`}<button id="dCommencer" class="principal">Jouer</button></div></div>`;
       hote.boite.querySelectorAll<HTMLButtonElement>(".d-scene button").forEach(b => { b.disabled = true; b.removeAttribute("data-coup"); });
@@ -163,7 +174,7 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
     const l = Array.from(el.parentElement?.children ?? []); return v.boutons?.[l.indexOf(el)]?.coup;
   }
   // écran d'ouverture : la situation, l'essentiel des règles en trois blocs, la démo et la partie
-  hote.boite.innerHTML = `<div class="duel">${banniereDuel(d.type, hote.titre)}
+  hote.boite.innerHTML = `<div class="duel ${decor(d.type)}">${banniereDuel(d.type, hote.titre)}
     <p class="d-but"><strong>But :</strong> ${esc(f.but)}</p>${enjeuxHtml(hote.enjeux)}
     <div class="d-cartes">
       <section><h4>① À ton tour</h4><ol>${f.tour.map(t => `<li>${esc(t)}</li>`).join("")}</ol></section>

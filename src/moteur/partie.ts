@@ -29,7 +29,9 @@ import { FAMILLES as FAMILLES_ATTRIBUTS, type Famille } from "../data/attributs"
 import { suivant } from "./alea";
 import { ZONES } from "./zones";
 import { CARTES_GENEREES } from "../contenu/cartes-generees";
-import { type Plan, type BilanPlan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
+import { apportCampagnes, issueCampagnes } from "./campagnes";
+import { type EtatPouvoir, type Conseiller, nommerConseillers, maintienUSA, miMandat, MI_MANDAT, congresChine, facteurCongres } from "./pouvoir";
+import { type Plan, type BilanPlan, finirPlan, type Duel, type Conseil, type Trait, avancerPlans, reglerDuelsEnSuspens, multPlan, iaPlans, tirerChefs, RESERVE } from "./plans";
 import { date, libelle, NB_ROUNDS } from "./temps";
 import { type Dirigeant, tirerDirigeants, normaliserDirigeants, suiviDirigeants, apresScrutin, maintienAvecPopularite, multDiplomatie, multIntendance, multRisque, bonusPutsch, aTrait } from "./dirigeants";
 import { type CasusBelli, type Coalition, type Intervention, type Controle, suiviRegions, partAnnexee, majCasusBelli, suiviExpansion, suiviGuerres, justifier, gagnerAE, facteurAE, coalitionContre, aeDuPays, nucleaire, casusBelliDe, AE, CASUS_BELLI } from "./guerre";
@@ -90,7 +92,7 @@ export interface EtatCamp {
   recherche?: Record<string, number>; technologies?: string[]; // points investis par technologie, percées obtenues
   apaise?: Record<string, number>; // dernière année d'apaisement par pays
   fabrique?: number; // dernière année (round / 4) où le camp a monté un dossier de casus belli
-  ajustement?: number; seance?: number; convocation?: number; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
+  ajustement?: number; seance?: number; convocation?: number; dette?: { parTrimestre: number; fin: number }; coup?: { iso: string; fin: number }; riposteAnnee?: number; revelation?: number; reserve?: number; // plans : dernier ajustement hors séance, riposte annuelle, plans adverses révélés jusqu'à ce round, réserve d'opérations ciblées
 }
 export type TypeCarte = "camp" | "adverse" | "neutre";
 export const NOMS_TYPES: Record<TypeCarte, string> = { camp: "de ton camp", adverse: "adverse", neutre: "neutre" };
@@ -126,6 +128,7 @@ export interface EtatPartie {
   garanties?: { iso: string; camp: Camp }[]; // garanties de défense accordées // guerre directe entre les deux leaders // CACHÉ : gratitude (+) ou rancune (−) de chaque pays envers chaque bloc, de −10 à +10
   rapprochements: { iso: string; camp: Camp; restant: number }[]; // entraînements en cours (trimestres restants)
   contagion: Record<string, Record<Camp, number>>; // influence politique cumulée reçue par rapprochement (plafonnée) // palier d'alignement de chaque pays (−2 allié Chine … +2 allié USA), pour l'effet « ami d'un ami »
+  pouvoir?: EtatPouvoir; conseillers?: Record<Camp, Partial<Record<Conseil, Conseiller>>>; nomsPris?: string[]; portraitsPris?: number; // pouvoir du joueur, conseillers nommés, noms et portraits déjà utilisés
   plans?: Plan[]; bilansPlans?: BilanPlan[]; duels?: Duel[]; chefs?: Record<Camp, Partial<Record<Conseil, Trait>>>; // plans pluriannuels, duels en attente du joueur, traits des chefs de conseil
   controles?: Controle[]; // régions gardées après une guerre
   alliances?: Alliance[]; // partenariats stratégiques (1) et alliances militaires intégrées (3) ; le niveau 2 est la garantie
@@ -352,7 +355,7 @@ export function creerPartie(graine: number, joueur: Camp | null = "OCC", reglage
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
-  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
+  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); nommerConseillers(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return debutRound(e, true);
 }
 
@@ -390,14 +393,14 @@ function depart2008(graine: number, joueur: Camp | null, reglages: Reglages): Et
   for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp);
   e.scoreDepart = bilanBrut(e);
   for (const camp of CAMPS) e.deficitDepart[camp] = deficitRessources(e, camp);
-  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
+  e.plans = []; e.duels = []; tirerChefs(e); tirerDirigeants(e); nommerConseillers(e); e.ae = { OCC: {}, CHN: {} }; e.casusBelli = []; e.coalitions = []; e.controles = []; for (const camp of CAMPS) e.camps[camp].budget = budgetTrimestre(e, camp); // intendance du dirigeant
   return e;
 }
 
 // Budget versé chaque trimestre : socle + racine du PIB du leader (en milliers de milliards), estimation de jeu calée pour couvrir
 // 4 à 5 des 7 actions du trimestre ; l'épargne est plafonnée à 2 trimestres de revenu, assez pour un levier lourd.
 export const BUDGET = { socle: 3.5, k: 0.7, report: 2 };
-export const budgetTrimestre = (e: EtatPartie, camp: Camp) => arrondi((BUDGET.socle + BUDGET.k * Math.sqrt(e.pays[camp === "OCC" ? "USA" : "CHN"].pib / 1e12)) * multIntendance(e, camp)); // intendance du dirigeant : ±2 % par point
+export const budgetTrimestre = (e: EtatPartie, camp: Camp) => arrondi((BUDGET.socle + BUDGET.k * Math.sqrt(e.pays[camp === "OCC" ? "USA" : "CHN"].pib / 1e12)) * multIntendance(e, camp) * facteurCongres(e, camp)); // intendance du dirigeant : ±2 % par point
 
 // ---------- Conditions et effets ----------
 function campReel(rel: CampRel, joueur: Camp | null, paysTire: string | undefined, e: EtatPartie): Camp {
@@ -1577,7 +1580,9 @@ export function electionProchaine(e: EtatPartie, iso: string): ElectionPays | nu
 function resoudreElections(e: EtatPartie) {
   for (const x of ELECTIONS_PAYS.filter(x => roundDe(x.annee, x.trimestre) === e.round && e.pays[x.iso])) {
     const k = e.campagnesElectorales[`${x.iso}:${x.annee}`] ?? { OCC: 0, CHN: 0 };
-    const d = k.OCC - k.CHN + 2 * alignement(e, x.iso) + (tirer(e) - 0.5) * 2, g: Camp | null = d >= 1 ? "OCC" : d <= -1 ? "CHN" : null;
+    const camp0 = apportCampagnes(e, x.iso); // campagnes électorales des orientations (sondages, fraude)
+    const d = k.OCC - k.CHN + camp0 + 2 * alignement(e, x.iso) + (tirer(e) - 0.5) * 2, g: Camp | null = d >= 1 ? "OCC" : d <= -1 ? "CHN" : null;
+    for (const p of issueCampagnes(e, x.iso, g)) finirPlan(e, p, p.campagne!.resultat === "gagne" ? "reussie" : "echouee");
     if (g) { const p = e.pays[x.iso]; p.influence[g].p = borne(p.influence[g].p + 6, 0, 100); p.influence[adversaire(g)].p = borne(p.influence[adversaire(g)].p - 4, 0, 100); }
     noter(e, { type: "politique", titre: `${x.nom === "présidentielle" ? "Élection" : "Élections"} ${x.nom} ${enPays(x.iso, nomPays(x.iso))}`, pays: [x.iso], visiblePour: [...CAMPS],
       texte: `${g ? `Le vainqueur penche vers le ${nomBloc(g)} (influence politique +6, −4 pour l'autre bloc).` : "Continuité : le résultat ne change pas l'orientation du pays."} Soutiens de campagne : bloc USA ${k.OCC}, bloc Chine ${k.CHN}.` });
@@ -2002,8 +2007,10 @@ export function finRound(e0: EtatPartie): EtatPartie {
     usureCrans(e);
     for (const camp of CAMPS) bilanAgenda(e, camp);
     e.decomptes.push(progression({ ...e, termine: true }));
-    if (ELECTIONS_USA.includes(annee)) election(e, "OCC", 1 / (1 + Math.exp(-(e.camps.OCC.cp - 50) / 10)), "Élection présidentielle américaine");
-    if (CONGRES_CHINE.includes(annee)) election(e, "CHN", 1 - 1 / (1 + Math.exp(-(40 - e.camps.CHN.cp) / 8)), "Congrès du Parti communiste chinois");
+    // camp du joueur : thèmes de campagne (bloc USA), mi-mandat, Comité permanent (bloc Chine) ; l'IA garde le tirage habituel
+    if (ELECTIONS_USA.includes(annee)) { election(e, "OCC", maintienUSA(e, 1 / (1 + Math.exp(-(e.camps.OCC.cp - 50) / 10))), "Élection présidentielle américaine"); if (e.pouvoir) e.pouvoir.congres = undefined; }
+    else if (MI_MANDAT(annee)) miMandat(e);
+    if (CONGRES_CHINE.includes(annee)) { if (e.joueur === "CHN") election(e, "CHN", congresChine(e) ? 1 : 0, "Congrès du Parti communiste chinois"); else election(e, "CHN", 1 - 1 / (1 + Math.exp(-(40 - e.camps.CHN.cp) / 8)), "Congrès du Parti communiste chinois"); }
   }
   if (e.round >= formatDe(e).fin || e.round + 1 >= NB_ROUNDS) {
     e.termine = true;
@@ -2089,6 +2096,7 @@ export const outils = { noter, tirer, borne, memoriser, poidsPays, percee };
 export function serialiserPartie(e: EtatPartie): string { return JSON.stringify(e); }
 export function chargerPartie(texte: string): EtatPartie {
   const e = JSON.parse(texte) as EtatPartie;
+  if (e.chefs && !e.conseillers) nommerConseillers(e); // sauvegarde antérieure à la v31 : conseillers nommés
   if (e.version !== VERSION_ETAT) throw new Error(`Sauvegarde de version ${e.version}, version attendue ${VERSION_ETAT}.`);
   if (typeof e.round !== "number" || typeof e.alea !== "number" || !e.pays || !e.camps) throw new Error("Sauvegarde invalide.");
   e.conflits ??= []; e.blocages ??= []; e.concessions ??= []; e.paliers ??= {}; for (const c of CAMPS) e.camps[c].points ??= pointsDeBase(); e.memoire ??= {}; e.prets ??= []; e.interventions ??= []; e.campagnesElectorales ??= {}; e.chaines ??= []; e.rapprochements ??= []; e.contagion ??= {}; e.zones ??= Object.fromEntries(ZONES_STRATEGIQUES.map(z => [z.id, { ...z.depart }])); for (const c of CAMPS) { e.camps[c].reactions ??= []; e.camps[c].typesJoues ??= []; } e.plans ??= []; e.duels ??= []; if (!e.chefs) tirerChefs(e); if (!e.dirigeants) tirerDirigeants(e); else normaliserDirigeants(e); e.ae ??= { OCC: {}, CHN: {} }; e.casusBelli ??= []; e.coalitions ??= []; e.controles ??= []; e.alliances ??= [];

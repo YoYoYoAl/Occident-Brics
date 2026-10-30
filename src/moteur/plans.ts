@@ -7,6 +7,8 @@ import { type Camp, type Canal, type Effet, CAMPS, adversaire } from "./types";
 import { date } from "./temps";
 import { DETROITS } from "../data/flux";
 import { DUELS, type IdDuel } from "../duels/catalogue";
+import { nouvelleCampagne, tourCampagne, payerDettes, type Campagne } from "./campagnes";
+import { installer, nouveauConseiller, risqueDestitution } from "./pouvoir";
 import { gagnerAE, appliquerBataille, facteurPlanAE, AE, SCORE } from "./guerre";
 import {
   type EtatPartie, type Domaine, type TypeAction, alignement, nomPays, ZONES, THEATRES, ZONES_STRATEGIQUES, RIVERAINS, electionProchaine,
@@ -52,7 +54,7 @@ export const OBJECTIFS: Record<ObjectifPlan, DefObjectif> = {
   influence: { nom: "S'étendre dans une région", conseil: "international", cible: "zone", canal: "p", duels: ["longhorn", "sept"],
     texte: "Influence politique dans tous les pays de la région.", recompense: "Influence politique +3 dans chaque pays de la région." },
   election: { nom: "Peser sur une élection", conseil: "politique", cible: "pays", canal: "p", duels: ["puissance4", "skull"], conteste: true,
-    texte: "Campagne d'influence avant un scrutin.", recompense: "Le vainqueur te doit sa victoire : influence politique +10, adverse −5." },
+    texte: "Ouvre une campagne électorale jusqu'au scrutin : 4 leviers, sondages, fraude possible ; coup d'État si le scrutin est perdu.", recompense: "Le vainqueur te doit sa victoire : influence politique +10, adverse −5." },
   renverser: { nom: "Renverser le régime", conseil: "politique", cible: "pays", canal: "p", duels: ["echecs", "othello", "coup"], secret: true, conteste: true,
     texte: "Opposition financée, officiers approchés : le pays se fragilise.", recompense: "Régime ami : influence politique au moins 55, adverse au plus 20, stabilité −12." },
   contrer: { nom: "Contrer l'adversaire", conseil: "politique", cible: "pays", canal: null, duels: ["skull", "coup", "stratego"], secret: true, conteste: true,
@@ -86,13 +88,13 @@ export const PLANS = {
 export interface Plan {
   id: string; camp: Camp; objectif: ObjectifPlan; cible: string; debut: number; duree: number; intensite: Intensite;
   progres: number; jalons: number; resultats: number[]; vuPar: Camp[]; dernierDuel?: IdDuel;
-  reconduire?: boolean; depart?: Mesure; depense?: number; // reconduite à la fin si coché ; mesure au lancement et budget dépensé, pour le bilan
+  reconduire?: boolean; depart?: Mesure; depense?: number; campagne?: Campagne; // reconduite à la fin si coché ; mesure au lancement et budget dépensé, pour le bilan
 }
 // Mesure d'une cible : influence moyenne du camp (sur le canal de l'objectif, ou totale) et penchant moyen vers le camp (−1 à +1).
 export interface Mesure { inf: number; align: number }
 export interface BilanPlan {
   id: string; camp: Camp; objectif: ObjectifPlan; cible: string; titre: string; debut: number; fin: number; duree: number; intensite: Intensite;
-  issue: "reussie" | "abandonnee"; resultats: number[]; avant: Mesure; apres: Mesure; depense: number; reconduit: boolean; rival: boolean; vu: boolean;
+  issue: "reussie" | "abandonnee" | "echouee"; resultats: number[]; avant: Mesure; apres: Mesure; depense: number; reconduit: boolean; rival: boolean; vu: boolean;
 }
 export interface Duel {
   id: string; plan: string; type: IdDuel; attaquant: Camp; defenseur: Camp; avantage: number; round: number; graine: number;
@@ -173,6 +175,7 @@ function lancerSurPlace(e: EtatPartie, camp: Camp, o: ObjectifPlan, cible: strin
   if (!auto && !seanceOuverte(e, camp)) c.ajustement = e.round;
   const p: Plan = { id: `p${e.round}_${camp}_${(e.plans ??= []).length}_${o}`, camp, objectif: o, cible, debut: e.round, duree, intensite, progres: 0, jalons: 0, resultats: [],
     vuPar: intensite === 3 ? [adversaire(camp)] : [], reconduire, depart: mesurer(e, camp, o, cible), depense: 0 };
+  if (o === "election") p.campagne = nouvelleCampagne(e, camp, cible, intensite);
   e.plans.push(p);
   outils.noter(e, { type: "action", titre: `Plan lancé : ${titrePlan(p)}`, texte: `${CONSEILS[OBJECTIFS[o].conseil].nom}, ${duree / 4} an${duree > 4 ? "s" : ""}, intensité ${NOMS_INTENSITE[intensite]}.`,
     camp, pays: paysDuPlan(p), visiblePour: intensite === 3 ? [...CAMPS] : [camp] });
@@ -251,7 +254,7 @@ export function remplacerChef(e0: EtatPartie, camp: Camp, cs: Conseil): EtatPart
   if (e0.camps[camp].cp < 2) throw new Error("Capital politique insuffisant (2).");
   const e = structuredClone(e0), avant = chefDe(e, camp, cs), choix = LISTE_TRAITS.filter(t => t !== avant);
   e.camps[camp].cp -= 2;
-  ((e.chefs ??= { OCC: {}, CHN: {} })[camp] ??= {})[cs] = choix[Math.floor(outils.tirer(e) * choix.length)];
+  installer(e, camp, cs, nouveauConseiller(e, camp, cs, choix[Math.floor(outils.tirer(e) * choix.length)])); // un nouveau conseiller, jamais vu dans la partie
   return e;
 }
 
@@ -327,13 +330,16 @@ function recompenser(e: EtatPartie, p: Plan, part = 1) {
 
 // Avance tous les plans d'un trimestre (appelé en fin de round, après les actions des deux camps).
 export function avancerPlans(e: EtatPartie) {
+  payerDettes(e);
   if (!e.plans?.length) return;
   for (const p of [...e.plans]) {
     const c = e.camps[p.camp], cout = coutPlan(e, p), def = OBJECTIFS[p.objectif];
     if (c.budget < cout) { outils.noter(e, { type: "action", titre: `Plan à l'arrêt faute de budget : ${titrePlan(p)}`, texte: `Il faut ${String(cout).replace(".", ",")} de budget par trimestre.`, camp: p.camp, visiblePour: [p.camp] }); continue; }
     c.budget = arrondi(c.budget - cout); p.depense = arrondi((p.depense ?? 0) + cout);
     effetTrimestre(e, p);
+    tourCampagne(e, p);
     p.progres = Math.min(100, p.progres + vitesse(e, p));
+    if (p.campagne && !p.campagne.resultat) p.progres = Math.min(p.progres, 95); // une campagne se conclut au scrutin
     // détection par l'adversaire : un plan massif est vu tout de suite, un plan normal au premier jalon, un plan discret par le renseignement
     const adv = adversaire(p.camp);
     if (!p.vuPar.includes(adv)) {
@@ -348,19 +354,23 @@ export function avancerPlans(e: EtatPartie) {
     if (def.secret && outils.tirer(e) < 0.03 * p.intensite * (chef === "prudent" ? 0.5 : 1) + (chef === "corrompu" ? 0.05 : 0)) {
       c.cp = outils.borne(c.cp - 4, 0, 100); if (!p.vuPar.includes(adv)) p.vuPar.push(adv);
       for (const i of paysDuPlan(p)) outils.memoriser(e, i, p.camp, -3);
+      risqueDestitution(e, p.camp);
       outils.noter(e, { type: "action", titre: `Scandale : un plan secret du ${nomBlocPlan(p.camp)} est révélé (${nomCible(p)})`, famille: "scandale_dirigeant", texte: `« ${def.nom} » étalé dans la presse : capital politique −4, rancune dans le pays.`, camp: p.camp, pays: paysDuPlan(p), visiblePour: [...CAMPS] });
     }
     while (p.jalons < 2 && p.progres >= PLANS.jalons[p.jalons]) { p.jalons++; momentFort(e, p); }
-    if (p.progres >= 100) {
-      recompenser(e, p);
-      e.plans = e.plans.filter(x => x.id !== p.id);
-      outils.noter(e, { type: "action", titre: `Plan accompli : ${titrePlan(p)}`, texte: def.recompense, camp: p.camp, pays: paysDuPlan(p), visiblePour: p.vuPar.length || p.intensite > 1 ? [...CAMPS] : [p.camp] });
-      // reconduite seulement si la case était cochée, et si la cible reste possible et le budget suffit
-      const reconduit = !!p.reconduire && plansDe(e, p.camp).length < PLANS.max && ciblesPossibles(e, p.camp, p.objectif).some(x => x.id === p.cible) && c.budget >= cout;
-      noterBilan(e, p, "reussie", reconduit);
-      if (reconduit) lancerSurPlace(e, p.camp, p.objectif, p.cible, p.duree, p.intensite, true, true);
-    }
+    if (p.progres >= 100) finirPlan(e, p, "reussie");
   }
+}
+
+// Fin d'une orientation : récompense si réussie, bilan, puis reconduite seulement si la case était cochée (cible encore possible, budget suffisant).
+export function finirPlan(e: EtatPartie, p: Plan, issue: "reussie" | "echouee") {
+  const def = OBJECTIFS[p.objectif], c = e.camps[p.camp], cout = coutPlan(e, p);
+  if (issue === "reussie") recompenser(e, p);
+  e.plans = (e.plans ?? []).filter(x => x.id !== p.id);
+  outils.noter(e, { type: "action", titre: `${issue === "reussie" ? "Plan accompli" : "Plan manqué"} : ${titrePlan(p)}`, texte: issue === "reussie" ? def.recompense : "L'objectif n'est pas atteint.", camp: p.camp, pays: paysDuPlan(p), visiblePour: p.vuPar.length || p.intensite > 1 ? [...CAMPS] : [p.camp] });
+  const reconduit = !!p.reconduire && plansDe(e, p.camp).length < PLANS.max && ciblesPossibles(e, p.camp, p.objectif).some(x => x.id === p.cible) && c.budget >= cout;
+  noterBilan(e, p, issue, reconduit);
+  if (reconduit) lancerSurPlace(e, p.camp, p.objectif, p.cible, p.duree, p.intensite, true, true);
 }
 
 // Jalon : au 1er jalon, un élan (ou un duel si la cible est disputée) ; au 2e, toujours un duel contre l'autre bloc.

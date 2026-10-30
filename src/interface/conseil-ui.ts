@@ -8,6 +8,8 @@ import {
   basculerReconduite, impactCible, gainEstime, type ObjectifPlan, type Intensite, type Conseil, type BilanPlan,
 } from "../moteur/plans";
 import { TRAITS_DIRIGEANT } from "../moteur/dirigeants";
+import { conseillerDe, choisirConseiller, type Conseiller } from "../moteur/pouvoir";
+import { portraitSvg, numeroNom } from "./portraits";
 import { DUELS } from "../duels/catalogue";
 import { alignement, budgetTrimestre, libelle, nomPays, type EtatPartie } from "../moteur/partie";
 import { date } from "../moteur/temps";
@@ -99,12 +101,14 @@ export function salleHtml(e: EtatPartie, camp: Camp, h: HoteConseil): string {
   <header class="sc-tete">
     <div class="sc-titre"><span class="sc-sur">Salle du conseil</span><strong>${esc(libelle(e.round))}</strong><span class="note">${etatSeance} Choisis un conseiller, puis une orientation et sa cible. Au plus ${PLANS.max} orientations.</span>
       ${!ouverte && !conv ? `<button id="scConvoquer" class="principal">Convoquer le conseil (1 fois par an)</button>` : ""}</div>
-    <div class="sc-dirigeant">${silhouette("#6b5420")}<div><strong>${esc(d?.nom ?? "Le dirigeant")}</strong><span>${d ? d.traits.map(trait).join(" · ") + ` · popularité ${nb(d.popularite, 0)}` : ""}</span></div></div>
-    <div class="sc-conseillers">${LISTE_CONSEILS.map(cs => { const t = chefDe(e, camp, cs), n = mes.filter(p => OBJECTIFS[p.objectif].conseil === cs).length, img = image(`conseiller_${IMG_CONSEIL[cs]}`);
-      return `<div class="sc-conseiller ${cs === sc.conseil ? "actif" : ""}"><button data-conseil="${cs}" title="${esc(CONSEILS[cs].texte)}">${img ? `<img src="${img}" alt="">` : silhouette("#3a4b5a")}
-        <strong>${esc(CONSEILS[cs].nom)}</strong><span title="${esc(TRAITS[t].texte)}">chef ${TRAITS[t].nom}${n ? ` · ${n} en cours` : ""}</span></button>
+    <div class="sc-dirigeant">${d ? portraitSvg(numeroNom(d.nom)) : silhouette("#6b5420")}<div><strong>${esc(d?.nom ?? "Le dirigeant")}</strong><span>${d ? d.traits.map(trait).join(" · ") + ` · popularité ${nb(d.popularite, 0)}` : ""}</span></div></div>
+    <div class="sc-conseillers">${LISTE_CONSEILS.map(cs => { const t = chefDe(e, camp, cs), n = mes.filter(p => OBJECTIFS[p.objectif].conseil === cs).length, k = conseillerDe(e, camp, cs);
+      return `<div class="sc-conseiller ${cs === sc.conseil ? "actif" : ""}"><button data-conseil="${cs}" title="${esc(CONSEILS[cs].texte)}">${visage(k, cs)}
+        <strong>${esc(CONSEILS[cs].nom)}</strong>${k ? `<em>${esc(k.nom)}</em>` : ""}<span title="${esc(TRAITS[t].texte)}">${TRAITS[t].nom}${n ? ` · ${n} en cours` : ""}</span></button>
         ${date(e.round).trimestre === 1 ? `<button data-chef="${cs}" class="sc-chef" title="2 CP : un nouveau chef, au trait tiré au hasard">Remplacer</button>` : ""}</div>`; }).join("")}</div>
   </header>
+  ${camp === e.joueur && e.pouvoir?.recrutement?.length ? `<div class="sc-recrutement"><strong>Sièges à pourvoir après le changement de dirigeant</strong><span class="note">Le premier candidat est installé d'office ; tu peux en choisir un autre.</span>
+    ${e.pouvoir.recrutement.map(r => `<div class="sc-siege"><span>${esc(CONSEILS[r.conseil].nom)}</span>${r.candidats.map((x, k) => `<button data-recruter="${r.conseil}:${k}" class="${conseillerDe(e, camp, r.conseil)?.nom === x.nom ? "actif" : ""}">${portraitSvg(x.portrait, r.conseil === "militaire")}<strong>${esc(x.nom)}</strong><small>${TRAITS[x.trait].nom}</small></button>`).join("")}</div>`).join("")}</div>` : ""}
   <div class="sc-corps">
     <section class="sc-gauche">
       <div class="sc-legende"><strong>${esc(def.nom)}</strong><span>Impact estimé :</span>${ECHELLE.map(x => `<i style="background:${x}"></i>`).join("")}<span>fort</span><i style="background:${IMPOSSIBLE}"></i><span>impossible</span></div>
@@ -141,6 +145,11 @@ export function salleHtml(e: EtatPartie, camp: Camp, h: HoteConseil): string {
 </div>`;
 }
 
+// Portrait d'un conseiller : illustré pour les 6 premiers du joueur, généré ensuite (jamais deux fois le même).
+function visage(k: Conseiller | null, cs: Conseil): string {
+  const img = k && k.portrait <= 12 ? image(`conseiller_${IMG_CONSEIL[cs]}`) : undefined;
+  return img ? `<img src="${img}" alt="">` : k ? portraitSvg(k.portrait, cs === "militaire") : silhouette("#3a4b5a");
+}
 export function ouvrirConseil(h: HoteConseil) {
   const e = h.etat(), camp = h.camp();
   h.ouvrir(salleHtml(e, camp, h), b => lierSalle(b, h), "large");
@@ -173,6 +182,7 @@ function lierSalle(b: HTMLElement, h: HoteConseil) {
   b.querySelectorAll<HTMLButtonElement>("[data-reconduire]").forEach(x => x.onclick = () => agir(() => basculerReconduite(e(), camp(), x.dataset.reconduire!), "clic"));
   b.querySelectorAll<HTMLButtonElement>("[data-abandon]").forEach(x => x.onclick = () => agir(() => abandonnerPlan(e(), camp(), x.dataset.abandon!)));
   b.querySelectorAll<HTMLButtonElement>("[data-chef]").forEach(x => x.onclick = () => agir(() => remplacerChef(e(), camp(), x.dataset.chef as Conseil)));
+  b.querySelectorAll<HTMLButtonElement>("[data-recruter]").forEach(x => x.onclick = () => { const [cs, k] = x.dataset.recruter!.split(":"); agir(() => choisirConseiller(e(), camp(), cs as Conseil, +k), "clic"); });
   b.querySelector<HTMLButtonElement>("#scClore")!.onclick = () => { h.fermer(); h.apres?.(); };
   // carte : survol (sans redessiner) et clic
   const carte = b.querySelector<SVGElement>(".sc-carte"), survol = b.querySelector<HTMLElement>("#scSurvol");
@@ -192,10 +202,11 @@ export function bilanHtml(b: BilanPlan): string {
   const def = OBJECTIFS[b.objectif], n = b.fin - b.debut, reussie = b.issue === "reussie";
   const duels = b.resultats.map((r, k) => `<span><span class="sc-jalon">${b.resultats.length > 1 ? `Duel ${k + 1}` : "Duel"} ·</span> ${r >= PLANS.victoire ? "gagné" : r < PLANS.defaite ? "perdu" : "nul"} (${Math.round(100 * r)} %) : ${r >= PLANS.victoire ? `l'orientation a pris ${PLANS.elan} points d'avance.` : r < PLANS.defaite ? `elle a reculé de ${PLANS.recul} points.` : "pas d'élan."}</span>`).join("");
   const dInf = b.apres.inf - b.avant.inf, dAl = b.apres.align - b.avant.align;
+  const badge = reussie ? "RÉUSSIE" : b.issue === "echouee" ? "MANQUÉE" : "ABANDONNÉE";
   return `<article class="bp ${reussie ? "reussie" : "abandonnee"}">
-    <header class="bp-tete"><div><span class="sc-sur">Orientation ${reussie ? "terminée" : "abandonnée"} · ${esc(CONSEILS[def.conseil].nom)}</span><h2>${esc(b.titre)}</h2>
-      <span class="note">${esc(libelle(b.debut))} → ${esc(libelle(b.fin))} · ${n} trimestre${n > 1 ? "s" : ""} · intensité ${NOMS_INTENSITE[b.intensite]}</span></div><span class="bp-badge">${reussie ? "RÉUSSIE" : "ABANDONNÉE"}</span></header>
-    <p>${reussie ? `Objectif atteint. <strong>${esc(def.recompense)}</strong>` : "L'orientation a été arrêtée avant son terme."}</p>
+    <header class="bp-tete"><div><span class="sc-sur">Orientation ${reussie || b.issue === "echouee" ? "terminée" : "abandonnée"} · ${esc(CONSEILS[def.conseil].nom)}</span><h2>${esc(b.titre)}</h2>
+      <span class="note">${esc(libelle(b.debut))} → ${esc(libelle(b.fin))} · ${n} trimestre${n > 1 ? "s" : ""} · intensité ${NOMS_INTENSITE[b.intensite]}</span></div><span class="bp-badge">${badge}</span></header>
+    <p>${reussie ? `Objectif atteint. <strong>${esc(def.recompense)}</strong>` : b.issue === "echouee" ? "L'objectif n'est pas atteint : pas de récompense." : "L'orientation a été arrêtée avant son terme."}</p>
     <div class="bp-chiffres">
       <div><span>Ton influence${def.canal ? ` ${NOM_CANAL[def.canal]}` : ""}</span><strong>${nb(b.avant.inf, 0)} → ${nb(b.apres.inf, 0)}</strong><small class="${dInf >= 0 ? "hausse" : "baisse"}">${dInf >= 0 ? "▲" : "▼"} ${sg(dInf, 0)}</small></div>
       <div><span>Penchant de la cible</span><strong>${sg(b.avant.align, 2)} → ${sg(b.apres.align, 2)}</strong><small class="${dAl >= 0 ? "hausse" : "baisse"}">${dAl >= 0 ? "▲ vers toi" : "▼ vers l'adversaire"}</small></div>

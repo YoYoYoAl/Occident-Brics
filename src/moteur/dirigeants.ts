@@ -4,6 +4,7 @@ import { CAMPS, type Camp } from "./types";
 import type { EtatPartie } from "./partie";
 import { outils } from "./partie";
 import { date } from "./temps";
+import { nomUnique, renouvelerConseillers } from "./pouvoir";
 
 export type Aptitude = "diplomatie" | "strategie" | "intendance" | "intrigue";
 export const APTITUDES: Record<Aptitude, { nom: string; aide: string }> = {
@@ -65,7 +66,7 @@ function nouveau(e: EtatPartie, camp: Camp): Dirigeant {
   const t2 = choisir(LISTE_TRAITS_DIRIGEANT.filter(t => t !== t1 && t !== TRAITS_DIRIGEANT[t1].contraire && TRAITS_DIRIGEANT[t].contraire !== t1));
   const normale = () => Math.sqrt(-2 * Math.log(1 - tirer(e))) * Math.cos(2 * Math.PI * tirer(e));
   const apt = Object.fromEntries(LISTE_APTITUDES.map(a => [a, Math.max(TIRAGE.min, Math.min(TIRAGE.max, Math.round(TIRAGE.moyenne + TIRAGE.ecart * normale())))])) as Record<Aptitude, number>;
-  const nom = camp === "OCC" ? `${choisir(PRENOMS.OCC)} ${choisir(NOMS.OCC)}` : `${choisir(NOMS.CHN)} ${choisir(PRENOMS.CHN)}`;
+  const nom = nomUnique(e, camp, true); // jamais deux fois le même nom dans une partie
   return { nom, naissance: annee - (48 + Math.floor(tirer(e) * 20)), sante: 70 + Math.floor(tirer(e) * 31), popularite: 45 + Math.floor(tirer(e) * 16), aptitudes: apt, traits: [t1, t2], depuis: e.round };
 }
 export const noteDirigeant = (d: Dirigeant) => LISTE_APTITUDES.reduce((s, a) => s + d.aptitudes[a], 0) + d.traits.reduce((s, t) => s + TRAITS_DIRIGEANT[t].valeur, 0);
@@ -99,13 +100,14 @@ export function maintienAvecPopularite(e: EtatPartie, camp: Camp, p: number): nu
 }
 
 // Succession : le mieux noté des 3 candidats est installé ; le joueur peut en choisir un autre jusqu'à la fin du trimestre.
-export function succession(e: EtatPartie, camp: Camp, raison: string) {
+export function succession(e: EtatPartie, camp: Camp, raison: string, alternance = false) {
   const c = Array.from({ length: DIRIGEANT.candidats }, () => nouveau(e, camp)).sort((a, b) => noteDirigeant(b) - noteDirigeant(a));
   const ancien = e.dirigeants?.[camp]?.nom;
   (e.dirigeants ??= { OCC: c[0], CHN: c[0] })[camp] = c[0];
   if (camp === e.joueur) e.succession = { camp, candidats: c, round: e.round }; else if (e.succession?.camp === camp) e.succession = null;
   outils.noter(e, { type: "politique", titre: `${camp === "OCC" ? "Washington" : "Pékin"} : ${c[0].nom} succède à ${ancien ?? "son prédécesseur"}`, camp, visiblePour: [...CAMPS],
     texte: `${raison}. Nouveau dirigeant : ${c[0].traits.map(t => TRAITS_DIRIGEANT[t].nom.toLowerCase()).join(" et ")}.` });
+  renouvelerConseillers(e, camp, alternance);
 }
 export function choisirSuccesseur(e0: EtatPartie, camp: Camp, k: number): EtatPartie {
   const s = e0.succession; if (!s || s.camp !== camp || !s.candidats[k]) throw new Error("Aucune succession à arbitrer.");
@@ -134,6 +136,7 @@ export function suiviDirigeants(e: EtatPartie) {
 // Après un scrutin : alternance = nouveau dirigeant ; continuité = même dirigeant sauf fin de mandats (8 ans aux États-Unis, 10 en Chine).
 export function apresScrutin(e: EtatPartie, camp: Camp, alternance: boolean) {
   const d = e.dirigeants?.[camp]; if (!d) return;
-  if (alternance) { succession(e, camp, "Alternance au pouvoir"); return; }
+  if (alternance) { succession(e, camp, "Alternance au pouvoir", true); return; }
+  if (camp === "CHN" && e.pouvoir?.limiteAbolie && e.joueur === "CHN") return; // limite des mandats abolie
   if (e.round - d.depuis >= 4 * (camp === "OCC" ? DIRIGEANT.mandatOCC : DIRIGEANT.mandatCHN)) succession(e, camp, "Fin des mandats, le camp au pouvoir désigne un successeur");
 }

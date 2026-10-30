@@ -451,3 +451,103 @@ body.plein-ecran main { position: relative; }
 .t-decision.faite { opacity: .82; } .t-decision.faite .t-num { background: #2fae6a; }
 .t-etat { margin-left: auto; font-size: .8em; color: var(--doux); }
 .ov-orient .p-barre, .t-plan .p-barre { display: block; }
+/* Campagne électorale */
+.cp-tete { padding: 16px 18px; border-radius: 12px; background: #2a1414 center / cover; border: 1px solid #8a3b30; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.cp-tete h2 { margin: 2px 0; font-size: 1.6em; } .cp-tete > span { color: #e2cfcb; font-size: .9em; }
+.cp-etapes { display: flex; gap: 6px; margin-top: 6px; } .cp-etapes span { font-size: .78em; padding: 3px 10px; border-radius: 999px; background: rgba(0,0,0,.35); border: 1px solid #5a2a24; }
+.cp-etapes .fait { color: #a8e6bd; } .cp-etapes .actif { border-color: #f0806e; color: #ffd0c8; }
+.cp-corps { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 14px; }
+.cp-corps > section { background: #1a2430; border: 1px solid var(--bord); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.cp-titre { display: flex; justify-content: space-between; }
+.cp-levier > div { display: flex; justify-content: space-between; } .cp-levier input { width: 100%; accent-color: #d9a441; } .cp-levier small { color: var(--doux); font-size: .78em; }
+.cp-sondage > div:first-child { display: flex; justify-content: space-between; font-size: .85em; margin-bottom: 3px; }
+.cp-barre { position: relative; height: 14px; border-radius: 7px; background: #a8443a; overflow: hidden; }
+.cp-barre span { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #2f6fb8, #6fa8f0); transition: width .25s; } .cp-barre i { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: #fff; }
+.cp-tuiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; } .cp-tuiles > div { background: #22303b; border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; }
+.cp-tuiles span { font-size: .74em; color: var(--doux); } .cp-tuiles strong { font-size: 1.25em; color: #f0c46a; } .cp-tuiles small { font-size: .72em; color: var(--doux); }
+.cp-soir { display: flex; flex-direction: column; gap: 4px; font-size: .85em; }
+.cp-ombre { background: linear-gradient(180deg, #2a1414, #1a1010) !important; border-color: #5a2a24 !important; font-size: .88em; }
+.cp-fraude { font-weight: 600; color: #f0806e; } .cp-coup { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #5a2a24; padding-top: 8px; }
+.cp-coup ul { margin: 0; padding-left: 4px; list-style: none; } button.danger { background: #6b2018; border-color: #c0503f; }
+.cp-carte { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 8px; border-radius: 10px; background: rgba(40,18,18,.55); border: 1px solid #8a3b30; margin-bottom: 8px; }
+.cp-carte img { width: 96px; height: 72px; object-fit: cover; border-radius: 6px; } .cp-carte > div { display: flex; flex-direction: column; gap: 4px; } .cp-carte small { color: var(--doux); }
+@media (max-width: 1000px) { .cp-corps { grid-template-columns: 1fr; } }
+/* Opérations militaires */
+.op { display: flex; flex-direction: column; gap: 12px; }
+.op-tete { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; padding: 16px 18px; border-radius: 12px; background: #10161c center / cover; border: 1px solid #5a6b78; }
+.op-tete h2 { margin: 2px 0; font-size: 1.7em; } .op-tete span { color: #c5d0d8; font-size: .9em; }
+.op-compteurs { display: flex; gap: 14px; } .op-compteurs strong { color: #f0c46a; }
+.op-etape { display: block; color: var(--accent); margin-bottom: 6px; }
+.op-echelle { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border-radius: 10px; overflow: hidden; }
+.op-cran { display: flex; flex-direction: column; gap: 4px; text-align: left; border-radius: 0; border: 0; border-right: 1px solid #0b1118; padding: 10px; min-height: 130px; }
+.op-cran:nth-child(1) { background: #24414f; } .op-cran:nth-child(2) { background: #3d4a3a; } .op-cran:nth-child(3) { background: #554525; } .op-cran:nth-child(4) { background: #63321f; } .op-cran:nth-child(5) { background: #4a1414; }
+.op-cran span { font-size: .8em; color: #dfe6ea; } .op-cran small { font-size: .75em; color: #c2ccd3; } .op-cran.bloque { filter: saturate(.4) brightness(.8); }
+.op-cran.actif { outline: 3px solid #ffd166; outline-offset: -3px; filter: none; }
+.op-corps { display: grid; grid-template-columns: 1fr 1.2fr 1.1fr; gap: 12px; }
+.op-corps > section, .op-suivi { background: #1a2430; border: 1px solid var(--bord); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; font-size: .9em; }
+.op-grise { opacity: .6; }
+.op-cb { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.op-cb li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; } .op-cb li small { display: block; color: var(--doux); font-size: .82em; }
+.op-cb li.ok > span { color: #7fd49a; } .op-cb li.non > span { color: #f08a7a; } .op-cb li.possible > span { color: #f0c46a; } .op-cb li.non strong { color: var(--doux); font-weight: 500; }
+.op-regions { width: 100%; border-collapse: collapse; font-size: .9em; } .op-regions th { text-align: left; color: var(--doux); font-weight: 500; } .op-regions td, .op-regions th { padding: 3px 4px; border-bottom: 1px solid #26323d; }
+.op-bouton { width: 100%; background: #3a1d17; border-color: #8a3b30; }
+@media (max-width: 1000px) { .op-echelle, .op-corps { grid-template-columns: 1fr; } }
+.portrait-gen { width: 100%; aspect-ratio: 9 / 10; border-radius: 8px; display: block; }
+.sc-dirigeant .portrait-gen { width: 76px; height: 84px; border-radius: 50%; border: 2px solid #d9a441; padding: 0; }
+.sc-conseiller em { font-style: normal; font-size: .74em; color: #fff3d6; text-align: center; }
+.sc-recrutement { padding: 10px 12px; border-radius: 12px; background: rgba(56,44,22,.6); border: 1px dashed #d9a441; display: flex; flex-direction: column; gap: 8px; }
+.sc-siege { display: grid; grid-template-columns: 170px repeat(3, minmax(0, 150px)); gap: 8px; align-items: center; }
+.sc-siege button { display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: 8px; text-align: left; align-items: center; padding: 4px 6px; }
+.sc-siege button svg { grid-row: 1 / 3; width: 44px; } .sc-siege button small { color: var(--doux); } .sc-siege button.actif { border-color: #f0c46a; background: #5a4818; }
+/* v31 : écran du pouvoir (maquette 7) */
+.pv-tete { padding: 16px 18px; border-radius: 12px; background: linear-gradient(135deg, #1d1a10, #2c2412); border: 1px solid #8a7a3a; display: flex; flex-direction: row; align-items: center; gap: 14px; margin-bottom: 12px; }
+.pv-tete h2 { margin: 2px 0; font-size: 1.6em; } .pv-tete span { color: #ddd3b4; font-size: .9em; }
+.pv-corps { display: grid; gap: 12px; }
+.pv-bloc { background: #151b22; border: 1px solid #2c3742; border-radius: 10px; padding: 12px 14px; }
+.pv-bloc h3 { margin: 0 0 8px; color: #f0c46a; }
+.pv-trois { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pv-trois > div { background: #10161c; border-radius: 8px; padding: 8px 10px; }
+.pv-themes { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pv-themes button.actif, .pv-bloc button.actif { outline: 2px solid #f0c46a; }
+.pv-congres { display: flex; gap: 8px; align-items: center; }
+.pv-comite { display: flex; gap: 6px; margin: 6px 0; }
+.pv-siege { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #0b1118; display: inline-block; }
+.pv-siege.loyaux { background: #c9a43a; } .pv-siege.securitaires { background: #8c2f2f; } .pv-siege.reformateurs { background: #2f6a8c; }
+.pv-leviers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+.pv-leviers button { display: flex; flex-direction: column; gap: 3px; text-align: left; } .pv-leviers small { color: #aab4bd; }
+.pv-alerte { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #241e0e; border: 1px solid #8a7a3a; }
+.pv-alerte span { color: #ddd3b4; }
+@media (max-width: 700px) { .pv-trois, .pv-leviers { grid-template-columns: 1fr; } }
+/* v32 : décors des mini-jeux (maquette 8) : plateau, cases et bandeau selon la situation */
+:where(.duel[class*="decor-"]) .d-plateau { background: var(--dc-fond); box-shadow: inset 0 0 0 1px var(--dc-ligne), 0 6px 18px rgba(0,0,0,.5); }
+:where(.duel[class*="decor-"]) .d-banniere small, .duel[class*="decor-"] .d-chrono { color: var(--dc-accent); }
+:where(.duel[class*="decor-"]) .d-banniere { border-bottom: 3px solid var(--dc-accent); }
+:where(.duel[class*="decor-"]) .d-case { border-color: var(--dc-ligne); background: var(--dc-case); }
+:where(.duel[class*="decor-"]) .d-case.jouable { border-color: var(--dc-accent); }
+:where(.duel[class*="decor-"]) .d-case.jouable:hover { box-shadow: 0 4px 12px var(--dc-halo); }
+:where(.duel[class*="decor-"]) .d-statut { background: var(--dc-bande); border-left: 3px solid var(--dc-accent); }
+/* Soir d'élection : studio de télévision, projecteurs et bandeau des résultats */
+.decor-studio { --dc-accent: #ffd166; --dc-ligne: #3b4f8a; --dc-halo: rgba(255,209,102,.4); --dc-bande: #16204a; --dc-case: linear-gradient(180deg,#1d2a5c,#141d40);
+  --dc-fond: radial-gradient(ellipse 60% 40% at 20% 0%, rgba(255,230,160,.18), transparent 70%), radial-gradient(ellipse 60% 40% at 80% 0%, rgba(160,200,255,.18), transparent 70%), linear-gradient(180deg,#121a3d,#0a0f24); }
+/* Nuit du putsch : carte d'état-major, quadrillage et lampe de bureau */
+.decor-etatmajor { --dc-accent: #e0b25c; --dc-ligne: #5a5236; --dc-halo: rgba(224,178,92,.35); --dc-bande: #1f1d14; --dc-case: linear-gradient(180deg,#2c2a1e,#1e1c14);
+  --dc-fond: radial-gradient(circle at 50% 35%, rgba(255,214,140,.14), transparent 60%), repeating-linear-gradient(0deg, rgba(224,178,92,.07) 0 1px, transparent 1px 28px), repeating-linear-gradient(90deg, rgba(224,178,92,.07) 0 1px, transparent 1px 28px), #17160f; }
+/* Chasse sous-marine : écran sonar vert, cercles concentriques */
+.decor-sonar { --dc-accent: #5dff9e; --dc-ligne: #1f5a3c; --dc-halo: rgba(93,255,158,.35); --dc-bande: #0b1f15; --dc-case: linear-gradient(180deg,#0f2c1e,#0a1e14);
+  --dc-fond: repeating-radial-gradient(circle at 50% 50%, rgba(93,255,158,.1) 0 1px, transparent 1px 42px), radial-gradient(circle at 50% 50%, #0f2e1f, #04110a 75%); }
+.decor-sonar .d-plateau { position: relative; overflow: hidden; }
+.decor-sonar .d-plateau::after { content: ""; position: absolute; inset: -50%; background: conic-gradient(from 0deg, rgba(93,255,158,.18), transparent 22%); animation: dc-balayage 6s linear infinite; pointer-events: none; }
+@keyframes dc-balayage { to { transform: rotate(360deg); } }
+/* Marché des contrats : salle des marchés, cours qui défilent */
+.decor-marche { --dc-accent: #4fd1c5; --dc-ligne: #24525a; --dc-halo: rgba(79,209,197,.35); --dc-bande: #0d2226; --dc-case: linear-gradient(180deg,#143238,#0d2327);
+  --dc-fond: linear-gradient(180deg, transparent 85%, rgba(79,209,197,.12) 85% 86%, transparent 86%), repeating-linear-gradient(90deg, rgba(79,209,197,.06) 0 2px, transparent 2px 36px), linear-gradient(180deg,#0f2529,#081417); }
+/* Bord du gouffre : cellule de crise, alerte rouge */
+.decor-gouffre { --dc-accent: #ff5a4f; --dc-ligne: #6a2420; --dc-halo: rgba(255,90,79,.4); --dc-bande: #2a0f0d; --dc-case: linear-gradient(180deg,#331513,#220d0c);
+  --dc-fond: radial-gradient(ellipse at 50% 0%, rgba(255,60,50,.22), transparent 65%), repeating-linear-gradient(135deg, rgba(255,90,79,.05) 0 10px, transparent 10px 20px), #160807; }
+.decor-gouffre .d-banniere { animation: dc-alerte 2.4s ease-in-out infinite; }
+@keyframes dc-alerte { 50% { box-shadow: inset 0 0 0 2px rgba(255,90,79,.6); } }
+/* Place de la révolution : vue aérienne d'une ville, rues et foule */
+.decor-place { --dc-accent: #ff9f43; --dc-ligne: #5a4630; --dc-halo: rgba(255,159,67,.4); --dc-bande: #241a10; --dc-case: linear-gradient(180deg,#2e2418,#1f1810);
+  --dc-fond: radial-gradient(circle at 50% 50%, rgba(255,159,67,.16) 0 18%, transparent 19%), repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 6px, transparent 6px 48px), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 6px, transparent 6px 48px), #1a140d; }
+@media (prefers-reduced-motion: reduce) { .decor-sonar .d-plateau::after, .decor-gouffre .d-banniere { animation: none; } }
+.pv-tete .portrait-gen { width: 76px; height: 84px; flex: none; border-radius: 50%; border: 2px solid #d9a441; } .pv-tete > div { display: flex; flex-direction: column; gap: 4px; }

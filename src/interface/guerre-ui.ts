@@ -51,7 +51,7 @@ export function blocControles(e: EtatPartie, camp: Camp): string {
   return `<p><strong>Régions que tu contrôles</strong> <span class="note">(une région occupée depuis 2 ans peut être annexée ; une région annexée compte pour ton bloc dans le score et ne se révolte pas ; recettes : ${REGION.budgetRessource} de budget par ressource et ${REGION.budgetStrat} par étoile chaque trimestre ; le pays s'agite ; révolte possible s'il penche vers l'adversaire)</span></p>
     <ul class="g-cb">${l.map(c => `<li><strong>${esc(regionDe(c.iso, c.region)?.nom ?? c.region)}</strong> (${esc(nomPays(c.iso))}, ${c.annexion ? "annexée" : "occupée"}) ${c.annexion ? "" : (() => { const err = peutAnnexerRegion(e, camp, c.iso, c.region); return `<button data-annexer="${c.iso}:${c.region}" ${err ? `disabled title="${esc(err)}"` : ""}>Annexer (${ANNEXION.cp} capital politique)</button>`; })()}<button data-rendre="${c.iso}:${c.region}">Rendre la région</button></li>`).join("")}</ul>`;
 }
-function ficheIntervention(e: EtatPartie, camp: Camp, it: Intervention): string {
+export function ficheIntervention(e: EtatPartie, camp: Camp, it: Intervention): string {
   const score = Math.round(it.score ?? 0), dispo = termesPossibles(e, it), reste = it.fin - e.round;
   return `<article class="plan g-guerre" data-iso="${it.iso}"><header><strong>Intervention ${esc(nomPays(it.iso))}</strong><small>${it.cb ? `casus belli : ${CASUS_BELLI[it.cb].nom.toLowerCase()}` : "agression sans casus belli"} · ${reste > 0 ? `${reste} trimestre${reste > 1 ? "s" : ""} avant l'échéance` : "échéance"}</small></header>
     <div class="g-score"><span>−100</span><span class="g-axe"><i style="left:${50 + score / 2}%"></i></span><span>+100</span><b>${score > 0 ? "+" : ""}${score}</b></div>
