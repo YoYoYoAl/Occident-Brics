@@ -3,7 +3,7 @@
 import {
   CONSEILS, LISTE_CONSEILS, TRAITS, OBJECTIFS, LISTE_OBJECTIFS, DUREES, NOMS_INTENSITE, PLANS, ciblesPossibles, plansDe, plansVisibles,
   coutPlan, chefDe, planRival, peutLancerPlan, lancerPlan, abandonnerPlan, remplacerChef, vitesse, conflitConseils, peutRiposterPlan,
-  riposterPlan, conclureDuel, iaPlans, titrePlan, nomBlocPlan, RESERVE, type ObjectifPlan, type Intensite, type Conseil, type Duel,
+  riposterPlan, conclureDuel, enjeuxDuel, iaPlans, titrePlan, nomBlocPlan, RESERVE, type ObjectifPlan, type Intensite, type Conseil, type Duel,
 } from "../moteur/plans";
 import { DUELS } from "../duels/catalogue";
 import type { EtatPartie } from "../moteur/partie";
@@ -102,7 +102,7 @@ export function panneauDuels(e: EtatPartie, camp: Camp): string {
   return `<p class="note">Joue le duel toi-même (2 à 4 minutes) ou laisse tes conseillers le régler (résultat selon la préparation, avec une part de hasard). Un duel non joué est réglé par tes conseillers à la fin du trimestre.</p>` +
     l.map(d => { const info = DUELS[d.type], av = avantageJoueur(d, camp), p = e.plans?.find(x => x.id === d.plan);
       return `<article class="plan duel-attente"><header><strong>${esc(info.nom)}</strong><small>${esc(info.situation)} · ${d.attaquant === camp ? "tu attaques" : "tu défends"}${d.motif === "riposte" ? " · riposte" : d.motif === "bataille" ? " · bataille décisive" : ""}</small></header>
-        <p>${esc(info.situation)}</p><small>${p ? esc(titrePlan(p)) : esc(d.titre)} · préparation ${av > 0.15 ? "favorable" : av < -0.15 ? "défavorable" : "équilibrée"} (${av >= 0 ? "+" : ""}${nb(av)})</small>
+        <p class="d-enjeux-court"><span class="victoire">Si tu gagnes : ${esc(enjeuxDuel(e, d, camp).victoire)}</span><span class="defaite">Si tu perds : ${esc(enjeuxDuel(e, d, camp).defaite)}</span></p><small>${p ? esc(titrePlan(p)) : esc(d.titre)} · préparation ${av > 0.15 ? "favorable" : av < -0.15 ? "défavorable" : "équilibrée"} (${av >= 0 ? "+" : ""}${nb(av)})</small>
         <div class="d-boutons"><button data-jouer-duel="${d.id}" class="principal">Jouer le duel</button><button data-deleguer="${d.id}">Laisser faire mes conseillers</button></div></article>`; }).join("");
 }
 export function lierPlans(zone: HTMLElement, h: HotePlans) {

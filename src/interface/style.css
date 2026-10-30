@@ -345,3 +345,7 @@ body.plein-ecran main { position: relative; }
 @keyframes d-entree{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (max-width:520px){.d-case{min-height:34px;min-width:32px;font-size:.78em}.d-banniere{min-height:90px}}
 @media (prefers-reduced-motion:reduce){.d-case,.d-pointeur,.d-legende,.d-journal li{animation:none!important;transition:none!important}}
+.d-enjeux{border:1px solid var(--bord);border-radius:8px;padding:6px 10px;background:#161f28;font-size:.86em}.d-enjeux h4{margin:0 0 4px;color:var(--accent)}.d-enjeux p{margin:.2em 0;padding-left:8px;border-left:3px solid var(--bord)}
+.d-enjeux .victoire{border-color:#5fd08a}.d-enjeux .defaite{border-color:var(--chn)}.d-enjeux .nul{border-color:var(--doux)}.d-enjeux.obtenu{animation:d-pop .5s;font-size:.95em}
+.d-bilan{padding-left:1.2em;line-height:1.5}.d-bilan li{animation:d-entree .4s ease both}.d-bilan li:nth-child(2){animation-delay:.1s}.d-bilan li:nth-child(3){animation-delay:.2s}.d-bilan li:nth-child(n+4){animation-delay:.3s}
+.d-enjeux-court{display:grid;gap:3px;font-size:.84em;margin:4px 0}.d-enjeux-court span{padding-left:6px;border-left:3px solid}.d-enjeux-court .victoire{border-color:#5fd08a}.d-enjeux-court .defaite{border-color:var(--chn)}

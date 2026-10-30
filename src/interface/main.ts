@@ -13,7 +13,7 @@ import { panneauDirigeant, panneauGuerre, lierGuerre, tableauRegions, blocAllian
 import { regionsCles } from "../moteur/guerre";
 import { jouerDuel } from "./duel-ui";
 import { salleDuels } from "./salle-duels";
-import { conclureDuel, paysDuPlan as paysDuPlanUi } from "../moteur/plans";
+import { conclureDuel, enjeuxDuel, bilanDuel, paysDuPlan as paysDuPlanUi } from "../moteur/plans";
 import {
   creerPartie, finRound, jouerCarte, peutJouerMode, agir, peutAgir, ACTIONS, AIDES_ACTIONS, apercuAction, ZONES, CAMPAGNE, peutCampagne, campagne, paysEligibles, previsionAdverse, ZONES_STRATEGIQUES, ACTIONS_ZONE, DIPLOMATIE, peutDiplomatie, complementarite, BOOST_COMMERCE, type Complementarite, DOMAINES, LISTE_DOMAINES, DOMAINE_ACTION, modeDe, reglerMode, conseils, ECHELLES, ORIENTATIONS, orienter, reglerPartOrientations, PART_ORIENTATIONS, RIVERAINS, type Domaine, type ModeDomaine, type Orientation, ELECTIONS_PAYS, LOBBY_ONU, peutLobbyOnu, lobbyOnu, TECHNOLOGIES, SEUIL_TECHNO, COUT_RECHERCHE, peutRechercher, rechercher, BLOCUS, peutBloquer, bloquer, peutArmer, courseArmements, THEATRES, GUERRE, peutDeclarerGuerre, declarerGuerre, proposerPaix, PRIORITES, peutChoisirPriorite, choisirPriorite, serieDurable, DURABLE, BONUS_PRIORITE, auBord, estimationMemoire, peutRenseigner, renseigner, RENSEIGNEMENT, progresAgenda, RECOMPENSE_AGENDA, coutSanctions, dependanceCommerciale, type Priorite, diplomatie, repondreDiplomatie, type Diplomatie, peutAgirZone, agirZone, partZone, type ActionZone, acheterPA, peutAcheterPA, PRIX_PA,
   repondreBriefing, FORMATS, formatDe, peutProlonger, prolonger, type Format, SEUILS, partFamille, NOMS_FAMILLES, progression, alignement, influenceTotale, cran, bilan, puissance, carte as carteDe, briefing as briefingDe,
@@ -719,7 +719,12 @@ function lancerDuel(id: string) {
   son("ouvrir", 0.4);
   jouerDuel(d, { boite: $("boite"), ouvrir: () => { $("fenetre").hidden = false; }, fermer, son: n => son(n), noms: pays.map(court),
     titre: d.titre, sousTitre: d.attaquant === joueur() ? "Tu attaques" : "Tu défends", avantage: avantageJoueur(d, joueur()),
-    fin: r => tenter(() => conclureDuel(etat!, id, r), r >= 0.6 ? "victoire" : r < 0.4 ? "defaite" : "etape") });
+    enjeux: enjeuxDuel(etat!, d, joueur()),
+    fin: r => { const avant = etat!; tenter(() => conclureDuel(etat!, id, r), r >= 0.6 ? "victoire" : r < 0.4 ? "defaite" : "etape");
+      // bilan chiffré : ce que le duel a réellement changé dans la partie
+      if (etat !== avant) ouvrir(`<h2>Conséquences du duel</h2><p class="d-fin ${r >= 0.6 ? "gagne" : r < 0.4 ? "perdu" : ""}">${r >= 0.6 ? "Victoire" : r < 0.4 ? "Défaite" : "Match nul"} · ${Math.round(100 * r)} %</p>
+        <ul class="d-bilan">${bilanDuel(avant, etat!, d, joueur()).map(t => `<li>${t.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!))}</li>`).join("")}</ul>
+        <div class="actions-fenetre"><button id="okBilan" class="principal">Continuer</button></div>`, b => { b.querySelector<HTMLButtonElement>("#okBilan")!.onclick = fermer; }); } });
 }
 function finTrimestre() {
   if (!etat || etat.termine || fenetreOuverte()) return;

@@ -5,7 +5,7 @@ import { REGLES } from "../duels/index";
 import { DUELS } from "../duels/catalogue";
 import { REGLES_TEXTE } from "../duels/regles-texte";
 import type { Vue, Case, EtatBase } from "../duels/moteur";
-import type { Duel } from "../moteur/plans";
+import type { Duel, Enjeux } from "../moteur/plans";
 import { image } from "./images";
 import { IMAGE_DUEL, coupDemo, changements } from "./duel-anim";
 
@@ -18,6 +18,14 @@ export interface HoteDuel {
   noms?: string[];                          // noms des pays en jeu (affichage)
   titre: string; sousTitre: string; avantage: number;
   fin: (resultat: number) => void;          // résultat du joueur, 0 à 1
+  enjeux?: Enjeux;                          // effets sur la partie selon l'issue (absent à l'entraînement)
+}
+// Enjeux du duel : trois issues, celle obtenue mise en avant à la fin (pct = résultat en %).
+function enjeuxHtml(e: Enjeux | undefined, pct?: number): string {
+  if (!e) return `<p class="d-enjeux-vide note">Entraînement : ce duel n'a aucun effet sur ta partie.</p>`;
+  const issue = pct === undefined ? null : pct >= 60 ? "victoire" : pct < 40 ? "defaite" : "nul";
+  const l = ([["victoire", "Si tu gagnes"], ["nul", "Match nul"], ["defaite", "Si tu perds"]] as const).filter(([k]) => !issue || k === issue);
+  return `<div class="d-enjeux${issue ? " obtenu" : ""}"><h4>${issue ? "Effet sur la partie" : "Enjeu pour la partie"}</h4>${l.map(([k, t]) => `<p class="${k}"><strong>${issue ? "" : `${t} : `}</strong>${esc(e[k])}</p>`).join("")}</div>`;
 }
 const CONSEILS = 2;      // conseils par duel
 const PAS_DEMO = 1900;   // ms par coup de démonstration (1 000 ms pour une simple sélection)
@@ -82,7 +90,7 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
     const v: Vue = def.vue(s), anim = changements(avant, v); avant = null;
     const pct = Math.round(100 * def.resultat(s));
     let h = `<div class="duel">${banniereDuel(d.type, hote.titre)}${scoresHtml(v)}
-      <p class="d-regle">${esc(info.principe)}</p>
+      <p class="d-regle">${esc(info.principe)}</p>${s.fini ? enjeuxHtml(hote.enjeux, pct) : `<details class="d-regles"><summary>Enjeu pour la partie</summary>${enjeuxHtml(hote.enjeux)}</details>`}
       <details class="d-regles"><summary>Règles complètes</summary>${ficheRegles(d.type)}</details>` + plateauHtml(v, s.journal, anim);
     h += s.fini
       ? `<div class="actions-fenetre"><p class="d-fin ${pct >= 60 ? "gagne" : pct < 40 ? "perdu" : ""}">${pct >= 60 ? "Victoire" : pct < 40 ? "Défaite" : "Match nul"} · ${pct} %</p><button id="dFin" class="principal">Appliquer le résultat</button></div>`
@@ -156,7 +164,7 @@ export function jouerDuel(d: Duel, hote: HoteDuel) {
   }
   // écran d'ouverture : la situation, l'essentiel des règles en trois blocs, la démo et la partie
   hote.boite.innerHTML = `<div class="duel">${banniereDuel(d.type, hote.titre)}
-    <p class="d-but"><strong>But :</strong> ${esc(f.but)}</p>
+    <p class="d-but"><strong>But :</strong> ${esc(f.but)}</p>${enjeuxHtml(hote.enjeux)}
     <div class="d-cartes">
       <section><h4>① À ton tour</h4><ol>${f.tour.map(t => `<li>${esc(t)}</li>`).join("")}</ol></section>
       <section><h4>② Fin de partie</h4><p>${esc(f.fin)}</p><p class="note">Au-delà de 60 % : victoire ; sous 40 % : défaite ; entre les deux : match nul.</p></section>

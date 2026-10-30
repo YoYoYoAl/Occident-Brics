@@ -7,7 +7,7 @@ import { type Camp, type Canal, type Effet, CAMPS, adversaire } from "./types";
 import { date } from "./temps";
 import { DETROITS } from "../data/flux";
 import { DUELS, type IdDuel } from "../duels/catalogue";
-import { gagnerAE, appliquerBataille, facteurPlanAE, AE } from "./guerre";
+import { gagnerAE, appliquerBataille, facteurPlanAE, AE, SCORE } from "./guerre";
 import {
   type EtatPartie, type Domaine, type TypeAction, alignement, nomPays, ZONES, THEATRES, ZONES_STRATEGIQUES, RIVERAINS, electionProchaine,
   partFamille, arrondi, DOMAINE_ACTION, TECHNOLOGIES, SEUIL_TECHNO, outils,
@@ -336,7 +336,8 @@ function appliquerDuel(e: EtatPartie, d: Duel, r: number) {
   if (d.motif === "bataille") { appliquerBataille(e, d.plan.slice(7), r);
     outils.noter(e, { type: "action", titre: `${d.titre} : ${r >= PLANS.victoire ? "victoire" : r < PLANS.defaite ? "défaite" : "issue indécise"} du ${nomBlocPlan(d.attaquant)}`, texte: `Score de guerre ${r >= 0.5 ? "+" : ""}${Math.round(60 * (r - 0.5))}.`, camp: d.attaquant, pays: [d.plan.slice(7)], visiblePour: [...CAMPS] }); return; }
   const issue = r >= PLANS.victoire ? "victoire" : r < PLANS.defaite ? "défaite" : "match nul";
-  outils.noter(e, { type: "action", titre: `Duel « ${DUELS[d.type].nom} » : ${issue} du ${nomBlocPlan(d.attaquant)}`, texte: p ? titrePlan(p) : d.titre, camp: d.attaquant, pays: p ? paysDuPlan(p) : [], visiblePour: [...CAMPS] });
+  const ej = p ? enjeuxDuel(e, d, d.attaquant) : null, effet = ej ? (r >= PLANS.victoire ? ej.victoire : r < PLANS.defaite ? ej.defaite : ej.nul).replace(/^Ton plan/, "Plan").replace(/Ton capital/, "Capital") : "";
+  outils.noter(e, { type: "action", titre: `Duel « ${DUELS[d.type].nom} » : ${issue} du ${nomBlocPlan(d.attaquant)}`, texte: p ? `${titrePlan(p)}. Effet : ${effet}` : d.titre, camp: d.attaquant, pays: p ? paysDuPlan(p) : [], visiblePour: [...CAMPS] });
   if (!p) return;
   if (d.motif === "riposte") {
     if (r >= PLANS.victoire) { p.progres = Math.max(0, p.progres - PLANS.riposte); p.jalons = PLANS.jalons.filter(j => p.progres >= j).length; p.resultats.push(0.3); }
@@ -347,6 +348,44 @@ function appliquerDuel(e: EtatPartie, d: Duel, r: number) {
   if (r >= PLANS.victoire) { p.progres = Math.min(99.9, p.progres + PLANS.elan); effetTrimestre(e, p, 1.5); if (rival) rival.progres = Math.max(0, rival.progres - PLANS.elan); }
   else if (r < PLANS.defaite) { p.progres = Math.max(0, p.progres - PLANS.recul); if (rival) { rival.progres = Math.min(99.9, rival.progres + PLANS.elan); effetTrimestre(e, rival, 1.5); } }
   p.resultats.push(r);
+}
+// Enjeux d'un duel vus par un camp, affichés avant de jouer : ce que changent une victoire, un nul et une défaite.
+export interface Enjeux { victoire: string; nul: string; defaite: string }
+export function enjeuxDuel(e: EtatPartie, d: Duel, camp: Camp): Enjeux {
+  const moi = camp === d.attaquant, p = e.plans?.find(x => x.id === d.plan);
+  if (d.motif === "bataille") {
+    const g = Math.round(SCORE.bataille / 2), iso = d.plan.slice(7);
+    const t = (x: number) => `score de guerre de l'intervention (${iso}) ${x >= 0 ? "+" : "−"}${Math.abs(x)} pour ${moi ? "toi" : "l'adversaire"}`;
+    return { victoire: `Jusqu'à ${moi ? t(g) : t(-g)}.`, nul: "Score de guerre presque inchangé.", defaite: `Jusqu'à ${moi ? t(-g) : t(g)}.` };
+  }
+  if (!p) return { victoire: "Plan terminé : aucun effet.", nul: "Aucun effet.", defaite: "Aucun effet." };
+  const r = planRival(e, p), nom = titrePlan(p), finale = "Le résultat compte aussi dans la récompense de fin du plan (×0,5 à ×1,5).";
+  if (d.motif === "riposte") return moi
+    ? { victoire: `Le plan adverse « ${nom} » recule de ${PLANS.riposte} % (un jalon).`, nul: "Aucun effet.", defaite: "Ton capital politique −3." }
+    : { victoire: "Ton plan est protégé ; l'adversaire perd 3 de capital politique.", nul: "Aucun effet.", defaite: `Ton plan « ${nom} » recule de ${PLANS.riposte} % (un jalon).` };
+  const pourPlan = `« ${nom} » avance de ${PLANS.elan} % et produit tout de suite 1,5 trimestre d'effets${r ? ` ; le plan rival recule de ${PLANS.elan} %` : ""}.`;
+  const contrePlan = `« ${nom} » recule de ${PLANS.recul} %${r ? ` ; le plan rival avance de ${PLANS.elan} % et produit 1,5 trimestre d'effets` : ""}.`;
+  return moi ? { victoire: `Ton plan ${pourPlan} ${finale}`, nul: `Pas d'élan ni de recul. ${finale}`, defaite: `Ton plan ${contrePlan} ${finale}` }
+    : { victoire: `Le plan adverse ${contrePlan}`, nul: "Pas d'élan ni de recul pour le plan adverse.", defaite: `Le plan adverse ${pourPlan}` };
+}
+// Bilan d'un duel pour un camp : ce qui a vraiment changé entre l'état d'avant et celui d'après (affiché après le duel).
+export function bilanDuel(av: EtatPartie, ap: EtatPartie, d: Duel, camp: Camp): string[] {
+  const l: string[] = [], adv = adversaire(camp), f = (x: number, u = "") => `${x > 0 ? "+" : "−"}${String(Math.round(Math.abs(x) * 10) / 10).replace(".", ",")}${u}`;
+  for (const q of ap.plans ?? []) { const a = av.plans?.find(x => x.id === q.id); if (a && Math.abs(q.progres - a.progres) >= 0.05)
+    l.push(`${q.camp === camp ? "Ton plan" : "Plan adverse"} « ${titrePlan(q)} » : ${Math.round(a.progres)} % → ${Math.round(q.progres)} % (${f(q.progres - a.progres, " %")}).`); }
+  for (const c of [camp, adv]) { const qui = c === camp ? "Ton" : "Capital politique adverse", dc = ap.camps[c].cp - av.camps[c].cp, db = ap.camps[c].budget - av.camps[c].budget;
+    if (Math.abs(dc) >= 0.05) l.push(`${c === camp ? "Ton capital politique" : qui} : ${f(dc)}.`);
+    if (Math.abs(db) >= 0.05) l.push(`${c === camp ? "Ton budget" : "Budget adverse"} : ${f(db)}.`); }
+  const p = av.plans?.find(x => x.id === d.plan), pays = p ? paysDuPlan(p) : d.motif === "bataille" ? [d.plan.slice(7)] : [];
+  for (const iso of pays) for (const c of [camp, adv]) {
+    const a = av.pays[iso]?.influence[c], b = ap.pays[iso]?.influence[c]; if (!a || !b) continue;
+    const x = (["e", "p", "m", "c"] as const).reduce((s, k) => s + b[k] - a[k], 0);
+    if (Math.abs(x) >= 0.1) l.push(`${c === camp ? "Ton influence" : "Influence adverse"} en ${nomPays(iso)} : ${f(x)} (total des 4 canaux).`);
+  }
+  for (const it of ap.interventions) { const a = av.interventions.find(x => x.iso === it.iso && x.camp === it.camp) as { score?: number } | undefined, s = (it as { score?: number }).score ?? 0;
+    if (a && Math.abs(s - (a.score ?? 0)) >= 0.5) l.push(`Score de guerre (${nomPays(it.iso)}, intervention ${it.camp === camp ? "à toi" : "adverse"}) : ${Math.round(a.score ?? 0)} → ${Math.round(s)}.`); }
+  if (Math.abs(ap.tension - av.tension) >= 0.1) l.push(`Tension mondiale : ${f(ap.tension - av.tension)}.`);
+  return l.length ? l : ["Aucun changement mesurable : le duel n'a rien fait basculer."];
 }
 // Le joueur a joué (ou délégué) un duel : r est son propre résultat (0 à 1).
 export function conclureDuel(e0: EtatPartie, id: string, rJoueur: number | null): EtatPartie {
