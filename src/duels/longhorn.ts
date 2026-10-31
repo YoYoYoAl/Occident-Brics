@@ -68,7 +68,7 @@ export const LONGHORN: DefDuel<S> = {
     }));
     const boutons = cs.map(c => { const [k, d] = c.split(":"); return { t: k === "-" ? `Partir vers ${s.noms[+d]}` : `Prendre ${s.jetons[s.pos[0]][+k]} ${COULEURS[+k]}, aller à ${s.noms[+d]}`, coup: c }; });
     return { statut: s.fini ? s.journal[s.journal.length - 1] : `★ ton agent, ✪ l'agent adverse. Élites 3 pts, argent 2, rue 1 ; majorité d'une couleur +3. Tour ${s.tours[0] + 1}/${TOURS}.`,
-      scores: [`${points(s, 0)} pts`, `${points(s, 1)} pts`], grille: { cols: 3, cases },
+      scores: [`${points(s, 0)} pts`, `${points(s, 1)} pts`], grille: { cols: 3, c: "tournee", cases },
       rangees: [{ titre: "Tes jetons", cases: s.sacs[0].map((n, k) => ({ t: `${COULEURS[k]} ${n}`, c: "moi" })) }, { titre: "Jetons adverses", cases: s.sacs[1].map((n, k) => ({ t: `${COULEURS[k]} ${n}`, c: "lui" })) }],
       boutons };
   },

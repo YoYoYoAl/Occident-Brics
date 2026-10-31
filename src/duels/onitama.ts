@@ -72,7 +72,7 @@ export const ONITAMA: DefDuel<S> = {
     for (const c of cs) if (c.startsWith("coup:")) { const k = +c.split(">")[1]; if (!dest.has(k)) dest.set(k, c); }
     return { statut: s.fini ? s.journal[s.journal.length - 1] : s.choix === null ? `Choisis un navire (coup ${s.coups0[0] + 1}/${MAX}). La carte jouée passe à l'adversaire.` : "Choisis la destination (chaque case correspond à une carte).",
       scores: [`${s.g.filter(p => p?.j === 0).length} navires`, `${s.g.filter(p => p?.j === 1).length}`],
-      grille: { cols: N, cases: s.g.map((p, i) => ({ t: p ? (p.amiral ? "⚓" : "⛵") : PORT.includes(i) ? "⌂" : "", c: p ? (p.j === 0 ? "moi" : "lui") : dest.has(i) ? "possible" : "eau",
+      grille: { cols: N, c: "mer", cases: s.g.map((p, i) => ({ t: p ? (p.amiral ? "⚓" : "⛵") : PORT.includes(i) ? "⌂" : "", c: p ? (p.j === 0 ? "moi" : "lui") : dest.has(i) ? "possible" : "eau",
         coup: s.choix === null ? (cs.includes(`navire:${i}`) ? `navire:${i}` : undefined) : dest.get(i) })) },
       rangees: [
         { titre: "Tes cartes", cases: s.mains[0].map(c => ({ t: `${CARTES[c].nom}\n${CARTES[c].v.map(([dx, dy]) => `${dx > 0 ? "→" : dx < 0 ? "←" : ""}${Math.abs(dx) > 1 ? "2" : ""}${dy < 0 ? "↑" : dy > 0 ? "↓" : ""}${Math.abs(dy) > 1 ? "2" : ""}`).join(" ")}`, c: "carte" })) },

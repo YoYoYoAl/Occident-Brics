@@ -77,7 +77,7 @@ export const SCHOTTEN: DefDuel<S> = {
     const cs = SCHOTTEN.coups(s);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : s.choix === null ? "Choisis une carte de ta main, puis la borne. Suite de même couleur > brelan > même couleur > suite > somme." : `${nom(s.mains[0][s.choix])} : sur quelle borne ?`,
       scores: [`${nb(s, 0)} borne${nb(s, 0) > 1 ? "s" : ""}`, `${nb(s, 1)}`],
-      grille: { cols: B, cases: [
+      grille: { cols: B, c: "frontiere", cases: [
         ...s.bornes.map(([, y]) => ({ t: y.map(nom).join("\n") || "—", c: "lui" })),
         ...s.bornes.map((_, b) => ({ t: `Borne ${b + 1}${s.gagnees[b] === 0 ? " ✔ à toi" : s.gagnees[b] === 1 ? " ✖ perdue" : ""}`, c: s.gagnees[b] === 0 ? "moi" : s.gagnees[b] === 1 ? "lui" : "etiquette", coup: cs.includes(`borne:${b}`) ? `borne:${b}` : undefined })),
         ...s.bornes.map(([x], b) => ({ t: x.map(nom).join("\n") || "—", c: "moi", coup: cs.includes(`borne:${b}`) ? `borne:${b}` : undefined })),

@@ -57,7 +57,7 @@ export const OTHELLO: DefDuel<S> = {
     const l = s.fini ? [] : legaux(s, 0);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : l.length ? `Pose un rassemblement (cases marquées) : il retourne les quartiers encadrés. ${MAX - s.poses[0]} coups restants.` : "Aucun coup : passe ton tour.",
       scores: [`${compte(s, 0)} quartiers`, `${compte(s, 1)}`],
-      grille: { cols: N, cases: s.g.map((v, i) => ({ t: v === 0 ? "✊" : v === 1 ? "🛡" : l.includes(i) ? "·" : "", c: v === 0 ? "moi" : v === 1 ? "lui" : l.includes(i) ? "possible" : "vide", coup: l.includes(i) ? String(i) : undefined })) },
+      grille: { cols: N, c: "tapis", cases: s.g.map((v, i) => ({ t: v === 0 ? "✊" : v === 1 ? "🛡" : l.includes(i) ? "·" : "", c: v === 0 ? "moi" : v === 1 ? "lui" : l.includes(i) ? "possible" : "vide", coup: l.includes(i) ? String(i) : undefined })) },
       boutons: !s.fini && !l.length ? [{ t: "Passer", coup: "passer" }] : [] };
   },
 };

@@ -66,7 +66,7 @@ export const GO: DefDuel<S> = {
     const l = s.fini ? [] : legaux(s, 0), [a, b] = score(s);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : `Place un navire (${MAX - s.poses[0]} restants). Un groupe encerclé est capturé ; les eaux que tu entoures seul comptent pour toi.`,
       scores: [`${a} pts`, `${b} pts`],
-      grille: { cols: N, cases: s.g.map((v, i) => ({ t: v === 0 ? "⛴" : v === 1 ? "🚢" : "", c: v === 0 ? "moi" : v === 1 ? "lui" : "eau", coup: l.includes(i) ? String(i) : undefined })) },
+      grille: { cols: N, c: "mer", cases: s.g.map((v, i) => ({ t: v === 0 ? "⛴" : v === 1 ? "🚢" : "", c: v === 0 ? "moi" : v === 1 ? "lui" : "eau", coup: l.includes(i) ? String(i) : undefined })) },
       boutons: s.fini ? [] : [{ t: "Passer (garder mes positions)", coup: "passer" }] };
   },
 };

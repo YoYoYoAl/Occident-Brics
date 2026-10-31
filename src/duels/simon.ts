@@ -37,7 +37,7 @@ export const SIMON: DefDuel<S> = {
   vue(s) {
     return { statut: s.fini ? s.journal[s.journal.length - 1] : s.phase === "montrer" ? `Pare-feu ${s.etape + 1}/${ETAPES} : mémorise ${s.seq.length} nœuds…` : `Rejoue la séquence (${s.saisie.length}/${s.seq.length}).`,
       scores: [`${s.reussis} franchi${s.reussis > 1 ? "s" : ""}`, `${Math.max(0, s.vies)} vie${s.vies > 1 ? "s" : ""}`],
-      grille: { cols: 3, cases: NOEUDS.map((t, i) => ({ t, c: "noeud", coup: !s.fini && s.phase === "saisir" ? `n:${i}` : undefined })) },
+      grille: { cols: 3, c: "reseau", cases: NOEUDS.map((t, i) => ({ t, c: "noeud", coup: !s.fini && s.phase === "saisir" ? `n:${i}` : undefined })) },
       flash: !s.fini && s.phase === "montrer" ? { sequence: s.seq, ms: Math.max(380, 650 - 50 * s.etape) } : undefined,
       chrono: !s.fini && s.phase === "saisir" ? 4 + s.seq.length * 1.2 : undefined };
   },

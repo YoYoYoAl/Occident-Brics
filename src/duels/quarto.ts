@@ -59,7 +59,7 @@ export const QUARTO: DefDuel<S> = {
   vue(s) {
     const cs = s.fini ? [] : QUARTO.coups(s);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : s.phase === "placer" ? `Place « ${desc(s.enMain!)} » (${symbole(s.enMain!)}). Une ligne de 4 qui partagent un trait gagne.` : "Choisis la concession que l'adversaire devra placer : évite de lui offrir une ligne gagnante.",
-      grille: { cols: 4, cases: s.table.map((p, i) => ({ t: p < 0 ? "" : symbole(p), titre: p < 0 ? "" : desc(p), c: p < 0 ? "vide" : "piece", coup: cs.includes(`placer:${i}`) ? `placer:${i}` : undefined })) },
+      grille: { cols: 4, c: "table", cases: s.table.map((p, i) => ({ t: p < 0 ? "" : symbole(p), titre: p < 0 ? "" : desc(p), c: p < 0 ? "vide" : "piece", coup: cs.includes(`placer:${i}`) ? `placer:${i}` : undefined })) },
       rangees: [{ titre: s.phase === "donner" ? "Concessions disponibles : choisis-en une pour l'adversaire" : "Concessions restantes", cases: s.reserve.map(p => ({ t: symbole(p), titre: desc(p), c: "piece", coup: cs.includes(`donner:${p}`) ? `donner:${p}` : undefined })) },
         { titre: "Légende", cases: [{ t: "◆/● chère/bon marché · ▲/▼ longue/courte · ▣/□ secrète/publique · ★/☆ forte/symbolique", c: "etiquette" }] }] };
   },

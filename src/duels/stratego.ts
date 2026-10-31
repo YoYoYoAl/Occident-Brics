@@ -81,7 +81,7 @@ export const STRATEGO: DefDuel<S> = {
     const cs = s.fini ? [] : STRATEGO.coups(s);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : s.choix === null ? `Choisis une unité (coup ${s.coups0 + 1}/${MAX}). Les unités adverses sont cachées jusqu'au contact.` : `Où va ton ${NOM[s.g[s.choix]!.r]} ?`,
       scores: [`${materiel(s, 0)} forces`, `${materiel(s, 1)}`],
-      grille: { cols: C, cases: s.g.map((p, i) => ({ t: !p ? "" : p.j === 0 || p.vu ? SYM[p.r] : "?", titre: p && (p.j === 0 || p.vu) ? NOM[p.r] : "", c: !p ? (cs.includes(`vers:${i}`) ? "possible" : "vide") : p.j === 0 ? "moi" : "lui",
+      grille: { cols: C, c: "terrain", cases: s.g.map((p, i) => ({ t: !p ? "" : p.j === 0 || p.vu ? SYM[p.r] : "?", titre: p && (p.j === 0 || p.vu) ? NOM[p.r] : "", c: !p ? (cs.includes(`vers:${i}`) ? "possible" : "vide") : p.j === 0 ? "moi" : "lui",
         coup: cs.includes(`unite:${i}`) ? `unite:${i}` : cs.includes(`vers:${i}`) ? `vers:${i}` : undefined })) },
       rangees: [{ titre: "Rangs", cases: [{ t: "5 drone (loin en ligne) · 4 mercenaires · 3 milice · 2 sapeur (désamorce ✹) · 1 conseiller (bat le drone en attaquant) · ⚑ QG", c: "etiquette" }] }],
       boutons: s.choix !== null ? [{ t: "Changer d'unité", coup: "annuler" }] : [] };

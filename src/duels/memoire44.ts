@@ -22,7 +22,7 @@ function combattre(s: S, j: number, sec: number, max = 99, barrage = false) {
   const a = s.u[j][sec], d = s.u[1 - j][sec]; if (!forces(a) || !forces(d)) return;
   const r = lancer(s, barrage ? 3 : desDe(a, max)); perdre(d, r.touches);
   const qui = j === 0 ? "Tes troupes" : "L'adversaire";
-  let txt = `${qui} ${barrage ? "pilonnent" : "attaquent"} ${SECTEURS[sec]} : ${r.touches} touché${r.touches > 1 ? "s" : ""}`;
+  let txt = `${qui} ${barrage ? (j === 0 ? "pilonnent" : "pilonne") : (j === 0 ? "attaquent" : "attaque")} ${SECTEURS[sec]} : ${r.touches} touché${r.touches > 1 ? "s" : ""}`;
   if (!barrage && forces(d)) { const rip = lancer(s, Math.ceil(desDe(d) / 2)); perdre(a, rip.touches); txt += `, riposte ${rip.touches}`; }
   noter(s, txt + ".");
   if (!forces(d) && !s.obj[j][sec]) { s.obj[j][sec] = true; noter(s, `${j === 0 ? "Tu prends" : "L'adversaire prend"} l'objectif ${SECTEURS[sec]} !`); }
@@ -89,7 +89,7 @@ export const MEMOIRE44: DefDuel<S> = {
     const o = [0, 1].map(j => s.obj[j].filter(Boolean).length);
     return {
       statut: s.fini ? s.journal[s.journal.length - 1] : s.ordreEnCours ? `${NOMS_ORDRES[s.ordreEnCours]} : choisis le secteur.` : `Joue une carte d'ordre (${MAX - s.ordres[0]} restantes). Infanterie 1 dé, blindé 2 dés, une chance sur deux de toucher.`,
-      scores: [`${o[0]} objectif${o[0] > 1 ? "s" : ""}`, `${o[1]}`], grille: { cols: 3, cases },
+      scores: [`${o[0]} objectif${o[0] > 1 ? "s" : ""}`, `${o[1]}`], grille: { cols: 3, c: "front", cases },
       boutons: s.ordreEnCours ? [{ t: "Annuler", coup: "annuler" }] : [...new Set(s.mains[0])].map(x => ({ t: `${NOMS_ORDRES[x]} (×${s.mains[0].filter(y => y === x).length})`, coup: `ordre:${x}` })),
     };
   },

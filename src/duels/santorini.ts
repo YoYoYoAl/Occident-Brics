@@ -55,7 +55,7 @@ export const SANTORINI: DefDuel<S> = {
     const cs = s.fini ? [] : SANTORINI.coups(s);
     return { statut: s.fini ? s.journal[s.journal.length - 1] : s.phase === "bouger" ? `Déplace ton ingénieur ★ (une marche au plus). Monter au niveau 3 inaugure. Tour ${s.tours[0] + 1}/${MAX}.` : "Construis un niveau sur une case voisine (au 4e niveau, c'est un veto).",
       scores: [`niveau ${s.h[s.pos[0]]}`, `niveau ${s.h[s.pos[1]]}`],
-      grille: { cols: N, cases: s.h.map((h, i) => ({ t: `${i === s.pos[0] ? "★ " : i === s.pos[1] ? "✪ " : ""}${h === 4 ? "⛔" : "▮".repeat(h) || "·"}`, titre: NOMS_NIV[h], c: i === s.pos[0] ? "moi" : i === s.pos[1] ? "lui" : `niv${h}`,
+      grille: { cols: N, c: "chantier", cases: s.h.map((h, i) => ({ t: `${i === s.pos[0] ? "★ " : i === s.pos[1] ? "✪ " : ""}${h === 4 ? "⛔" : "▮".repeat(h) || "·"}`, titre: NOMS_NIV[h], c: i === s.pos[0] ? "moi" : i === s.pos[1] ? "lui" : `niv${h}`,
         coup: cs.find(c => +c.split(":")[1] === i) })) } };
   },
 };

@@ -52,7 +52,7 @@ export const BATAILLE: DefDuel<S> = {
     const cases = [...Array(N * N).keys()].map(i => { const v = s.tirs[0][i]; return { t: v === undefined ? "" : v === -1 ? "💥" : String(v), c: v === undefined ? "eau" : v === -1 ? "touche" : "sonar", coup: !s.fini && v === undefined ? String(i) : undefined }; });
     const mesSubs = s.subs[0].length;
     return { statut: s.fini ? s.journal[s.journal.length - 1] : `Tire dans la mer adverse (${MAX + s.bonusTirs - s.nbTirs[0]} tirs). Le chiffre donne la distance du sous-marin le plus proche, diagonales comprises.`,
-      scores: [`${s.coules[0]}/${NB} coulés`, `${s.coules[1]}/${NB}`], grille: { cols: N, cases },
+      scores: [`${s.coules[0]}/${NB} coulés`, `${s.coules[1]}/${NB}`], grille: { cols: N, c: "sonar", cases },
       rangees: [{ titre: "Ta flottille", cases: [...Array(NB).keys()].map(k => ({ t: k < mesSubs ? "🔱 en plongée" : "✖ coulé", c: k < mesSubs ? "moi" : "vide" })) }] };
   },
 };

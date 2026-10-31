@@ -85,7 +85,7 @@ export const ECHECS: DefDuel<S> = {
     const cs = s.fini ? [] : ECHECS.coups(s), dest = s.choix !== null ? cibles(s, s.choix) : [];
     return { statut: s.fini ? s.journal[s.journal.length - 1] : s.choix === null ? `Choisis un conjuré (coup ${s.coups0 + 1}/${MAX}). But : entrer dans le palais ⌂ en haut au centre.` : `Où va ton ${NOMS[s.g[s.choix]!.t]} ?`,
       scores: [`${MAX - s.coups0} coups`, ""],
-      grille: { cols: N, cases: s.g.map((p, i) => ({ t: p ? SYM[p.t] : i === PALAIS ? "⌂" : "", titre: p ? NOMS[p.t] : i === PALAIS ? "palais" : "",
+      grille: { cols: N, c: "echiquier", cases: s.g.map((p, i) => ({ t: p ? SYM[p.t] : i === PALAIS ? "⌂" : "", titre: p ? NOMS[p.t] : i === PALAIS ? "palais" : "",
         c: p ? (p.j === 0 ? "moi" : "lui") : i === PALAIS ? "palais" : dest.includes(i) ? "possible" : "vide",
         coup: cs.includes(`piece:${i}`) ? `piece:${i}` : cs.includes(`vers:${i}`) ? `vers:${i}` : undefined })) },
       boutons: s.choix !== null ? [{ t: "Changer de pièce", coup: "annuler" }] : [] };
