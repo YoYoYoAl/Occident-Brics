@@ -35,3 +35,8 @@ describe("v36", () => {
     expect(lire("src/duels/memoire44.ts")).toMatch(/j === 0 \? "attaquent" : "attaque"/);
   });
 });
+describe("v36 bis", () => {
+  it("6. sauvegarde automatique à la fin de chaque trimestre (rechargeable par « Charger »)", () => {
+    expect(lire("src/interface/main.ts")).toMatch(/etat = finRound\(etat!\);\n  try \{ localStorage\.setItem\(CLE_SAUVEGARDE, serialiserPartie\(etat\)\); \}/);
+  });
+});

@@ -890,6 +890,7 @@ function terminer() {
   avantTour = { puissance: { OCC: puissance(etat!, "OCC"), CHN: puissance(etat!, "CHN") }, alignements: Object.fromEntries(Object.keys(etat!.pays).map(i => [i, alignement(etat!, i)])),
     budget: etat!.camps[joueur()].budget, cp: etat!.camps[joueur()].cp, tension: cran(etat!), progres: Object.fromEntries((etat!.plans ?? []).map(p => [p.id, p.progres])) };
   etat = finRound(etat!);
+  try { localStorage.setItem(CLE_SAUVEGARDE, serialiserPartie(etat)); } catch { /* stockage indisponible : Exporter reste possible */ } // sauvegarde automatique à chaque trimestre (01/11)
   carteOuverte = null; phase = "monde"; onglet = "main";
   afficher();
   rapport(etat.termine ? "Dernier trimestre" : "Rapport du trimestre");
