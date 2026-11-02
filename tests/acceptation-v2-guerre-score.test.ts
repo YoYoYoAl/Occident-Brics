@@ -6,13 +6,13 @@ import * as CR from "../src/v2/crises";
 const base = (g: number) => { const e = M.creerPartieV2(g, null as any); M.cabinetIA(e, "OCC"); M.cabinetIA(e, "CHN"); e.appels = []; return e; };
 const guerre = (e: M.EtatV2, a = "AZE", b = "ARM") => { const g = CR.ouvrirGuerre(e, a, b, "test")!; g.allies = {}; g.garants = {}; return g; };
 describe("Score de guerre, occupation et traités", () => {
-  it("1. une bataille gagnée fait avancer le front (25 % au plus) et le score suit occupation + batailles + objectif", () => {
+  it("1. le front avance de 0,6 % par point de bataille (80 % au plus : tout est possible) et le score suit occupation + batailles + objectif", () => {
     const e = base(31), g = guerre(e);
-    CR.anneeDeGuerre(e, g, 40);
-    expect(g.occ).toEqual({ a: 25, b: 0 }); expect(g.batailles).toBe(10); expect(g.objectif).toBe(5);
-    expect(g.score).toBeCloseTo(0.5 * 25 + 10 + 5);
-    CR.anneeDeGuerre(e, g, -10); // contre-attaque : libère d'abord le territoire occupé
-    expect(g.occ).toEqual({ a: 15, b: 0 }); expect(g.batailles).toBe(0);
+    CR.anneeDeGuerre(e, g, 40); // victoire nette : +24 %, batailles +12
+    expect(g.occ).toEqual({ a: 24, b: 0 }); expect(g.batailles).toBe(12); expect(g.objectif).toBe(5);
+    expect(g.score).toBeCloseTo(0.5 * 24 + 12 + 5);
+    CR.anneeDeGuerre(e, g, -10); // contre-attaque : libère d'abord le territoire occupé (−6 %), batailles −3
+    expect(g.occ!.a).toBeCloseTo(18); expect(g.occ!.b).toBe(0); expect(g.batailles).toBe(9);
   });
   it("2. plafonds : batailles ±30, objectif ±20, score ±100", () => {
     const e = base(32), g = guerre(e);

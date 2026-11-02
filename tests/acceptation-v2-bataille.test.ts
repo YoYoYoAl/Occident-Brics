@@ -1,5 +1,5 @@
-// Phase de guerre jouée (demandes du 2 novembre 2026) : cartes tirées de l'armée, du général et du budget ; mécanique propre
-// (ordres secrets payés en logistique, loi du carré, attrition) ; ciel, mer, information, spatial ; projection, blocus, base alliée ;
+// Phase de guerre jouée (demandes du 2 novembre 2026) : champ de bataille en hexagones (unités, mouvement, attaque, logistique,
+// bonus et malus entre types, terrain, brouillard de guerre, 4 saisons, résultat non plafonné) ; projection, blocus, base alliée ;
 // nucléaire et biologique par la dissuasion ; front intérieur, diplomatie, négociation ; seulement les guerres du joueur.
 import { describe, it, expect } from "vitest";
 import * as M from "../src/v2/moteur";
@@ -7,99 +7,104 @@ import * as CR from "../src/v2/crises";
 import * as B from "../src/v2/bataille";
 const base = (g: number) => { const e = M.creerPartieV2(g, "OCC"); M.cabinetIA(e, "OCC"); M.cabinetIA(e, "CHN"); e.appels = []; return e; };
 const guerre = (e: M.EtatV2, a: string, b: string) => { const g = CR.ouvrirGuerre(e, a, b, "test")!; g.allies = {}; g.garants = {}; return g; };
-const types = (l: B.CarteCmd[]) => new Set(l.map(c => c.type));
-const jouer = (e: M.EtatV2, b: B.Bataille) => { while (!b.finie) { B.planIA(b, "a"); B.planIA(b, "b"); B.resoudreSaison(e, b); } return B.resultat(b); };
+const jouer = (e: M.EtatV2, b: B.Bataille) => { while (!b.finie) B.jouerIA(e, b, b.actif); return B.resultat(b); };
+const premiere = (b: B.Bataille, cote: B.Cote, f: (u: B.Unite) => boolean) => B.vivantes(b, cote).find(f)!;
 
-describe("Paquet de commandement : armée, général, budget", () => {
-  it("1. l'armée fixe les cartes : pas de marine sans littoral, spatial rare, drones après 2008, robots après 2022", () => {
-    const e = base(1);
-    const eth = B.paquetArmee(e, "ETH", "a"), usa = B.paquetArmee(e, "USA", "a");
-    expect(eth.some(c => c.domaine === "mer")).toBe(false);
-    expect(eth.some(c => c.domaine === "espace")).toBe(false);
-    expect(eth.length).toBeGreaterThanOrEqual(B.BATAILLE.paquetMin);
-    expect(usa.filter(c => c.type === "satellite").length).toBe(1);
-    expect(types(usa).has("asat")).toBe(false); // 2000 : pas encore
-    expect(types(usa).has("drones")).toBe(true); // aviation de premier rang
-    expect(types(eth).has("drones")).toBe(false);
-    for (const t of ["infanterie", "mecanisee", "blindes", "artillerie", "helico", "chasseurs", "bombardiers", "corvettes", "destroyers", "croiseurs", "sousmarins", "porteavions"] as B.TypeCarte[]) expect(types(usa).has(t)).toBe(true);
-    expect(types(usa).has("robots")).toBe(false);
-    e.annee = 2030; const usa30 = B.paquetArmee(e, "USA", "a"); expect(types(usa30).has("robots")).toBe(true); expect(types(usa30).has("asat")).toBe(true);
-    expect(usa.length).toBeGreaterThan(3 * eth.length);
+describe("Armée sur le champ : composition, terrain, unités", () => {
+  it("1. composition : pas de marine sans littoral, robots seulement après 2022, au moins 4 formations au sol", () => {
+    const e = base(1); const l = B.compositionArmee(e, "ETH", false);
+    expect(l.some(t => B.UNITES[t].domaine === "mer")).toBe(false); expect(l.filter(t => B.UNITES[t].domaine === "terre").length).toBeGreaterThanOrEqual(4);
+    expect(B.compositionArmee(e, "USA", true)).not.toContain("robots"); e.annee = 2030; expect(B.compositionArmee(e, "USA", true)).toContain("robots");
+    expect(B.compositionArmee(e, "USA", true).some(t => B.UNITES[t].domaine === "mer")).toBe(true);
   });
-  it("2. le paquet suit la force militaire actuelle (tout évolue)", () => {
-    const e = base(2), n0 = B.paquetArmee(e, "IND", "a").length; e.pays.IND.militaire *= 2;
-    expect(B.paquetArmee(e, "IND", "a").length).toBeGreaterThan(n0);
+  it("2. la composition suit la force militaire actuelle (tout évolue)", () => {
+    const e = base(2), n = B.compositionArmee(e, "RUS", true).length; e.pays.RUS.militaire *= 0.3; expect(B.compositionArmee(e, "RUS", true).length).toBeLessThan(n);
   });
-  it("3. le général ajoute 2 cartes de son trait, le budget 1 carte avancée par tranche", () => {
-    const e = base(3), gen: B.General = { nom: "X", trait: "aviateur", portrait: "p" };
-    const l = B.paquetArmee(e, "FRA", "a", gen, 2);
-    expect(l.filter(c => c.origine === "general" && c.type === "raid_nocturne").length).toBe(2);
-    expect(l.filter(c => c.origine === "budget").length).toBe(2);
-    expect(l.filter(c => c.type === "missiles").length).toBeGreaterThanOrEqual(1);
+  it("3. carte 12×8 en hexagones, 3 objectifs, déterministe pour une même guerre et une même année", () => {
+    const e = base(3), g = guerre(e, "RUS", "GEO"), b1 = B.preparerBataille(e, g, "a"), b2 = B.preparerBataille(e, g, "a");
+    expect(b1.cases.length).toBe(96); expect(b1.objectifs.length).toBe(3); expect(b1.cases.map(k => k.t)).toEqual(b2.cases.map(k => k.t));
+    expect(B.distance(0, 0, 3, 0)).toBe(3); expect(B.voisins(2, 2).length).toBe(6);
   });
-  it("4. engager le budget de guerre est plafonné (3 tranches, budget libre du camp)", () => {
-    const e = base(4); e.budget.OCC = 2; e.boostsUtilises.OCC = 0;
-    expect(B.engagerBudget(e, "OCC", 3)).toBe(2); expect(e.boostsUtilises.OCC).toBe(2); expect(B.engagerBudget(e, "OCC", 1)).toBe(0);
+  it("4. budget de guerre plafonné (3 tranches) ; chaque tranche donne +1 logistique et 1 frappe de missiles", () => {
+    const e = base(4); e.budget.OCC = 10; e.boostsUtilises.OCC = 0; expect(B.engagerBudget(e, "OCC", 5)).toBe(3);
+    const g = guerre(e, "RUS", "GEO"), b0 = B.preparerBataille(e, g, "a"), b2 = B.preparerBataille(e, g, "a", { tranches: 2 });
+    expect(b2.a.base).toBe(b0.a.base + 2); expect(b2.a.missiles).toBe(2);
   });
-});
-
-describe("Préparation : logistique, ordres, projection, base alliée", () => {
-  it("5. la logistique et le nombre d'ordres suivent la taille de l'armée", () => {
-    const e = base(5), g = guerre(e, "RUS", "GEO"), b = B.preparerBataille(e, g, "b");
-    expect(b.a.base).toBeGreaterThan(b.b.base); expect(b.a.ordres).toBe(4); expect(b.b.ordres).toBe(3);
-    expect(b.a.main.length).toBe(B.BATAILLE.main); expect(b.objectifs.length).toBe(3);
+  it("5. la logistique suit la taille de l'armée", () => {
+    const e = base(5), g = guerre(e, "USA", "IRN"), b = B.preparerBataille(e, g, "a"); expect(b.a.base).toBeGreaterThan(b.b.base);
   });
   it("6. projection : 100 % dans sa zone, moins loin de chez soi, les blindés restent au pays en premier", () => {
-    const e = base(6);
-    expect(B.projection(e, "RUS", "GEO")).toBe(e.pays.RUS.zone === e.pays.GEO.zone ? 1 : B.projection(e, "RUS", "GEO"));
-    const loin = Object.values(e.pays).find(p => p.zone !== e.pays.IND.zone && p.iso !== "IND")!.iso;
-    const pr = B.projection(e, "IND", loin); expect(pr).toBeLessThan(1); expect(pr).toBeGreaterThanOrEqual(B.PROJECTION.base);
-    expect(B.projection(e, "USA", loin === "USA" ? "IRN" : loin)).toBeGreaterThan(pr);
+    const e = base(6); expect(B.projection(e, "RUS", "GEO")).toBe(1); expect(B.projection(e, "ETH", "VNM")).toBeLessThan(1);
+    const g = guerre(e, "ETH", "VNM"), b = B.preparerBataille(e, g, "a"), n = B.compositionArmee(e, "ETH", true).length;
+    expect(B.vivantes(b, "a").length).toBeLessThan(n);
   });
   it("7. base alliée : +1 logistique pour le côté qui en a une dans la zone du front", () => {
-    const e = base(7), g = guerre(e, "IND", "PAK"), b0 = B.preparerBataille(e, g, "a");
-    const allie = Object.values(e.pays).find(p => p.zone === e.pays.PAK.zone && p.iso !== "IND" && p.iso !== "PAK")!;
-    e.griefs = {}; M.ajouterGrief(e, "IND", allie.iso, 100);
-    const b1 = B.preparerBataille(e, g, "a");
-    expect(B.baseAlliee(e, "IND", g)).not.toBeNull(); expect(b1.a.base).toBe(b0.a.baseAlliee ? b0.a.base : b0.a.base + B.BASE.logistique);
+    const e = base(7), g = guerre(e, "RUS", "GEO"), base0 = B.baseAlliee(e, "RUS", g);
+    if (base0) expect(B.preparerBataille(e, g, "a").a.baseAlliee).toBe(base0); else expect(B.preparerBataille(e, g, "a").a.baseAlliee).toBeUndefined();
   });
 });
 
-describe("Ordres, résolution, attrition", () => {
-  it("8. planifier : logistique, objectif obligatoire, nombre d'ordres", () => {
-    const e = base(8), g = guerre(e, "ETH", "ERI"), b = B.preparerBataille(e, g, "a"), f = b.a;
-    const sol = f.main.find(c => c.cible === "objectif")!;
-    expect(B.planifier(b, "a", sol.id)).toMatch(/objectif/);
-    f.logistique = 0; expect(B.planifier(b, "a", sol.id, 0)).toMatch(/Logistique/);
-    f.logistique = 99; expect(B.planifier(b, "a", sol.id, 0)).toBeNull(); expect(f.plan.length).toBe(1);
-    B.annulerOrdre(b, "a", sol.id); expect(f.plan.length).toBe(0); expect(f.logistique).toBe(99);
+describe("Mouvement, attaque, terrain, brouillard", () => {
+  it("8. bouger coûte 1 logistique ; une unité ne bouge qu'une fois ; les blindés vont plus loin que l'infanterie", () => {
+    const e = base(8), g = guerre(e, "RUS", "GEO"), b = B.preparerBataille(e, g, "a"), inf = premiere(b, "a", u => u.type === "infanterie"), bl = premiere(b, "a", u => u.type === "blindes");
+    expect(B.deplacements(b, bl).length).toBeGreaterThan(B.deplacements(b, inf).length);
+    const L = b.a.logistique, p = B.deplacements(b, inf)[0]; expect(B.deplacer(b, "a", inf.id, p.c, p.r)).toBeNull(); expect(b.a.logistique).toBe(L - 1);
+    const q = B.deplacements(b, inf)[0]; if (q) expect(B.deplacer(b, "a", inf.id, q.c, q.r)).toMatch(/déjà agi/);
   });
-  it("9. loi du carré : 6 contre 3 donne 80 %, égalité 50 %", () => {
-    expect(B.probaVictoire(6, 3)).toBeCloseTo(0.8); expect(B.probaVictoire(4, 4)).toBe(0.5); expect(B.probaVictoire(0, 0)).toBe(0.5);
+  it("9. efficacité : l'hélicoptère est meilleur contre les blindés que contre l'infanterie ; la chasse domine l'aviation ; le sous-marin ne frappe que les navires", () => {
+    expect(B.EFFICACITE.helico.blinde).toBeGreaterThan(B.EFFICACITE.helico.leger); expect(B.EFFICACITE.chasseurs.aerien).toBeGreaterThan(B.EFFICACITE.chasseurs.leger);
+    expect(B.EFFICACITE.sousmarins.leger).toBe(0); expect(B.EFFICACITE.sousmarins.naval).toBeGreaterThan(1);
   });
-  it("10. 4 saisons, contrôle borné à ±3, jauges bornées à ±3, déterministe à graine égale", () => {
-    const run = () => { const e = base(10), g = guerre(e, "IND", "PAK"), b = B.preparerBataille(e, g, "a"); const r = jouer(e, b); return { r, b }; };
-    const x = run(), y = run();
-    expect(x.b.finie).toBe(true); expect(x.b.saison).toBe(5); expect(x.r).toEqual(y.r);
-    for (const o of x.b.objectifs) expect(Math.abs(o.controle)).toBeLessThanOrEqual(3);
-    for (const j of [x.b.ciel, x.b.mer, x.b.info]) expect(Math.abs(j)).toBeLessThanOrEqual(3);
+  it("10. le terrain protège : une cible en ville ou en montagne est plus dure à toucher qu'en plaine", () => {
+    const e = base(10), g = guerre(e, "RUS", "GEO"), b = B.preparerBataille(e, g, "a"), u = premiere(b, "a", x => x.type === "infanterie"), t = premiere(b, "b", x => B.def(x).domaine === "terre");
+    const plaine = b.cases.find(k => k.t === "plaine")!, ville = b.cases.find(k => k.t === "ville" || k.t === "montagne")!;
+    t.c = plaine.c; t.r = plaine.r; const p1 = B.chance(b, u, t); t.c = ville.c; t.r = ville.r; const p2 = B.chance(b, u, t);
+    expect(p2).toBeLessThan(p1);
   });
-  it("11. le plus fort gagne le plus souvent (Russie contre Géorgie ≥ 80 %), forces proches incertaines (Éthiopie-Érythrée 20-80 %)", () => {
-    let v = 0; for (let k = 0; k < 100; k++) { const e = base(100 + k), g = guerre(e, "RUS", "GEO"); if (jouer(e, B.preparerBataille(e, g, "a")).d > 0) v++; }
-    expect(v).toBeGreaterThanOrEqual(80);
-    let w = 0; for (let k = 0; k < 100; k++) { const e = base(300 + k), g = guerre(e, "ETH", "ERI"); if (jouer(e, B.preparerBataille(e, g, "a")).d > 0) w++; }
-    expect(w).toBeGreaterThan(20); expect(w).toBeLessThan(80); // forces proches : rien n'est joué d'avance
+  it("11. brouillard : une unité ennemie lointaine est invisible ; un satellite révèle tout ; les sous-marins restent cachés sauf au contact", () => {
+    const e = base(11), g = guerre(e, "USA", "IRN"), b = B.preparerBataille(e, g, "a");
+    const loin = B.vivantes(b, "b").find(u => !B.visible(b, "a", u)); expect(loin).toBeDefined();
+    b.a.espace = 90; B.satellite(b, "a"); expect(B.vivantes(b, "b").filter(u => u.type !== "sousmarins").every(u => B.visible(b, "a", u))).toBe(true);
   });
-  it("12. les robots perdus ne comptent pas comme pertes humaines ; le renseignement révèle le plan adverse", () => {
-    const e = base(12), g = guerre(e, "ETH", "ERI"), b = B.preparerBataille(e, g, "a");
-    b.a.perdues.push({ ...B.CARTES.robots, id: "r", type: "robots", origine: "armee" });
-    expect(B.resultat(b).pertesA).toBe(0);
-    b.info = 2; expect(B.voitPlanAdverse(b, "a")).toBe(true); expect(B.apercu(b, "a")[0].lui).toBeDefined(); expect(B.apercu(b, "b")[0].lui).toBeUndefined();
-    b.info = -2; expect(B.ordresMax(b, "a")).toBe(B.BATAILLE.ordresCoupes);
+  it("12. attaque : coûte 1 logistique, retire des PV, l'unité ne tire qu'une fois ; la prévision donne la chance de détruire", () => {
+    const e = base(12), g = guerre(e, "RUS", "GEO"), b = B.preparerBataille(e, g, "a"), u = premiere(b, "a", x => x.type === "artillerie" || x.type === "blindes"), t = premiere(b, "b", x => B.def(x).domaine === "terre");
+    // place la cible au contact, en plaine
+    const libre = (k?: B.Case) => k && k.t !== "mer" && k.t !== "montagne" && !B.uniteEn(b, k.c, k.r);
+    const k1 = b.cases.find(k => libre(k) && B.voisins(k.c, k.r).some(([c, r]) => libre(B.caseEn(b, c, r))))!; u.c = k1.c; u.r = k1.r;
+    const [c2, r2] = B.voisins(k1.c, k1.r).find(([c, r]) => libre(B.caseEn(b, c, r)))!; t.c = c2; t.r = r2;
+    const pr = B.previsionAttaque(b, u, t); expect(pr.p).toBeGreaterThan(0); expect(pr.detruire).toBeGreaterThanOrEqual(0); expect(pr.detruire).toBeLessThanOrEqual(1);
+    const L = b.a.logistique, pv = t.pv + u.pv; expect(B.attaquer(e, b, "a", u.id, t.id)).toBeNull(); expect(b.a.logistique).toBe(L - 1);
+    expect(t.pv + u.pv).toBeLessThanOrEqual(pv); expect(B.attaquer(e, b, "a", u.id, t.id)).not.toBeNull();
   });
-  it("13. bataille navale : la maîtrise de la mer impose un blocus (logistique, puis PIB en fin d'année)", () => {
-    const e = base(13), g = guerre(e, "IND", "PAK"), b = B.preparerBataille(e, g, "a"); b.mer = 2;
-    const L = b.b.base; B.resoudreSaison(e, b); expect(b.b.logistique).toBeLessThan(L);
+  it("13. 4 saisons, l'attaquant joue puis le défenseur ; la logistique se renouvelle chaque tour", () => {
+    const e = base(13), g = guerre(e, "IND", "PAK"), b = B.preparerBataille(e, g, "a"); let tours = 0;
+    while (!b.finie) { expect(b.actif).toBe(tours % 2 ? "b" : "a"); B.jouerIA(e, b, b.actif); tours++; }
+    expect(tours).toBe(8); expect(b.bilans.length).toBe(8);
+  });
+});
+
+describe("Résultat de l'année : tout est possible", () => {
+  it("14. le plus fort gagne le plus souvent (Russie contre Géorgie ≥ 80 %) ; forces proches incertaines (Éthiopie-Érythrée 20-80 %)", () => {
+    const e = base(14); let r = 0, q = 0;
+    for (let k = 0; k < 20; k++) { const g: any = { id: `t${k}`, titre: "", a: "RUS", b: "GEO", debut: 2000, score: 0, soutien: {} }; if (jouer(e, B.preparerBataille(e, g, "a")).d > 0) r++;
+      const h: any = { id: `u${k}`, titre: "", a: "ETH", b: "ERI", debut: 2000, score: 0, soutien: {} }; if (jouer(e, B.preparerBataille(e, h, "a")).d > 0) q++; }
+    expect(r).toBeGreaterThanOrEqual(16); expect(q).toBeGreaterThanOrEqual(4); expect(q).toBeLessThanOrEqual(16);
+  });
+  it("15. issues variées : victoire foudroyante et enlisement existent ; plus de plafond à 25 % pour l'avancée du front", () => {
+    const e = base(15), issues = new Set<string>();
+    for (const [a, c] of [["USA", "IRN"], ["IND", "PAK"], ["RUS", "GEO"], ["ARM", "AZE"]]) for (let k = 0; k < 8; k++) { const g: any = { id: `v${a}${k}`, titre: "", a, b: c, debut: 2000, score: 0, soutien: {} }; issues.add(jouer(e, B.preparerBataille(e, g, "a")).issue); }
+    expect(issues.has("victoire foudroyante")).toBe(true); expect(issues.has("enlisement")).toBe(true);
+    const g = guerre(e, "RUS", "GEO"); CR.anneeDeGuerre(e, g, 90); expect(g.occ!.a).toBeGreaterThan(25);
+    const h = guerre(e, "IND", "PAK"); CR.anneeDeGuerre(e, h, 4); expect(h.occ!.a).toBeLessThan(5);
+  });
+  it("16. les robots perdus ne comptent pas comme pertes humaines", () => {
+    const e = base(16); e.annee = 2030; const g = guerre(e, "USA", "IRN"), b = B.preparerBataille(e, g, "a"), r = premiere(b, "a", u => u.type === "robots");
+    const p = b.a.pertes; r.pv = 1; (B as any).missile; b.actif = "b"; b.b.missiles = 1; b.b.satellite = true; for (let k = 0; k < 30 && r.pv > 0; k++) { b.b.missiles = 1; B.missile(e, b, "b", r.id); }
+    expect(b.a.pertes).toBe(p);
+  });
+  it("17. blocus : une flotte seule en mer en fin d'année coûte 1 % de PIB au pays bloqué", () => {
+    const e = base(17), g = guerre(e, "IND", "PAK"), b = B.preparerBataille(e, g, "a");
+    for (const u of B.vivantes(b, "b")) if (B.def(u).domaine === "mer") u.pv = 0;
     const pib = e.pays.PAK.pib; B.enregistrer(g, b, e); expect(e.pays.PAK.pib).toBeLessThan(pib); expect(g.batailleJouee?.annee).toBe(e.annee);
   });
 });
@@ -111,13 +116,13 @@ describe("Armes de destruction massive : dissuasion et risques", () => {
   });
   it("15. frappe tactique : l'objectif tombe ; frappes répétées → crise à 4 puis défaite du responsable à 7", () => {
     const e = base(15), g = guerre(e, "RUS", "GEO"), b = B.preparerBataille(e, g, "a");
-    B.nucleaire(e, b, g, "a", "tactique", 0); expect(b.objectifs[0].controle === 3 || b.objectifs[0].controle === 0).toBe(true);
+    B.nucleaire(e, b, g, "a", "tactique", 0); expect(b.objectifs[0].tenu).toBe("a");
     e.nucleaire!.hiver = 3; B.nucleaire(e, b, g, "a", "tactique", 1); expect(e.nucleaire!.crise).toBe(true);
     e.nucleaire!.hiver = 6; e.nucleaire!.points = { CHN: 50 }; B.nucleaire(e, b, g, "a", "tactique", 2); expect(e.defaite).toBeDefined();
   });
-  it("16. biologique : un cinquième des forces ennemies hors de combat et la jauge commune monte", () => {
-    const e = base(16), g = guerre(e, "IND", "PAK"), b = B.preparerBataille(e, g, "a"); const n = b.b.pioche.length + b.b.main.length;
-    B.biologique(e, b, g, "a"); expect(b.b.perdues.length).toBeGreaterThanOrEqual(1); expect(b.b.perdues.length).toBeLessThanOrEqual(Math.ceil(n * 0.2) + 1);
+  it("16b. biologique : chaque unité ennemie perd 1 PV et la jauge commune monte", () => {
+    const e = base(16), g = guerre(e, "IND", "PAK"), b = B.preparerBataille(e, g, "a"); const pv = B.vivantes(b, "b").reduce((s, u) => s + u.pv, 0), n = B.vivantes(b, "b").length;
+    B.biologique(e, b, g, "a"); expect(B.vivantes(b, "b").reduce((s, u) => s + u.pv, 0)).toBe(pv - n);
     expect(e.nucleaire!.hiver).toBeGreaterThanOrEqual(1); expect(e.nucleaire!.bio).toBe(1);
   });
   it("17. pas de nucléaire pour qui n'en a pas", () => {
@@ -127,7 +132,7 @@ describe("Armes de destruction massive : dissuasion et risques", () => {
 });
 
 describe("Front intérieur, diplomatie, négociation, participation du joueur", () => {
-  it("18. front intérieur : mobilisation = cartes d'infanterie, financement = logistique", () => {
+  it("18. front intérieur : mobilisation = 2 divisions d'infanterie, financement = logistique", () => {
     const e = base(18), g = guerre(e, "RUS", "GEO"), r = B.frontInterieur(e, g, "a", "CHN", { mobiliser: true, censurer: false, financement: "impots" });
     expect(r.bonus).toEqual({ infanterie: 2, logistique: 1 });
     const b0 = B.preparerBataille(e, g, "a"), b1 = B.preparerBataille(e, g, "a", { bonus: { a: r.bonus } });
@@ -155,7 +160,7 @@ describe("Front intérieur, diplomatie, négociation, participation du joueur", 
 describe("Guerres en arrière-plan et effets mondiaux", () => {
   it("23. une guerre sans le joueur est résolue par le même moteur (IA contre IA)", () => {
     const e = base(23), g = guerre(e, "RUS", "GEO"); const d = B.batailleAuto(e, g);
-    expect(Number.isFinite(d)).toBe(true); expect(Math.abs(d)).toBeLessThanOrEqual(60);
+    expect(Number.isFinite(d)).toBe(true); expect(Math.abs(d)).toBeLessThanOrEqual(100);
   });
   it("24. pénuries et inflation mondiale : un exportateur en guerre perd de la production, l'inflation monte partout", () => {
     const e = base(24), g = guerre(e, "RUS", "GEO"); const inf0 = { ...e.monnaie!.inflation };

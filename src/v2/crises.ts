@@ -147,7 +147,7 @@ export const GUERRE = {
 // Score de guerre façon EU4 (demande du 2 novembre 2026 : « score de guerre, contrôler, annexer, réparations, impact sur stabilité et influence »).
 // Score de −100 à +100 (positif = avantage de a, l'attaquant) = 0,5 × (occupation de a − occupation de b) + batailles (±10, plafond ±30)
 // + objectif (±5 par an pour qui tient la région disputée, plafond ±20). Valeurs : estimation.
-export const SCORE = { front: 25, poidsOcc: 0.5, bataille: 10, plafondBatailles: 30, objectif: 5, plafondObjectif: 20, tientObjectif: 15, annexionOcc: 30, total: 100, negocie: 50,
+export const SCORE = { front: 80, avance: 0.6, poidsOcc: 0.5, bataille: 0.3, batailleMin: 2, batailleMax: 15, plafondBatailles: 30, objectif: 5, plafondObjectif: 20, tientObjectif: 15, annexionOcc: 30, total: 100, negocie: 50,
   stabParOcc: -0.1, lassitudeAn: 10, lassitudeDefaite: 5, seuilLassitude: 50, stabLassitude: -3, paixBlancheLassitude: 40, paixBlancheScore: 35 };
 // Exigences du traité (coût en score) : le vainqueur dépense son score, des plus coûteuses aux moins coûteuses.
 export type Exigence = "annexer" | "controler" | "reparations" | "demilitariser";
@@ -330,17 +330,18 @@ const partRegion = (iso: string, nom?: string) => REGIONS_CLES[iso]?.find(r => r
 // Une bataille par an : le vainqueur fait avancer le front (de 0 à 25 % du territoire adverse, en libérant d'abord le sien).
 export function anneeDeGuerre(e: EtatV2, g: Guerre, d: number) {
   g.occ ??= { a: 0, b: 0 }; g.lassitude ??= { a: 0, b: 0 }; g.batailles ??= 0; g.objectif ??= 0;
-  const A = e.pays[g.a], B = e.pays[g.b], gagneA = d >= 0, avance = Math.min(SCORE.front, Math.abs(d));
+  const A = e.pays[g.a], B = e.pays[g.b], gagneA = d >= 0, avance = Math.min(SCORE.front, Math.abs(d) * SCORE.avance); // plus de plafond à 25 % (demande du 2 novembre 2026) : tout est possible
   const [moi, lui] = gagneA ? ["a", "b"] as const : ["b", "a"] as const;
   const libere = Math.min(g.occ[lui], avance); g.occ[lui] -= libere; g.occ[moi] = Math.min(100, g.occ[moi] + avance - libere);
-  g.batailles = M.borne(g.batailles + (gagneA ? 1 : -1) * SCORE.bataille, -SCORE.plafondBatailles, SCORE.plafondBatailles);
+  g.batailles = M.borne(g.batailles + (gagneA ? 1 : -1) * M.borne(Math.abs(d) * SCORE.bataille, SCORE.batailleMin, SCORE.batailleMax), -SCORE.plafondBatailles, SCORE.plafondBatailles);
   g.objectif = M.borne(g.objectif + (g.occ.a >= SCORE.tientObjectif ? 1 : -1) * SCORE.objectif, -SCORE.plafondObjectif, SCORE.plafondObjectif);
   g.score = M.borne(SCORE.poidsOcc * (g.occ.a - g.occ.b) + g.batailles + g.objectif, -SCORE.total, SCORE.total);
   // Stabilité : l'occupation pèse sur le pays occupé ; la lassitude s'accumule (plus vite chez le perdant de la bataille).
   B.stabilite = M.borne(B.stabilite + SCORE.stabParOcc * g.occ.a, 0, 100); A.stabilite = M.borne(A.stabilite + SCORE.stabParOcc * g.occ.b, 0, 100);
   g.lassitude[moi] += SCORE.lassitudeAn; g.lassitude[lui] += SCORE.lassitudeAn + SCORE.lassitudeDefaite;
   for (const k of ["a", "b"] as const) if (g.lassitude[k] >= SCORE.seuilLassitude) { const P = e.pays[g[k]]; P.stabilite = M.borne(P.stabilite + SCORE.stabLassitude, 0, 100); }
-  return { bataille: `${(gagneA ? A : B).nom} remporte la bataille de l'année et avance de ${Math.round(avance)} %` };
+  const a = Math.abs(d), issue = a >= 50 ? "victoire foudroyante" : a >= 25 ? "victoire nette" : a >= 8 ? "progression lente" : "enlisement";
+  return { bataille: issue === "enlisement" ? `Front enlisé : ${(gagneA ? A : B).nom} ne gagne que ${Math.round(avance)} %` : `${(gagneA ? A : B).nom} : ${issue}, le front avance de ${Math.round(avance)} %` };
 }
 // Fin de guerre : paix imposée à ±100 ; paix négociée dès ±50 si le perdant est las ; paix blanche si les deux s'usent sans vainqueur.
 export function finDeGuerre(e: EtatV2, g: Guerre, ans: number): string {

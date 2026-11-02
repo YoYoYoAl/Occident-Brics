@@ -624,7 +624,7 @@ export function decompte(e: EtatV2) {
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
 // médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: -10.86, nul: 0.74, annees: 51 }; // recalibré le 2 novembre 2026 après le moteur de bataille (guerres simulées, renforts, ONU, chocs économiques) : 200 parties IA, médiane +10,9 pour l'Occident, résultat 45 % / 10,5 % / 44,5 % (estimation)
+export const JAUGE = { komi: -11.08, nul: 0.6, annees: 51 }; // recalibré le 2 novembre 2026 après le champ de bataille en hexagones (guerres simulées sur le même moteur) : 200 parties IA, médiane +11,1 pour l'Occident, résultat 44,5 % / 10 % / 45,5 % (estimation)
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;

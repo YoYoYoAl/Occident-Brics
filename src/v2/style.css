@@ -384,3 +384,44 @@ button:disabled { cursor: not-allowed; }
 .gu-journal ol { margin: 6px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; } .gu-adm { background: #fdecea; } .gu-adm p { margin: 6px 0; }
 .gu-adm-b { display: flex; gap: 6px; flex-wrap: wrap; } .gu-adm-b button { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--moins); background: #fff; color: var(--moins); font-weight: 600; }
 @media (max-width: 760px) { .gu-gens, .gu-deux, .gu-jauges, .gu-objectifs, .gu-bas { grid-template-columns: 1fr; } .gu-zones-air { grid-template-columns: 1fr 1fr; } }
+/* Champ de bataille en hexagones (refonte du 2 novembre 2026) */
+.gu-champ .gu-barre { margin-bottom: 8px; }
+.gu-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 8px; }
+.gu-actions button { padding: 6px 10px; font-size: 13px; }
+.gu-mode { font-size: 13px; color: #8a5a00; background: #fff4d6; border-radius: 8px; padding: 4px 8px; display: inline-flex; gap: 8px; align-items: center; }
+.gu-corps { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 12px; align-items: start; }
+.gu-carte-champ { background: #f6f1e4; border-radius: 14px; padding: 6px; }
+.gu-plateau { width: 100%; height: auto; display: block; user-select: none; }
+.gu-hex polygon:first-of-type { transition: filter .15s; }
+.gu-hex:hover polygon:first-of-type { filter: brightness(1.06); }
+.gu-hex.jouable { cursor: pointer; }
+.gu-symb { font-size: 12px; text-anchor: middle; fill: rgba(40,50,40,.45); pointer-events: none; }
+.gu-obj-n { font: 700 10px var(--texte, sans-serif); text-anchor: middle; fill: #3a2a10; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
+.gu-u { cursor: pointer; }
+.gu-u circle { stroke: #fff; stroke-width: 2.5; filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+.gu-u.moi circle { fill: #2e6fc9; } .gu-u.eux circle { fill: #c44034; }
+.gu-u.air circle { stroke-dasharray: 4 2; } .gu-u.mer circle { stroke: #dff1ff; }
+.gu-u.sel circle { stroke: #f2b631; stroke-width: 4.5; }
+.gu-u.cible circle { stroke: #ffd24a; stroke-width: 4; animation: gu-pulse 1.1s ease-in-out infinite; }
+.gu-u.fini { opacity: .55; }
+@keyframes gu-pulse { 50% { stroke-width: 1.5; } }
+.gu-ic { fill: #fff; font-size: 16px; text-anchor: middle; pointer-events: none; font-weight: 700; }
+.gu-u rect.pv { fill: #fff; } .gu-u rect.pv0 { fill: rgba(255,255,255,.3); }
+.gu-pct { fill: #2a2a2a; } .gu-pct-t { fill: #ffd24a; font: 700 10.5px sans-serif; text-anchor: middle; pointer-events: none; }
+.gu-fantome circle { fill: rgba(196,64,52,.18); stroke: #c44034; stroke-dasharray: 3 3; stroke-width: 1.5; } .gu-fantome text { fill: #c44034; font: 700 14px sans-serif; text-anchor: middle; }
+.gu-legende { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 12px; color: var(--gris, #666); margin: 4px 6px 2px; }
+.gu-legende i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: -6px; } .gu-legende i.moi { background: #2e6fc9; } .gu-legende i.eux { background: #c44034; } .gu-legende i.fant { border: 1.5px dashed #c44034; }
+.gu-cote { display: flex; flex-direction: column; gap: 10px; }
+.gu-fiche { background: #fff; border: 1px solid var(--bord, #e5dfd2); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.gu-fiche.vide p { margin: 4px 0 0; color: var(--gris, #666); }
+.gu-fiche-img { display: block; height: 92px; margin: -10px -12px 8px; border-radius: 12px 12px 0 0; background: center/cover; }
+.gu-stats { display: flex; gap: 8px; margin: 6px 0; } .gu-stats span { background: #f4efe3; border-radius: 6px; padding: 2px 6px; }
+.gu-aide, .gu-eff, .gu-etat { margin: 4px 0; color: #4a4a4a; } .gu-eff { font-size: 12px; color: #6a6a6a; } .gu-etat { font-weight: 600; }
+.gu-prev { display: flex; flex-direction: column; gap: 2px; background: #fff7dc; border-radius: 8px; padding: 6px 8px; margin-top: 6px; }
+.gu-estim { background: #fff; border: 1px solid var(--bord, #e5dfd2); border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 13px; }
+.gu-estim > span { color: var(--gris, #666); } .gu-estim > b { grid-row: span 2; font-size: 26px; align-self: center; } .gu-estim.plus > b { color: #2f8a50; } .gu-estim.moins > b { color: #c44034; }
+.gu-estim-d { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; margin-top: 4px; } .gu-estim-d span { background: #f4efe3; border-radius: 6px; padding: 2px 6px; }
+.gu-saisons { margin: 0; padding: 0 0 0 16px; font-size: 12.5px; display: flex; flex-direction: column; gap: 4px; } .gu-saisons li.moi::marker { color: #2e6fc9; } .gu-saisons li.eux::marker { color: #c44034; }
+.gu-avis-ennemi { background: #fbeeec; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; } .gu-avis-ennemi ul { margin: 4px 0 0; padding-left: 16px; }
+.gu-obj-n.moi { fill: #1d4f96; } .gu-obj-n.eux { fill: #9a2a20; }
+@media (max-width: 900px) { .gu-corps { grid-template-columns: 1fr; } }

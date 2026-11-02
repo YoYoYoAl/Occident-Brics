@@ -455,7 +455,7 @@ function decrireEffets(c: M.CarteMain): string[] {
 function cartes() {
   ecartees.clear();
   const j = joueur(), m = e.main[j], pris = new Set(e.imagesPrises);
-  const images = m.map(c => { const n = CARTES[c.carte.id]; if (n && !pris.has(n) && img(n)) { pris.add(n); return n; } return undefined; });
+  const images = m.map(c => { const n = IMG[`cartej_${c.carte.id}`] ? `cartej_${c.carte.id}` : CARTES[c.carte.id]; if (n && !pris.has(n) && img(n)) { pris.add(n); return n; } return undefined; });
   const SRC = { propre: { nom: "Ton camp", c: COUL[j] }, neutre: { nom: "Neutre", c: "#b08a2e" }, adverse: { nom: "Adverse", c: COUL[adv()] } };
   const f = fenetre(`<h1>Ta main : écarte 2 cartes</h1><p class="v2-intro">Les 4 cartes gardées sont jouées tout de suite : leur événement s'applique et elles te donnent leurs <b>points d'opérations</b>. Plus une carte t'est favorable, moins elle rapporte.</p>
     <div class="v2-main">${m.map((c, i) => `<button class="v2-carte-jeu ${c.source}" data-i="${i}" style="--c:${SRC[c.source].c}">
