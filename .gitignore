@@ -3,3 +3,4 @@ dist/
 *.log
 __pycache__/
 tests/audit/rapport-*.txt
+dist-maquette
