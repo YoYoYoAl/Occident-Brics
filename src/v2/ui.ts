@@ -12,6 +12,7 @@ import * as MN from "./monnaie";
 import * as CR from "./crises";
 import * as B from "./bataille";
 import { phaseGuerre } from "./ui-guerre";
+import * as SON from "../interface/sons";
 import { dessinerCarteV2, type CarteV2 } from "./carte";
 import { APTITUDES, LISTE_APTITUDES, TRAITS_DIRIGEANT } from "../moteur/dirigeants";
 
@@ -94,6 +95,7 @@ function squelette() {
       <div class="v2-marque"><span class="v2-logo"><i style="background:${COUL.OCC}"></i><i style="background:${COUL.CHN}"></i></span><span>Occident <em>contre</em> BRICS</span><span class="v2-annee">2000</span></div>
       <ol class="v2-etapes">${ETAPES.map((n, i) => `<li data-e="${i}" title="${n} : ${AIDE_ETAPES[i]}"><b>${i + 1}</b><span>${n}</span></li>`).join("")}</ol>
       <div class="v2-compteurs"></div>
+      <div class="v2-sons"><button class="v2-son" data-son="musique" aria-label="Musique"></button><button class="v2-son" data-son="bruitages" aria-label="Bruitages"></button></div>
       <button class="v2-plein" title="Plein écran (Échap pour sortir)" aria-label="Plein écran">⛶</button>
     </header>
     <div class="v2-carte"></div>
@@ -112,6 +114,7 @@ function squelette() {
   if (!document.fullscreenEnabled) plein.hidden = true;
   plein.onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => { plein.hidden = true; });
   document.addEventListener("fullscreenchange", () => { plein.textContent = document.fullscreenElement ? "🗗" : "⛶"; plein.title = document.fullscreenElement ? "Quitter le plein écran" : "Plein écran (Échap pour sortir)"; });
+  brancherSons();
   infobulles();
   const ids = new Map<string, string>((donnees as any).pays.map((p: any) => [String(p.idCarte), p.iso3]));
   carte = dessinerCarteV2($(".v2-carte"), ids, { clicPays, clicZone: z => choisirZone(z), survol });
@@ -126,6 +129,22 @@ function squelette() {
     choisirZone(z);
   });
 }
+
+// ---------- Bande son (sons.ts du jeu : musiques Suno et CC0, bruitages Kenney) ----------
+// Ambiance : menu à l'accueil, thème de l'ère, « tension » si ton camp est en guerre, « guerre » pendant une bataille.
+const ambiance = (): SON.Musique => (etape < 0 ? "menu" : B.guerresDuJoueur(e).length ? "tension" : SON.musiqueEre(e.annee));
+function brancherSons() {
+  const maj = () => document.querySelectorAll<HTMLButtonElement>(".v2-son").forEach(b => {
+    const m = b.dataset.son === "musique", on = m ? SON.musiqueActivee() : SON.sonActif();
+    b.textContent = m ? "♪" : on ? "🔊" : "🔇"; b.classList.toggle("off", !on);
+    b.title = m ? (on ? "Couper la musique" : "Remettre la musique") : on ? "Couper les bruitages" : "Remettre les bruitages";
+  });
+  document.querySelectorAll<HTMLButtonElement>(".v2-son").forEach(b => b.onclick = ev => { ev.stopPropagation(); if (b.dataset.son === "musique") { SON.basculerMusique(); if (SON.musiqueActivee()) SON.musique(ambiance()); } else SON.basculerSon(); maj(); });
+  maj();
+  // Le navigateur bloque l'audio avant le premier geste : la musique voulue démarre au premier clic ; chaque bouton fait un petit clic.
+  if (!sonsBranches) { sonsBranches = true; document.addEventListener("click", ev => { SON.relancerMusique(); if ((ev.target as HTMLElement).closest("button:not(.v2-son)")) SON.jouer("clic", 0.25); }, true); }
+}
+let sonsBranches = false;
 
 // ---------- Carte : couleurs, légende, étiquettes ----------
 const pointsZone = (z: string, c: Camp, visibles = true) => M.opsActives(e).filter(o => o.camp === c && o.zone === z && (!visibles || c === joueur() || etape >= 4 && (M.op(o.type).cat !== "secret" || o.revelee || o.demasquee))).reduce((s, o) => s + o.points, 0);
@@ -313,6 +332,7 @@ function aller(i: number) {
   avis = null;
   equipe();
   [accueil, cabinet, evenements, cartes, operations, revelation, bilan][i + 1]();
+  SON.musique(ambiance()); if (i >= 0) SON.jouer(i === 1 ? "evenement" : "etape", 0.35);
   compteurs(); equipe(); rafraichirCarte(); recadrer();
 }
 
@@ -490,10 +510,10 @@ function panneauOperations() {
       <div class="v2-liste-pays"><div class="v2-lp-tete"><span>Pays</span><span>Attitude</span><span>Économie</span><small>poids</small></div>${l.slice(0, paysChoisi && !l.slice(0, 6).includes(paysChoisi) ? 5 : 6).map(lignePays).join("")}${paysChoisi && !l.slice(0, 6).includes(paysChoisi) ? lignePays(paysChoisi) : ""}
         ${l.length > 6 ? `<select class="v2-autres"><option value="">${l.length - 6} autres pays…</option>${l.slice(6).map(i => `<option value="${i}" ${paysChoisi === i ? "selected" : ""}>${esc(e.pays[i].nom)}</option>`).join("")}</select>` : ""}</div>
       ${cats.map(([cat, nom]) => `<h4>${nom}${cat === "secret" ? `<small>vise un pays : ${paysChoisi ? `<b>${esc(e.pays[paysChoisi].nom)}</b>` : "choisis-le dans la liste ou sur la carte"}</small>` : ""}</h4><div class="v2-ops">${M.OPERATIONS.filter(o => o.cat === cat).map(o => {
-        const cible = o.cible === "pays" ? paysChoisi ?? undefined : undefined;
+        const cible = o.cible === "pays" || o.id === "armee" ? paysChoisi ?? undefined : undefined;
         const r = M.raisonBlocage(e, j, o.id, z, cible);
         const risque = o.cat === "secret" && cible ? M.risqueDemasque(e, { id: 0, camp: j, type: o.id, zone: z, pays: cible, points: 1, boost: 0, annee: e.annee }) : 0;
-        return `<button class="v2-op" data-op="${o.id}" ${r ? "disabled" : ""} title="${esc(o.aide)}"><span class="v2-op-ic">${o.icone}</span><span><b>${o.nom}</b><small>${r ? esc(r) : esc(o.aide)}</small></span><span class="v2-op-cout">${risque ? `<i title="Risque d'être démasqué chaque année">${risque} %</i>` : ""}+${o.min ?? 1}</span></button>`;
+        return `<button class="v2-op" data-op="${o.id}" ${r ? "disabled" : ""} title="${esc(o.aide)}"><span class="v2-op-ic">${o.icone}</span><span><b>${o.nom}</b><small>${r ? esc(r) : o.id === "armee" ? esc(aideArmee(j)) : esc(o.aide)}</small></span><span class="v2-op-cout">${risque ? `<i title="Risque d'être démasqué chaque année">${risque} %</i>` : ""}+${o.min ?? 1}</span></button>`;
       }).join("")}</div>`).join("")}
     </div>`;
   })() : `<div class="v2-astuce"><b>Choisis une zone</b><p>Glisse un jeton sur la carte, ou clique une zone ou un pays. Les zones les plus lourdes pèsent le plus au décompte.</p></div>`;
@@ -501,7 +521,7 @@ function panneauOperations() {
       <div class="v2-jetons-libres">${Array.from({ length: e.points[j] }, (_, i) => `<span class="v2-jeton ${i < libres ? "" : "pose"}" draggable="${i < libres}" style="--c:${COUL[j]}"></span>`).join("")}</div>
       <button class="v2-proposer v2-sec">💡 Proposition des conseillers</button></div>
     <div class="v2-defile">${avisHtml()}${zonesHtml}
-    <div class="v2-plan"><h4>Ton plan pour ${e.annee} <small>${budget} unité${budget > 1 ? "s" : ""} de budget libre${budget > 1 ? "s" : ""}</small></h4>${plan.length ? `<p class="v2-astuce">◆ <b>Budget</b> : clique sur les losanges d'une opération pour la renforcer (+10 % d'effet par losange, 3 au plus). Le budget non dépensé est reporté.</p>` : ""}${plan.length ? plan.map(o => `<div class="v2-plan-l" data-id="${o.id}"><span class="v2-op-ic">${M.op(o.type).icone}</span><span><b>${M.op(o.type).nom}</b><small>${zone(o.zone).court}${o.pays && M.op(o.type).cible === "pays" ? " · " + esc(e.pays[o.pays].nom) : ""}</small></span>
+    <div class="v2-plan"><h4>Ton plan pour ${e.annee} <small>${budget} unité${budget > 1 ? "s" : ""} de budget libre${budget > 1 ? "s" : ""}</small></h4>${plan.length ? `<p class="v2-astuce">◆ <b>Budget</b> : clique sur les losanges d'une opération pour la renforcer (+10 % d'effet par losange, 3 au plus). Le budget non dépensé est reporté.</p>` : ""}${plan.length ? plan.map(o => `<div class="v2-plan-l" data-id="${o.id}"><span class="v2-op-ic">${M.op(o.type).icone}</span><span><b>${M.op(o.type).nom}</b><small>${zone(o.zone).court}${o.pays && (M.op(o.type).cible === "pays" || o.type === "armee") ? " · " + esc(e.pays[o.pays].nom) : ""}</small></span>
       <span class="v2-pm"><button data-moins title="Retirer 1 point">−</button><b>${o.points}</b><button data-plus title="Ajouter 1 point" ${libres ? "" : "disabled"}>+</button></span>
       <span class="v2-boost" title="Boost : +10 % d'effet par unité de budget (3 au plus)">${[1, 2, 3].map(k => `<button data-boost="${k}" class="${o.boost >= k ? "on" : ""}" ${o.boost < k && budget < k - o.boost ? "disabled" : ""}>◆</button>`).join("")}</span><button class="v2-x" data-retirer title="Annuler l'opération">×</button></div>`).join("") : `<p class="v2-vide">Aucune opération pour l'instant.</p>`}</div></div>
     <div class="v2-panneau-pied"><span class="v2-etat">${libres ? `${libres} point${libres > 1 ? "s" : ""} encore libre${libres > 1 ? "s" : ""}` : "Tous tes points sont posés."}</span><button class="v2-ok v2-prim" ${plan.length ? "" : "disabled"}>Valider et révéler →</button></div>`;
@@ -519,8 +539,8 @@ function panneauOperations() {
   p.querySelectorAll<HTMLButtonElement>(".v2-pays").forEach(b => b.onclick = () => { paysChoisi = b.dataset.iso!; carte.choisirPays(paysChoisi); panneauOperations(); });
   p.querySelector<HTMLSelectElement>(".v2-autres")?.addEventListener("change", ev => { paysChoisi = (ev.target as HTMLSelectElement).value || null; carte.choisirPays(paysChoisi); panneauOperations(); });
   p.querySelectorAll<HTMLButtonElement>(".v2-op").forEach(b => b.onclick = () => {
-    const t = b.dataset.op as M.TypeOp, d = M.op(t), cible = d.cible === "pays" ? paysChoisi ?? undefined : undefined;
-    const existe = e.ops.find(o => o.camp === j && o.annee === e.annee && o.type === t && o.zone === z && (d.cible !== "pays" || o.pays === cible));
+    const t = b.dataset.op as M.TypeOp, d = M.op(t), cible = d.cible === "pays" || t === "armee" ? paysChoisi ?? undefined : undefined;
+    const existe = e.ops.find(o => o.camp === j && o.annee === e.annee && o.type === t && o.zone === z && (d.cible !== "pays" && t !== "armee" || o.pays === (t === "armee" ? cible ?? M.LEADER[j] : cible)));
     if (existe && libres) existe.points++; else if (!existe) M.engager(e, j, t, z!, d.min ?? 1, cible);
     panneauOperations(); compteurs(); rafraichirCarte();
   });
@@ -547,10 +567,10 @@ function revelation() {
     revelations = M.resoudreAnnee(e);
     const visibles = revelations.filter(r => r.op.camp === j || M.op(r.op.type).cat !== "secret" || r.op.revelee || r.demasquee);
     const cachees = revelations.filter(r => !visibles.includes(r)).length;
-    const parZone = ZONES.map(z => ({ z, l: visibles.filter(r => r.op.zone === z.id || (r.op.type === "armee" && z.id === ZONE_DE[M.LEADER[r.op.camp]])) })).filter(x => x.l.length);
+    const parZone = ZONES.map(z => ({ z, l: visibles.filter(r => r.op.zone === z.id || (r.op.type === "armee" && r.op.pays === M.LEADER[r.op.camp] && z.id === ZONE_DE[M.LEADER[r.op.camp]] && r.op.zone !== z.id)) })).filter(x => x.l.length);
     p.innerHTML = `<div class="v2-reserve"><div class="v2-reserve-tete"><b>Révélation ${e.annee}</b><span>${revelations.filter(r => r.op.camp === adv()).reduce((s, r) => s + r.op.points, 0)} points ${M.NOM_CAMP[adv()] === "BRICS" ? "des BRICS" : "de l'Occident"}</span></div>
       <p class="v2-note">${cachees ? `${cachees} opération${cachees > 1 ? "s" : ""} secrète${cachees > 1 ? "s" : ""} adverse${cachees > 1 ? "s" : ""} reste${cachees > 1 ? "nt" : ""} cachée${cachees > 1 ? "s" : ""} (un « ? » sur la carte) : une opération secrète dans la zone les révèle.` : "Toutes les opérations adverses sont connues."}</p></div>
-      <div class="v2-defile">${avisHtml()}${parZone.map((x, k) => `<div class="v2-rev" style="--z:${x.z.couleur};animation-delay:${k * 140}ms" data-zone="${x.z.id}"><h4>${x.z.nom}</h4>${x.l.map(r => `<div class="v2-rev-l" style="--c:${COUL[r.op.camp]}"><span class="v2-op-ic">${M.op(r.op.type).icone}</span><span><em class="v2-qui" style="background:${COUL[r.op.camp]}">${r.op.camp === j ? "Toi" : M.NOM_CAMP[r.op.camp]}</em><b>${M.op(r.op.type).nom}</b> · ${r.op.points} pt${r.op.points > 1 ? "s" : ""}${r.op.boost ? ` · boost ${r.op.boost}` : ""}${r.op.pays && M.op(r.op.type).cible === "pays" ? `<small>${esc(e.pays[r.op.pays].nom)}${r.risque ? ` · risque ${r.risque} %` : ""}</small>` : ""}${r.demasquee ? `<small class="moins">Démasquée ! ${esc(r.lignes[r.lignes.length - 1].texte.replace("Démasqué ! ", ""))}</small>` : ""}</span></div>`).join("")}</div>`).join("")}</div>
+      <div class="v2-defile">${avisHtml()}${parZone.map((x, k) => `<div class="v2-rev" style="--z:${x.z.couleur};animation-delay:${k * 140}ms" data-zone="${x.z.id}"><h4>${x.z.nom}</h4>${x.l.map(r => `<div class="v2-rev-l" style="--c:${COUL[r.op.camp]}"><span class="v2-op-ic">${M.op(r.op.type).icone}</span><span><em class="v2-qui" style="background:${COUL[r.op.camp]}">${r.op.camp === j ? "Toi" : M.NOM_CAMP[r.op.camp]}</em><b>${M.op(r.op.type).nom}</b> · ${r.op.points} pt${r.op.points > 1 ? "s" : ""}${r.op.boost ? ` · boost ${r.op.boost}` : ""}${r.op.pays && (M.op(r.op.type).cible === "pays" || r.op.type === "armee" && r.op.pays !== M.LEADER[r.op.camp]) ? `<small>${esc(e.pays[r.op.pays].nom)}${r.risque ? ` · risque ${r.risque} %` : ""}</small>` : ""}${r.demasquee ? `<small class="moins">Démasquée ! ${esc(r.lignes[r.lignes.length - 1].texte.replace("Démasqué ! ", ""))}</small>` : ""}</span></div>`).join("")}</div>`).join("")}</div>
       <div class="v2-panneau-pied"><span class="v2-etat">Survole une zone de la liste pour la voir sur la carte.</span><button class="v2-ok v2-prim">Voir le bilan →</button></div>`;
     p.querySelectorAll<HTMLElement>(".v2-rev").forEach(r => { r.onmouseenter = () => carte.surligner(r.dataset.zone!); r.onmouseleave = () => carte.surligner(null); });
     $(".v2-ok", p).onclick = () => aller(5);
@@ -560,8 +580,13 @@ function revelation() {
   };
   // Phase de guerre jouée : seulement les guerres où ton camp participe, avant la résolution de fin d'année.
   const guerres = B.guerresDuJoueur(e).filter(g => g.batailleJouee?.annee !== e.annee);
-  const prochaine = () => { const g = guerres.shift(); if (!g) { fermerFenetre(); return traque ? lancerTraque(traque, suite) : suite(); } phaseGuerre(e, g, B.coteJoueur(e, g, j)!, prochaine, { fenetre, img, esc }); };
+  const prochaine = () => { const g = guerres.shift(); if (!g) { fermerFenetre(); SON.musique(ambiance()); return traque ? lancerTraque(traque, suite) : suite(); } SON.musique("guerre"); phaseGuerre(e, g, B.coteJoueur(e, g, j)!, prochaine, { fenetre, img, esc }); };
   prochaine();
+}
+// « Améliorer l'armée » : le texte suit le pays du jeton (leader : ton armée ; autre pays : aide militaire à ce pays).
+function aideArmee(j: Camp) {
+  const iso = paysChoisi ?? M.LEADER[j], nom = e.pays[iso].nom; // échappé par l'appelant
+  return iso === M.LEADER[j] ? `Renforce ton armée (${nom}). Financé en partie par ta dette (+0,3 par point).` : `Renforce l'armée de ${nom} (aide militaire). Financé en partie par ta dette (+0,3 par point).`;
 }
 // La traque : choisir où envoyer ses équipes, sans dé.
 function lancerTraque(o: M.Operation, suite: () => void) {
@@ -606,7 +631,7 @@ function effetsOp(r: M.Revelation, j: Camp): string[] {
   return l;
 }
 function ligneOp(r: M.Revelation, j: Camp) {
-  const o = r.op, d = M.op(o.type), age = r.age ?? 0, cible = o.pays && d.cible === "pays" ? esc(e.pays[o.pays].nom) : o.type === "armee" ? "ton armée" : zone(o.zone).nom;
+  const o = r.op, d = M.op(o.type), age = r.age ?? 0, cible = o.pays && d.cible === "pays" ? esc(e.pays[o.pays].nom) : o.type === "armee" ? (o.pays && o.pays !== M.LEADER[o.camp] ? `l'armée de ${esc(e.pays[o.pays].nom)}` : "ton armée") : zone(o.zone).nom;
   const reste = M.ETALEMENT.slice(age + 1).map((x, k) => `${Math.round(x * 100)} % (${e.annee + k + 1})`).join(", ");
   const ef = effetsOp(r, j);
   return `<li class="v2-opb"><span class="v2-op-ic">${d.icone}</span><div><b>${d.nom}</b> · ${cible} · <span class="nw">${o.points} pt${o.points > 1 ? "s" : ""}</span>${o.camp !== j ? ` <em class="v2-qui" style="background:${COUL[o.camp]}">${M.NOM_CAMP[o.camp]}</em>` : ""}
@@ -652,6 +677,7 @@ function bilan() {
   $(".v2-ok", f).onclick = () => demarrer(e.graine + 1);
   $(".v2-carte-voir", f).onclick = () => { fermerFenetre(); mode = "att"; rafraichirCarte(); const b = h(`<button class="v2-retour-bilan v2-prim">Revenir au bilan</button>`); document.body.appendChild(b); b.onclick = () => { b.remove(); bilan(); }; };
   const moi = g[j], lui = g[adv()], avance = j === "OCC" ? g.jauge : -g.jauge;
+  if (Math.abs(avance) > JAUGE_NUL) SON.jouerJingle(avance > 0);
   conseil("defense", `Sur l'année, nous avons conquis ${sg(moi)} % du terrain disponible, ${M.NOM_CAMP[adv()] === "BRICS" ? "les BRICS" : "l'Occident"} ${sg(lui)} %. ${avance > JAUGE_NUL ? "La jauge penche de notre côté." : avance < -JAUGE_NUL ? "La jauge penche du côté adverse." : "La jauge reste à l'équilibre."} Les points posés agiront encore deux ans (30 % puis 20 % de leur effet).`);
 }
 

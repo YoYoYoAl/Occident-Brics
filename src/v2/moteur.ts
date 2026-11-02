@@ -59,7 +59,7 @@ export const OPERATIONS: DefOp[] = [
   { id: "reduire", nom: "Réduire l'influence adverse", cat: "secret", cible: "pays", risque: 20, icone: "✂", aide: "Retire de l'attitude et de l'économie envers le camp adverse : il perd du contrôle sur les routes et de l'accès aux ressources." },
   { id: "eliminer", nom: "Éliminer des points adverses", cat: "secret", cible: "pays", risque: 30, icone: "🎯", aide: "Déclenche la traque : tes équipes cherchent les points adverses dans la zone.", min: 2 },
   { id: "casusbelli", nom: "Fabriquer un casus belli", cat: "secret", cible: "pays", risque: 25, icone: "📜", aide: "Donne un casus belli contre le pays après 1 an. Fait monter la tension mondiale." },
-  { id: "armee", nom: "Améliorer l'armée", cat: "mil", cible: "soi", risque: 0, icone: "🛡", aide: "Puissance militaire de ton pays leader. Financé en partie par la dette (+0,3 point par point engagé)." },
+  { id: "armee", nom: "Améliorer l'armée", cat: "mil", cible: "soi", risque: 0, icone: "🛡", aide: "Jeton sur ton pays leader (États-Unis ou Chine) : renforce ton armée. Jeton sur un autre pays : renforce l'armée de ce pays (aide militaire). Financé en partie par ta dette (+0,3 point par point engagé)." },
   { id: "exercice", nom: "Exercice conjoint", cat: "mil", cible: "zone", risque: 0, icone: "⚓", aide: "Rapproche tes amis et alliés de la zone ; les pays hostiles se méfient davantage et la tension monte un peu." },
   { id: "armes", nom: "Vente d'armes", cat: "mil", cible: "pays", risque: 0, icone: "🚀", aide: "Budget gagné et attitude du client ; renforce son armée." },
   { id: "soutien", nom: "Soutien dans un conflit", cat: "mil", cible: "pays", risque: 0, icone: "🎖", aide: "Ajoute du score de guerre au camp soutenu." },
@@ -413,6 +413,7 @@ export function raisonBlocage(e: EtatV2, camp: Camp, type: TypeOp, zone: string,
   if (type === "guerre" && (!pays || !e.pays[pays].casusBelli[camp] || e.pays[pays].casusBelli[camp] > e.annee)) return "Il faut d'abord un casus belli contre ce pays (opération secrète, prête après 1 an).";
   if (type === "soutien" && !CR.guerresEnCours(e).some(g => (!pays || g.a === pays || g.b === pays) && [g.a, g.b].some(i => ZONE_DE[i] === zone))) return "Aucun conflit en cours dans la zone (choisis un pays en guerre).";
   if (pays && (type === "saboter" || type === "casusbelli") && pays === LEADER[camp]) return "Impossible contre ton propre pays leader.";
+  if (type === "armee" && pays === LEADER[autre(camp)]) return "Impossible : c'est le leader adverse.";
   if (pays && d.cat === "secret" && e.pays[pays].att[camp] >= 100) return "Ce pays est déjà entièrement acquis.";
   if (pointsLibres(e, camp) < (d.min ?? 1)) return d.min ? `Il faut au moins ${d.min} points libres.` : "Plus de points libres.";
   return null;
@@ -423,7 +424,7 @@ export function engager(e: EtatV2, camp: Camp, type: TypeOp, zone: string, point
   const p = Math.max(op(type).min ?? 1, Math.min(points, pointsLibres(e, camp)));
   const b = Math.max(0, Math.min(boost, BOOST.max, e.budget[camp] - e.boostsUtilises[camp]));
   e.boostsUtilises[camp] += b;
-  const o: Operation = { id: e.prochainId++, camp, type, zone, pays: op(type).cible === "soi" ? LEADER[camp] : pays, points: p, boost: b, annee: e.annee };
+  const o: Operation = { id: e.prochainId++, camp, type, zone, pays: op(type).cible === "soi" ? pays ?? LEADER[camp] : pays, points: p, boost: b, annee: e.annee };
   e.ops.push(o);
   return o;
 }
@@ -515,9 +516,12 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
       }
       lignes.push({ texte: `${op(o.type).nom} : ${o.points} pt${o.points > 1 ? "s" : ""}, ${Math.round(part * 100)} % de l'effet cette année`, camp: o.camp, zone: o.zone, signe: 1 });
     } else if (o.type === "armee") {
-      e.militaire[o.camp] += EFFET.armee * m; e.pays[LEADER[o.camp]].militaire += EFFET.armee * m;
+      // Jeton sur le leader : ton armée ; sur un autre pays : l'armée de ce pays (aide militaire, demande du 2 novembre 2026).
+      const iso = o.pays ?? LEADER[o.camp], leader = iso === LEADER[o.camp];
+      if (leader) e.militaire[o.camp] += EFFET.armee * m;
+      e.pays[iso].militaire += EFFET.armee * m;
       if (e.monnaie) e.monnaie.dette[o.camp] += EFFET.armeeDette * m; // dépenses militaires financées en partie par la dette
-      lignes.push({ texte: `Armée ${NOM_CAMP[o.camp]} +${(EFFET.armee * m).toFixed(1)}`, camp: o.camp, signe: 1 });
+      lignes.push({ texte: `Armée ${leader ? NOM_CAMP[o.camp] : `de ${e.pays[iso].nom}`} +${(EFFET.armee * m).toFixed(1)}`, camp: o.camp, signe: 1 });
     } else if (o.pays) {
       const p = e.pays[o.pays];
       if (o.type === "infiltrer") { p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.infiltrer * m * eff(p.iso))); p.infiltre[o.camp] = true; }

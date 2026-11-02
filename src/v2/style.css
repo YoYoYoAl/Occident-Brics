@@ -306,6 +306,10 @@ button:disabled { cursor: not-allowed; }
 .v2-info { position: fixed; z-index: 9999; max-width: 300px; padding: 7px 10px; background: #23262e; color: #fff; font: 500 12px/1.4 var(--texte); border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.25); pointer-events: none; }
 .v2-plein { margin-left: 8px; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--bord); background: #fff; font-size: 17px; cursor: pointer; color: var(--encre); flex: none; }
 .v2-plein:hover { background: #f5f1e8; }
+.v2-sons { display: flex; flex-direction: column; gap: 3px; flex: none; margin-right: -10px; }
+.v2-son { width: 26px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid var(--bord); background: #fff; font-size: 12px; line-height: 1; cursor: pointer; color: var(--encre); }
+.v2-son:hover { background: #f5f1e8; }
+.v2-son.off { opacity: .45; text-decoration: line-through; }
 /* Briefing de crise (tension) et conflits armés — 2 novembre 2026 */
 .v2-crise { margin: 18px 0 6px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(180deg, #fff6ec, #fff); border: 1.5px solid #e9a36b; box-shadow: 0 4px 14px rgba(190,90,30,.12); }
 .v2-crise-tete { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
