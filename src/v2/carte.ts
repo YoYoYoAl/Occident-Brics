@@ -22,7 +22,7 @@ export interface CarteV2 {
   surligner(zone: string | null): void;
   choisirPays(iso: string | null): void;
   etiquettes(f: (zone: string) => string): void; // HTML de chaque étiquette de zone
-  routes(f: ((id: string) => { couleur: string | null; occ: number; chn: number; info: string }) | null): void; // contrôle de chaque route (0-100), ou null pour les cacher
+  routes(f: ((id: string) => { couleur: string | null; occ: number; chn: number; info: string } | null) | null): void; // contrôle de chaque route (0-100), ou null pour les cacher
   zoneSous(x: number, y: number): string | null;
   centrerSur(zone: string | null): void;
   marges(m: { g: number; d: number; h: number; b: number }): void; // place prise par les panneaux, en pixels
@@ -122,8 +122,8 @@ export function dessinerCarteV2(conteneur: HTMLElement, idsJeu: Map<string, stri
       if (!f) return;
       for (const r of ROUTES) {
         const pts = r.trace.map(c => proj(c)!).map(p => p.join(",")).join(" ");
-        const x = f(r.id), c = x.couleur;
-        const g = el("g", { class: "v2-route" });
+        const x = f(r.id); if (!x) continue; const c = x.couleur;
+        const g = el("g", { class: `v2-route ${r.mode ?? "mer"}` });
         g.append(el("polyline", { points: pts, class: "v2-route-fond" }), el("polyline", { points: pts, class: "v2-route-trait", stroke: c ?? "#8a8f98" }));
         const m = proj(r.etiq ?? r.trace[Math.floor(r.trace.length / 2)])!;
         const t = el("text", { x: m[0], y: m[1] - 8, class: "v2-route-nom" }); t.textContent = r.nom;

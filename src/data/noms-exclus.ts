@@ -1,0 +1,9 @@
+// Noms trop proches de personnes réelles (dirigeants, ministres, responsables), à ne jamais générer (retour du 2 novembre 2026,
+// « conseiller Vance » aux USA). Les noms du jeu sont inventés : on écarte les noms de famille trop marqués et les combinaisons réelles connues.
+export const FAMILLES_EXCLUES = new Set(["Vance", "Quayle", "Abbott", "Mercer", "Upton", "Brennan", "Trump", "Biden", "Obama", "Clinton", "Bush", "Cheney", "Rumsfeld", "Pompeo", "Rubio", "Hegseth", "Blinken", "Kerry", "Powell", "Rice", "Haley", "Pence", "Harris", "Walz", "Yellen", "Mnuchin", "Bolton", "Kissinger", "Sullivan", "Austin", "Mattis", "Esper", "Gates", "Panetta", "Hagel", "Carter", "Albright", "Paulson", "Geithner", "Bessent", "Lutnick", "Musk", "Macron", "Merkel", "Scholz", "Sunak", "Starmer", "Johnson", "Blair", "Cameron", "Truss", "Meloni", "Sarkozy", "Hollande", "Xi"]);
+export const NOMS_EXCLUS = new Set([
+  "Ma Kai", "Song Ping", "Jiang Qing", "Dong Jun", "Lu Wei", "Su Rong", "Xie Feng", "Han Jun", "Yuan Peng", "Wang Yi", "Li Peng", "Li Qiang", "Li Xi", "Cai Qi", "Qin Gang", "Liu He", "Yi Gang", "Hu Jintao", "Xi Jinping", "Wen Jiabao", "Zhu Rongji", "Li Keqiang",
+  "Wang Qishan", "Wang Yang", "Wang Huning", "Zhao Leji", "Ding Xuexiang", "Han Zheng", "Hu Chunhua", "Sun Chunlan", "Yang Jiechi", "Dai Bingguo", "Zhou Yongkang", "Zeng Qinghong", "Jia Qinglin", "Wu Bangguo", "He Guoqiang", "Liu Yunshan", "Zhang Gaoli",
+  "Yu Zhengsheng", "Li Changchun", "Meng Jianzhu", "Guo Shengkun", "Chen Quanguo", "Wei Fenghe", "Pan Gongsheng", "Zhou Xiaochuan", "Lou Jiwei", "Li Shangfu", "Chang Wanquan", "Liang Guanglie", "Cao Gangchuan", "Ma Xiaotian", "Xu Caihou", "Guo Boxiong", "Wang Huning",
+]);
+export const nomExclu = (nom: string) => NOMS_EXCLUS.has(nom) || nom.split(" ").some(x => FAMILLES_EXCLUES.has(x));

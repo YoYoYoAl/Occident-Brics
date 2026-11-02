@@ -50,7 +50,7 @@ describe("Tout évolue (acceptation, règle du 2 novembre 2026)", () => {
   it("6. chantage : une coupure réduit l'approvisionnement du camp visé, l'année seulement", () => {
     const e = M.creerPartieV2(15, null as any);
     const avant = RS.bilan(e, "OCC", "terres").offre;
-    expect(RS.chantageCarte(e, "CHN", "terres")[0].texte).toMatch(/Chine coupe/); // en 2000 la Chine produit l'essentiel des terres rares
+    expect(RS.chantageCarte(e, "CHN", "terres")[0].texte).toMatch(/Coupure de terres rares décidée par la Chine/); // en 2000 la Chine produit l'essentiel des terres rares
     expect(RS.bilan(e, "OCC", "terres").offre).toBeLessThan(avant);
     expect(RS.chantageCarte(e, "CHN", "energie")[0].texte).toMatch(/Aucun fournisseur/); // pas encore de grand fournisseur d'énergie assez proche des BRICS
     e.pibDebutAnnee = Object.fromEntries(Object.values(e.pays).map(p => [p.iso, p.pib]));

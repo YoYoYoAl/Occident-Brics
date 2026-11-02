@@ -3,6 +3,7 @@
 // conseillers nommés, renouvelés après un changement de dirigeant, jamais deux fois le même nom dans une partie.
 // Ces mécaniques ne s'appliquent qu'au camp du joueur : l'IA garde l'ancien tirage, ce qui préserve le calibrage IA contre IA (40/20/40).
 // Toutes les valeurs sont une première proposition à calibrer.
+import { nomExclu } from "../data/noms-exclus";
 import { type EtatPartie, outils, partFamille, puissance } from "./partie";
 import { type Conseil, type Trait, LISTE_CONSEILS, TRAITS } from "./plans";
 import { succession } from "./dirigeants";
@@ -17,8 +18,8 @@ const PRENOMS: Record<Camp, string[]> = {
     "Yanping", "Zhenhua", "Lanfang", "Wenbo", "Chunhua", "Kaiwen", "Meiling", "Shaojun", "Hongwei", "Yuqing", "Junjie", "Fengyi", "Qiming", "Suhua", "Guangyu", "Lirong", "Anping", "Xinyue"],
 };
 const NOMS: Record<Camp, string[]> = {
-  OCC: ["Whitmore", "Calloway", "Hendricks", "Brennan", "Ashford", "Delaney", "Harlan", "Prescott", "Thornbury", "Talbot", "Winslow", "Garrison", "Langford", "Osgood", "Okafor", "Marchetti",
-    "Whitfield", "Castellano", "Lindqvist", "Abernathy", "Kowalczyk", "Moreland", "Nakamura", "Fairbanks", "Ridley", "Sorensen", "Holloway", "Quintero", "Blackwood", "Esposito", "Vance", "Merriweather"],
+  OCC: ["Whitmore", "Calloway", "Hendricks", "Brannock", "Ashford", "Delaney", "Harlan", "Prescott", "Thornbury", "Talbot", "Winslow", "Garrison", "Langford", "Osgood", "Okafor", "Marchetti",
+    "Whitfield", "Castellano", "Lindqvist", "Abernathy", "Kowalczyk", "Moreland", "Nakamura", "Fairbanks", "Ridley", "Sorensen", "Holloway", "Quintero", "Blackwood", "Esposito", "Vantongeren", "Merriweather"],
   CHN: ["Wang", "Li", "Zhang", "Liu", "Chen", "Yang", "Zhao", "Huang", "Zhou", "Wu", "Xu", "Sun", "Guo", "He", "Ma", "Lin", "Luo", "Gao", "Zheng", "Liang", "Xie", "Song", "Tang", "Han", "Feng", "Deng",
     "Cao", "Peng", "Zeng", "Xiao", "Tian", "Dong"],
 };
@@ -34,7 +35,7 @@ export function nomUnique(e: EtatPartie, camp: Camp, partie = false): string {
     const x = u(0), y = u(1), [a, b] = camp === "OCC" ? [x, y] : [y, x]; // ordre d'origine : prénom puis nom (USA), nom puis prénom (Chine)
     const p = PRENOMS[camp][Math.floor(a * PRENOMS[camp].length)], n = NOMS[camp][Math.floor(b * NOMS[camp].length)];
     const nom = camp === "OCC" ? `${p} ${n}` : `${n} ${p}`;
-    if (!pris.has(nom)) { (e.nomsPris ??= []).push(nom); return nom; }
+    if (!pris.has(nom) && !nomExclu(nom)) { (e.nomsPris ??= []).push(nom); return nom; } // jamais un nom trop proche d'une personne réelle
   }
   const nom = `${PRENOMS[camp][0]} ${NOMS[camp][0]} ${(e.nomsPris ?? []).length}`; (e.nomsPris ??= []).push(nom); return nom;
 }

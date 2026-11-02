@@ -16,9 +16,9 @@ describe("Zones et routes", () => {
     expect(new Set(tous).size).toBe(194);
     expect(ISO.every(i => ZONE_DE[i])).toBe(true);
   });
-  test("25 routes, chacune tenue par des pays existants, identifiants uniques", () => {
-    expect(ROUTES).toHaveLength(25);
-    expect(new Set(ROUTES.map(r => r.id)).size).toBe(25);
+  test("36 routes (maritimes, terrestres, aériennes), chacune tenue par des pays existants, identifiants uniques", () => {
+    expect(ROUTES).toHaveLength(36);
+    expect(new Set(ROUTES.map(r => r.id)).size).toBe(36);
     expect(ROUTES.every(r => r.trace.length >= 3 && r.trace.every(([x, y]) => Math.abs(x) <= 180 && Math.abs(y) <= 90))).toBe(true);
     expect(ROUTES.every(r => r.pays.length > 0 && r.pays.every(i => ZONE_DE[i]))).toBe(true);
   });

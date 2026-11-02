@@ -1,4 +1,4 @@
-// Refonte v2 : les 12 zones et les 25 routes commerciales (règles du 2 novembre 2026).
+// Refonte v2 : les 12 zones et les 36 routes commerciales (maritimes, terrestres, aériennes) (règles du 2 novembre 2026).
 // Répartition des 194 pays : géographique ; cas limites marqués « estimation » (Turquie, Afghanistan, Mexique, Chypre, Soudan).
 export interface Zone { id: string; nom: string; court: string; couleur: string; pays: string[] }
 
@@ -19,8 +19,8 @@ export const ZONES: Zone[] = [
 export const ZONE_DE: Record<string, string> = Object.fromEntries(ZONES.flatMap(z => z.pays.map(p => [p, z.id])));
 export const zone = (id: string) => ZONES.find(z => z.id === id)!;
 
-// 25 routes : une route est « tenue » par un camp quand tous ses pays sont au moins en accords commerciaux avec lui (estimation des bonus).
-export interface Route { id: string; nom: string; pays: string[]; bonus: string; valeur: number; trace: [number, number][]; etiq?: [number, number] } // valeur : effet maximal sur le PIB, en % par an (estimation) // etiq : position du nom quand la zone est chargée
+// 36 routes (25 maritimes ou mixtes, 7 terrestres ajoutées et 4 aériennes, le 2 novembre 2026) : une route est « tenue » par un camp quand tous ses pays sont au moins en accords commerciaux avec lui (estimation des bonus).
+export interface Route { id: string; nom: string; pays: string[]; bonus: string; valeur: number; trace: [number, number][]; etiq?: [number, number]; mode?: "mer" | "terre" | "air" } // valeur : effet maximal sur le PIB, en % par an (estimation) // etiq : position du nom quand la zone est chargée
 export const ROUTES: Route[] = [
   { id: "malacca", nom: "Détroit de Malacca", pays: ["SGP", "MYS", "IDN"], bonus: "+1 point par an", valeur: 0.15, trace: [[80, 6], [95, 5], [101, 3], [104, 1.3], [110, 4]] },
   { id: "suez", nom: "Canal de Suez", pays: ["EGY"], bonus: "+1 point par an", valeur: 0.12, trace: [[28, 33], [32.3, 31.2], [32.5, 30], [34, 27]], etiq: [26, 33.5] },
@@ -30,7 +30,7 @@ export const ROUTES: Route[] = [
   { id: "detroits", nom: "Détroits turcs", pays: ["TUR", "GRC"], bonus: "accès mer Noire, naval +5 %", valeur: 0.04, trace: [[24, 38], [26.5, 40.2], [29, 41.1], [31, 43]], etiq: [21, 39.5] },
   { id: "cap", nom: "Cap de Bonne-Espérance", pays: ["ZAF", "NAM"], bonus: "route de secours de Suez", valeur: 0.05, trace: [[5, -25], [14, -31], [18.5, -35], [25, -36], [35, -32]] },
   { id: "arctique", nom: "Route de l'Arctique", pays: ["RUS", "NOR", "CAN", "DNK"], bonus: "ouverte après 2025 si le climat se réchauffe", valeur: 0.03, trace: [[20, 72], [45, 74], [80, 76], [120, 76], [170, 70]] },
-  { id: "corridor", nom: "Corridor terrestre eurasien", pays: ["KAZ", "UZB", "PAK", "IRN"], bonus: "commerce Chine-Europe +10 %", valeur: 0.04, trace: [[87, 43], [76, 43], [66, 41], [58, 37], [50, 35]], etiq: [74, 46] },
+  { id: "corridor", nom: "Corridor terrestre eurasien", pays: ["KAZ", "UZB", "PAK", "IRN"], bonus: "commerce Chine-Europe +10 %", valeur: 0.04, trace: [[87, 43], [76, 43], [66, 41], [58, 37], [50, 35]], etiq: [74, 46], mode: "terre" },
   { id: "gibraltar", nom: "Détroit de Gibraltar", pays: ["ESP", "MAR"], bonus: "accès Méditerranée, +1 point", valeur: 0.05, trace: [[-12, 36], [-5.6, 36], [0, 37], [5, 38]] },
   { id: "merchine", nom: "Mer de Chine méridionale", pays: ["VNM", "PHL", "MYS", "BRN", "TWN"], bonus: "commerce Asie +10 %", valeur: 0.12, trace: [[106, 3], [111, 9], [115, 15], [119, 21], [122, 25]] },
   { id: "atlantique", nom: "Atlantique Nord", pays: ["GBR", "IRL", "ISL", "PRT", "CAN"], bonus: "lien transatlantique, +1 point", valeur: 0.08, trace: [[-9, 43], [-20, 50], [-40, 52], [-55, 47]] },
@@ -42,10 +42,23 @@ export const ROUTES: Route[] = [
   { id: "danois", nom: "Détroits danois", pays: ["DNK", "SWE"], bonus: "accès Baltique, naval +5 %", valeur: 0.03, trace: [[6, 57.5], [10.5, 57.8], [11.5, 56], [12.7, 55.6], [15, 55]] },
   { id: "mozambique", nom: "Canal du Mozambique", pays: ["MOZ", "MDG"], bonus: "gaz et commerce Afrique-Asie +10 %", valeur: 0.03, trace: [[40, -11], [41.5, -17], [40, -22], [36, -27]] },
   { id: "guinee", nom: "Golfe de Guinée", pays: ["NGA", "GHA", "CIV", "CMR"], bonus: "pétrole africain, +1 point", valeur: 0.04, trace: [[-15, 5], [-5, 3.5], [3, 3], [8, 3.5], [9, 2]], etiq: [-4, -1.5] },
-  { id: "btc", nom: "Oléoduc Bakou-Ceyhan", pays: ["AZE", "GEO", "TUR"], bonus: "pétrole de la Caspienne sans la Russie", valeur: 0.03, trace: [[49.9, 40.4], [44.8, 41.7], [41, 40], [35.8, 36.9]], etiq: [31, 45.5] },
-  { id: "droujba", nom: "Oléoduc Droujba", pays: ["RUS", "BLR", "UKR", "POL"], bonus: "pétrole russe vers l'Europe, +1 point", valeur: 0.04, trace: [[52, 53], [40, 52], [30, 52.5], [24, 52], [19, 52]], etiq: [36, 56] },
+  { id: "btc", nom: "Oléoduc Bakou-Ceyhan", pays: ["AZE", "GEO", "TUR"], bonus: "pétrole de la Caspienne sans la Russie", valeur: 0.03, trace: [[49.9, 40.4], [44.8, 41.7], [41, 40], [35.8, 36.9]], etiq: [31, 45.5], mode: "terre" },
+  { id: "droujba", nom: "Oléoduc Droujba", pays: ["RUS", "BLR", "UKR", "POL"], bonus: "pétrole russe vers l'Europe, +1 point", valeur: 0.04, trace: [[52, 53], [40, 52], [30, 52.5], [24, 52], [19, 52]], etiq: [36, 56], mode: "terre" },
   { id: "mexique", nom: "Golfe du Mexique", pays: ["USA", "MEX", "CUB"], bonus: "pétrole et ports du Golfe, +1 point", valeur: 0.05, trace: [[-97, 26], [-90, 25], [-84, 23.5], [-80, 25]] },
   { id: "plata", nom: "Atlantique Sud (Río de la Plata)", pays: ["BRA", "URY", "ARG"], bonus: "exportations agricoles +10 %", valeur: 0.03, trace: [[-43, -23], [-48, -28], [-56, -34.9], [-58, -36]] },
   { id: "magellan", nom: "Détroit de Magellan", pays: ["CHL", "ARG"], bonus: "route de secours de Panama", valeur: 0.01, trace: [[-75, -52], [-70.5, -53], [-68, -54.5], [-63, -56]], etiq: [-30, -52] },
-  { id: "nordsud", nom: "Corridor Nord-Sud (Inde-Iran-Russie)", pays: ["IND", "IRN", "AZE", "RUS"], bonus: "commerce Inde-Russie +10 %", valeur: 0.02, trace: [[72.8, 19], [60, 23], [56.3, 27.2], [52, 32], [49.6, 37.5], [49.9, 40.4], [47, 43], [46, 48]], etiq: [62, 33] },
+  { id: "nordsud", nom: "Corridor Nord-Sud (Inde-Iran-Russie)", pays: ["IND", "IRN", "AZE", "RUS"], bonus: "commerce Inde-Russie +10 %", valeur: 0.02, trace: [[72.8, 19], [60, 23], [56.3, 27.2], [52, 32], [49.6, 37.5], [49.9, 40.4], [47, 43], [46, 48]], etiq: [62, 33], mode: "terre" },
+  // Routes terrestres (axes réels ; effets : estimation).
+  { id: "rail_chine_europe", nom: "Train Chine-Europe", pays: ["KAZ", "RUS", "BLR", "POL"], bonus: "fret ferroviaire Chine-Europe, +10 %", valeur: 0.03, mode: "terre", trace: [[80, 44], [70, 51], [61, 55], [50, 55.5], [38, 55.5], [28, 54], [21, 52.2]], etiq: [58, 50] },
+  { id: "karakoram", nom: "Corridor sino-pakistanais", pays: ["PAK"], bonus: "accès chinois à la mer d'Arabie (Gwadar)", valeur: 0.02, mode: "terre", trace: [[75.9, 39.5], [74.5, 36], [73, 33.7], [67, 29], [62.3, 25.1]], etiq: [70, 27.5] },
+  { id: "amerique_nord", nom: "Corridor nord-américain", pays: ["CAN", "USA", "MEX"], bonus: "chaînes industrielles Canada-États-Unis-Mexique, +10 %", valeur: 0.06, mode: "terre", trace: [[-79.4, 43.7], [-87.6, 41.9], [-95, 35], [-99, 27.5], [-99.1, 19.4]], etiq: [-104, 33] },
+  { id: "transsaharienne", nom: "Route transsaharienne", pays: ["DZA", "NER", "NGA"], bonus: "commerce Maghreb-Afrique de l'Ouest", valeur: 0.02, mode: "terre", trace: [[3, 36.7], [3, 28], [6, 20], [8, 13.5], [3.4, 6.5]], etiq: [10, 24] },
+  { id: "lobito", nom: "Corridor de Lobito", pays: ["AGO", "COD", "ZMB"], bonus: "cuivre et cobalt vers l'Atlantique", valeur: 0.02, mode: "terre", trace: [[13.5, -12.4], [18, -12], [23, -11], [26.5, -11.7], [28.3, -12.9]], etiq: [13, -17] },
+  { id: "rhin_danube", nom: "Axe Rhin-Danube", pays: ["DEU", "AUT", "HUN", "ROU"], bonus: "industrie d'Europe centrale, +1 point", valeur: 0.04, mode: "terre", trace: [[6.8, 51.2], [9, 49], [12, 48.5], [16.4, 48.2], [19, 47.5], [26, 44.4], [28.6, 44.2]], etiq: [12, 46.5] },
+  { id: "chine_asean", nom: "Rail Chine-Laos-Thaïlande", pays: ["LAO", "THA"], bonus: "commerce Chine-Asie du Sud-Est par le rail", valeur: 0.02, mode: "terre", trace: [[102.7, 25], [101.5, 21], [102.6, 18], [100.5, 13.7]], etiq: [96, 19] },
+  // Routes aériennes : grands couloirs du fret et des passagers, tenus par les pays des plateformes (hubs).
+  { id: "air_golfe", nom: "Pont aérien du Golfe", pays: ["ARE", "QAT"], bonus: "correspondances Europe-Asie-Afrique (Dubaï, Doha)", valeur: 0.05, mode: "air", trace: [[2.5, 49], [20, 44], [38, 35], [55.3, 25.3], [70, 22], [88, 15], [103.9, 1.4]], etiq: [62, 14] },
+  { id: "air_atlantique", nom: "Couloir aérien transatlantique", pays: ["USA", "GBR", "DEU"], bonus: "fret express et affaires, +1 point", valeur: 0.05, mode: "air", trace: [[-73.8, 40.6], [-55, 50], [-35, 56], [-15, 56], [-0.5, 51.5], [8.6, 50]], etiq: [-35, 59] },
+  { id: "air_asie", nom: "Couloir aérien d'Asie de l'Est", pays: ["SGP", "CHN", "KOR", "JPN"], bonus: "fret électronique (Singapour, Shanghai, Séoul, Tokyo)", valeur: 0.05, mode: "air", trace: [[103.9, 1.4], [110, 12], [114, 22.3], [121.5, 31.2], [126.5, 37.5], [139.8, 35.6]], etiq: [132, 30] },
+  { id: "air_afrique", nom: "Pont aérien africain", pays: ["ETH", "KEN"], bonus: "liaisons Afrique-Asie (Addis-Abeba, Nairobi)", valeur: 0.02, mode: "air", trace: [[-17.4, 14.7], [3.4, 6.5], [20, 7], [38.8, 9], [46, 16], [55.3, 25.3]], etiq: [30, 2.5] },
 ];

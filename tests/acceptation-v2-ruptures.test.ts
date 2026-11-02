@@ -3,11 +3,11 @@ import { describe, it, expect } from "vitest";
 import * as M from "../src/v2/moteur";
 import * as MN from "../src/v2/monnaie";
 import * as EV from "../src/v2/evolution";
-import { RUPTURES, PROJECTIONS_2050, PROJECTIONS_2050_B } from "../src/contenu/ruptures";
+import { RUPTURES, PROJECTIONS_2050, PROJECTIONS_2050_B, PROJECTIONS_2050_C } from "../src/contenu/ruptures";
 
 const jouerAnnee = (e: M.EtatV2) => { M.jouerEvenements(e); M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e); M.anneeSuivante(e); };
 const partie = (g: number) => { const e = M.creerPartieV2(g, null as any); M.cabinetIA(e, "OCC"); M.cabinetIA(e, "CHN"); while (!e.fin) jouerAnnee(e); return e; };
-const NOUVEAUX = [...RUPTURES, ...PROJECTIONS_2050, ...PROJECTIONS_2050_B];
+const NOUVEAUX = [...RUPTURES, ...PROJECTIONS_2050, ...PROJECTIONS_2050_B, ...PROJECTIONS_2050_C];
 
 describe("Ruptures de l'ordre mondial et partie jusqu'en 2050 (acceptation)", () => {
   it("1. contenu : au moins 40 ruptures, chaque année 2036-2050 a des événements ; pays, conditions et identifiants valides", () => {

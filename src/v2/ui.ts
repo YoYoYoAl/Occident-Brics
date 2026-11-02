@@ -36,10 +36,14 @@ const COUL = { OCC: "#2f6db5", CHN: "#c0392b" };
 const PALETTE_ATT = ["#9d1c24", "#d64b3f", "#f1a37f", "#efe8d8", "#a8d5a2", "#56ae6c", "#1f7a46"];
 const ECO_COURT = ["Sanctions", "Boycott", "Protectionnisme", "Neutre", "Accords", "Libre-échange", "Entraide"];
 const PALETTE_ECO = ["#7a3b0c", "#c06a1f", "#efbe7d", "#efe8d8", "#9fd0d6", "#3e9fb0", "#1b6b80"];
-// Vue Ressources : vert = a ce bien, orange = en manque ; teinte forte = proche de toi.
+// Vue Ressources : vert = exportateur, orange = importateur ; teinte forte = pays de ton camp.
 const PALETTE_RES: Record<RS.Lecture, string> = { fournisseur_ami: "#2e8b57", fournisseur: "#a8d5a2", demandeur_ami: "#d9822b", demandeur: "#f3c99a", neutre: "#e9e4d8" };
-const NOMS_RES: Record<RS.Lecture, string> = { fournisseur_ami: "en a, proche de toi", fournisseur: "en a, pas proche", demandeur_ami: "en manque, proche de toi", demandeur: "en manque, pas proche", neutre: "ni l'un ni l'autre" };
+// Libellés (retour du 2 novembre 2026 : « en a », « pas proche » jugés peu clairs). « Ton camp » = pays dont au moins 40 % des liens vont vers toi.
+const NOMS_RES: Record<RS.Lecture, string> = { fournisseur_ami: "exportateur de ton camp", fournisseur: "exportateur hors de ton camp", demandeur_ami: "importateur de ton camp", demandeur: "importateur hors de ton camp", neutre: "autosuffisant" };
 const ETAPES = ["Cabinet", "Événements", "Cartes", "Opérations", "Révélation", "Bilan"];
+// Infobulles (demande du 2 novembre 2026) : une phrase par étape et par mode de carte.
+const AIDE_ETAPES = ["Ton dirigeant nomme 5 conseillers : chacun apporte un bonus et un malus.", "Les événements de l'année : historiques, projetés, ruptures. Clique un pays cité pour le voir.", "Écarte 2 cartes sur 6 ; les 4 autres sont jouées et donnent tes points d'opérations.", "Pose tes points dans les zones et les pays, renforce-les avec le budget (◆).", "Les plans des deux camps apparaissent ; une opération secrète peut être démasquée.", "Ce qui a changé, tes opérations et leurs effets, le décompte par zone."];
+const AIDE_MODES: Record<string, string> = { zones: "Les 12 zones et leur poids au décompte.", att: "Attitude de chaque pays envers toi (de Haine à Alliance). Clique un pays pour voir ses relations.", eco: "Relations économiques de chaque pays avec toi (de Sanctions à Entraide).", res: "Qui exporte et qui importe chaque ressource ; ton camp en manque-t-il ?", ops: "Les opérations posées cette année, par zone.", routes: "Les 36 routes commerciales (mer, terre, air) et le contrôle de chaque camp.", mil: "Puissance militaire de chaque pays.", pib: "PIB de chaque pays.", pop: "Population de chaque pays." };
 const MODES = [
   { id: "zones", nom: "Zones", icone: "◱" }, { id: "att", nom: "Attitude", icone: "☺" }, { id: "eco", nom: "Économie", icone: "⇄" }, { id: "res", nom: "Ressources", icone: "⛏" },
   { id: "ops", nom: "Opérations", icone: "●" }, { id: "routes", nom: "Routes", icone: "⛴" },
@@ -51,10 +55,32 @@ let e: M.EtatV2;
 let carte: CarteV2;
 let etape = -1, mode: Mode = "zones", zoneChoisie: string | null = null, paysChoisi: string | null = null, paysRelation: string | null = null, bienVu: RS.Bien = "energie"; // mode Attitude : null = envers toi, sinon relations de ce pays
 let revelations: M.Revelation[] = [];
+let routesVues: "toutes" | "mer" | "terre" | "air" = "toutes"; // filtre de la vue Routes (cosmétique)
 const ecartees = new Set<number>();
 const joueur = () => e.joueur, adv = () => M.autre(e.joueur);
 
 // ---------- Squelette ----------
+// Infobulles maison : tout élément qui a un title l'affiche dans une bulle soignée, après un court délai (au lieu de la bulle du navigateur).
+let infobullesPretes = false;
+function infobulles() {
+  if (infobullesPretes) return; infobullesPretes = true;
+  let minuteur = 0, cible: HTMLElement | null = null;
+  const bulle = () => document.querySelector<HTMLElement>(".v2-info");
+  const cacher = () => { clearTimeout(minuteur); const b = bulle(); if (b) b.hidden = true; if (cible?.dataset.tt) { cible.title = cible.dataset.tt; delete cible.dataset.tt; } cible = null; };
+  document.addEventListener("mouseover", ev => {
+    const x = (ev.target as Element).closest?.("[title]") as HTMLElement | null;
+    if (!x || x === cible || x.closest(".v2-svg")) return;
+    cacher(); cible = x; x.dataset.tt = x.title; x.removeAttribute("title");
+    minuteur = window.setTimeout(() => {
+      const b = bulle(); if (!b || cible !== x) return; b.textContent = x.dataset.tt!; b.hidden = false;
+      const r = x.getBoundingClientRect(), w = b.offsetWidth, hh = b.offsetHeight;
+      const gauche = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)), haut = r.bottom + 8 + hh > innerHeight ? r.top - hh - 8 : r.bottom + 8;
+      b.style.left = gauche + "px"; b.style.top = haut + "px";
+    }, 350);
+  });
+  document.addEventListener("mouseout", ev => { if (cible && !cible.contains(ev.relatedTarget as Node)) cacher(); });
+  document.addEventListener("mousedown", cacher);
+}
 function squelette() {
   // L'hébergeur de l'artefact place la page dans <body> : on met d'abord styles et polices à l'abri dans <head>,
   // puis on ne retire que nos propres éléments (sinon la feuille de style disparaît et la page s'affiche brute).
@@ -63,19 +89,27 @@ function squelette() {
   document.body.appendChild(h(`<div class="v2">
     <header class="v2-haut">
       <div class="v2-marque"><span class="v2-logo"><i style="background:${COUL.OCC}"></i><i style="background:${COUL.CHN}"></i></span><span>Occident <em>contre</em> BRICS</span><span class="v2-annee">2000</span></div>
-      <ol class="v2-etapes">${ETAPES.map((n, i) => `<li data-e="${i}" title="${n}"><b>${i + 1}</b><span>${n}</span></li>`).join("")}</ol>
+      <ol class="v2-etapes">${ETAPES.map((n, i) => `<li data-e="${i}" title="${n} : ${AIDE_ETAPES[i]}"><b>${i + 1}</b><span>${n}</span></li>`).join("")}</ol>
       <div class="v2-compteurs"></div>
+      <button class="v2-plein" title="Plein écran (Échap pour sortir)" aria-label="Plein écran">⛶</button>
     </header>
     <div class="v2-carte"></div>
     <aside class="v2-equipe"></aside>
     <div class="v2-conseil" hidden></div>
-    <nav class="v2-modes">${MODES.map(m => `<button data-mode="${m.id}" title="${m.nom}"><span>${m.icone}</span>${m.nom}</button>`).join("")}</nav>
+    <nav class="v2-modes">${MODES.map(m => `<button data-mode="${m.id}" title="${m.nom} : ${AIDE_MODES[m.id] ?? ""}"><span>${m.icone}</span>${m.nom}</button>`).join("")}</nav>
     <div class="v2-legende"></div>
     <section class="v2-panneau" hidden></section>
     <div class="v2-voile" hidden><div class="v2-fenetre"></div></div>
     <div class="v2-bulle" hidden></div>
     <div class="v2-tresor" hidden></div>
+    <div class="v2-info" hidden></div>
   </div>`));
+  // Plein écran : bouton en haut à droite (si le navigateur ou l'hébergeur le refuse, le bouton est masqué).
+  const plein = document.querySelector<HTMLButtonElement>(".v2-plein")!;
+  if (!document.fullscreenEnabled) plein.hidden = true;
+  plein.onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => { plein.hidden = true; });
+  document.addEventListener("fullscreenchange", () => { plein.textContent = document.fullscreenElement ? "🗗" : "⛶"; plein.title = document.fullscreenElement ? "Quitter le plein écran" : "Plein écran (Échap pour sortir)"; });
+  infobulles();
   const ids = new Map<string, string>((donnees as any).pays.map((p: any) => [String(p.idCarte), p.iso3]));
   carte = dessinerCarteV2($(".v2-carte"), ids, { clicPays, clicZone: z => choisirZone(z), survol });
   document.querySelectorAll<HTMLButtonElement>(".v2-modes button").forEach(b => b.addEventListener("click", () => { mode = b.dataset.mode as Mode; rafraichirCarte(); }));
@@ -122,21 +156,23 @@ function legende() {
     : mode === "eco" ? echelle(`Économie avec ${j === "BRICS" ? "les BRICS" : "l'Occident"} (toi)`, M.ECONOMIES, PALETTE_ECO)
     : mode === "res" ? (() => { const b = RS.bilan(e, joueur(), bienVu), nomB = RS.BIENS.find(x => x.id === bienVu)!.nom.toLowerCase(), de = /^[aeéèiou]/.test(nomB) ? `d'${nomB}` : `de ${nomB}`;
         return `<div class="v2-biens">${RS.BIENS.map(x => `<button data-bien="${x.id}" class="${x.id === bienVu ? "actif" : ""}">${x.nom}</button>`).join("")}</div>
-        <p class="v2-res-bilan ${b.manque ? "manque" : "ok"}">${b.manque ? `Ton camp <b>manque</b> ${de} : cherche des fournisseurs (en vert).` : `Ton camp <b>a assez</b> ${de} : les pays en orange veulent tes ressources.`}</p>
+        <p class="v2-res-bilan ${b.manque ? "manque" : "ok"}">${b.manque ? `Ton camp <b>manque</b> ${de} : cherche des exportateurs (en vert).` : `Ton camp <b>a assez</b> ${de} : les importateurs (en orange) sont des clients à gagner.`}</p>
         <div class="v2-ech">${(Object.keys(NOMS_RES) as RS.Lecture[]).map(k => `<span><i style="background:${PALETTE_RES[k]}"></i>${NOMS_RES[k]}</span>`).join("")}</div>
         <p class="v2-note">Données réelles 2000 ; seuils et bilan : estimation.</p>`; })()
     : mode === "ops" ? `<b>Opérations actives</b><div class="v2-ech"><span><i style="background:${COUL[joueur()]}"></i>tes points</span><span><i style="background:${COUL[adv()]}"></i>points adverses connus</span></div><p class="v2-note">Plus la teinte est forte, plus il y a de points.</p>`
-    : mode === "routes" ? `<b>25 routes commerciales</b><p class="v2-note">Sous chaque nom : contrôle <b style="color:${COUL.OCC}">Occident</b> · <b style="color:${COUL.CHN}">BRICS</b> (part du commerce des pays de la route). Ton PIB gagne quand ton camp tient les routes, il perd sinon (jusqu'à ±0,15 % par route et par an, estimation).</p><div class="v2-ech"><span><i style="background:${COUL.OCC}"></i>tenue par l'Occident</span><span><i style="background:${COUL.CHN}"></i>tenue par les BRICS</span><span><i style="background:#c9c3b4"></i>disputée</span></div><p class="v2-note">Une route est tenue quand tous ses pays sont au moins en accords commerciaux avec un camp.</p>`
+    : mode === "routes" ? `<b>${ROUTES.length} routes commerciales</b><div class="v2-biens">${(["toutes", "mer", "terre", "air"] as const).map(t => `<button data-rtype="${t}" class="${t === routesVues ? "actif" : ""}">${{ toutes: "Toutes", mer: "Maritimes", terre: "Terrestres", air: "Aériennes" }[t]} <small>${t === "toutes" ? ROUTES.length : ROUTES.filter(r => (r.mode ?? "mer") === t).length}</small></button>`).join("")}</div><p class="v2-note">Sous chaque nom : contrôle <b style="color:${COUL.OCC}">Occident</b> · <b style="color:${COUL.CHN}">BRICS</b> (part du commerce des pays de la route). Ton PIB gagne quand ton camp tient les routes, il perd sinon (jusqu'à ±0,15 % par route et par an, estimation).</p><div class="v2-ech"><span><i style="background:${COUL.OCC}"></i>tenue par l'Occident</span><span><i style="background:${COUL.CHN}"></i>tenue par les BRICS</span><span><i style="background:#c9c3b4"></i>disputée</span></div><div class="v2-ech"><span><i class="ech-trait ech-mer"></i>maritime</span><span><i class="ech-trait ech-terre"></i>terrestre (rail, route, oléoduc)</span><span><i class="ech-trait ech-air"></i>aérienne</span></div><p class="v2-note">Une route est tenue quand tous ses pays sont au moins en accords commerciaux avec un camp.</p>`
     : mode === "mil" ? `<b>Puissance militaire</b><div class="v2-grad" style="background:linear-gradient(90deg,#efe8f6,#4b2a86)"></div><div class="v2-bornes"><span>faible</span><span>forte</span></div>`
     : mode === "pib" ? `<b>PIB 2000</b><div class="v2-grad" style="background:linear-gradient(90deg,#fbf3d6,#a8770a)"></div><div class="v2-bornes"><span>100 M$</span><span>13 000 Md$</span></div>`
     : `<b>Population 2000</b><div class="v2-grad" style="background:linear-gradient(90deg,#f7ecef,#8c2d59)"></div><div class="v2-bornes"><span>50 000</span><span>1,3 milliard</span></div>`;
+  l.querySelectorAll<HTMLButtonElement>("[data-rtype]").forEach(x => x.addEventListener("click", () => { routesVues = x.dataset.rtype as typeof routesVues; rafraichirCarte(); }));
   l.querySelectorAll<HTMLButtonElement>("[data-bien]").forEach(x => x.addEventListener("click", () => { bienVu = x.dataset.bien as RS.Bien; rafraichirCarte(); }));
   l.querySelector("[data-att-toi]")?.addEventListener("click", () => { paysRelation = null; rafraichirCarte(); });
 }
 function rafraichirCarte() {
   carte.colorer(couleurPays);
   carte.routes(mode === "routes" ? id => {
-    const c = M.controleRoute(e, id), k = EV.controle(e, id), r = ROUTES.find(x => x.id === id)!, v = EV.valeurRoute(id, e.annee);
+    const r = ROUTES.find(x => x.id === id)!; if (routesVues !== "toutes" && (r.mode ?? "mer") !== routesVues) return null;
+    const c = M.controleRoute(e, id), k = EV.controle(e, id), v = EV.valeurRoute(id, e.annee);
     return { couleur: c ? COUL[c] : null, occ: Math.round(k.OCC * 100), chn: Math.round(k.CHN * 100),
       info: `contrôle Occident ${Math.round(k.OCC * 100)} %, BRICS ${Math.round(k.CHN * 100)} %. ${r.bonus}. Effet sur le PIB jusqu'à ±${fr(v, 2)} % par an (estimation).` };
   } : null);
@@ -184,10 +220,11 @@ function compteurs() {
   if (etape < 0) { $(".v2-compteurs").innerHTML = ""; return; }
   const g = M.progression(e), j = joueur();
   const libres = M.pointsLibres(e, j), budget = e.budget[j] - e.boostsUtilises[j];
+  queueMicrotask(() => $(".v2-compteurs").querySelector(".budget")?.addEventListener("click", () => conseil("economie", `Le budget (${budget} ◆) sert à deux choses. 1) Renforcer tes opérations : à l'étape Opérations, clique sur les losanges ◆ à droite de chaque opération de ton plan (+10 % d'effet par losange, 3 au plus). 2) Le Trésor (bouton dette en haut) : rembourser la dette ou acheter de l'or coûte 1 ◆ ; emprunter, imprimer de la monnaie ou puiser dans les réserves en rapporte. Le budget non dépensé est reporté, jusqu'à 2 ans de revenu.`)));
   queueMicrotask(() => $(".v2-compteurs").querySelector(".tresor")?.addEventListener("click", () => ($(".v2-tresor").hidden ? tresor() : ($(".v2-tresor").hidden = true))));
   $(".v2-compteurs").innerHTML = `
     <div class="v2-pill points" title="Points d'opérations de l'année : somme des 4 cartes jouées + bonus du cabinet"><span>★</span><b>${etape >= 3 ? `${libres} / ${e.points[j]}` : e.points[j] || "—"}</b><small>points</small></div>
-    <div class="v2-pill budget" title="Budget : chaque unité renforce une opération de 10 % (3 au plus)"><span>◆</span><b>${budget}</b><small>budget</small></div>
+    <div class="v2-pill budget" role="button" title="Clique pour savoir comment utiliser le budget"><span>◆</span><b>${budget}</b><small>budget</small></div>
     <button class="v2-pill tresor" title="Trésor : dette, inflation et réserves de ton camp (cliquer pour décider)"><span>🏛</span><b>${Math.round(e.monnaie!.dette[j])} %</b><small>dette</small><b>${fr(e.monnaie!.inflation[j])} %</b><small>inflation</small></button>
     <div class="v2-proj" title="Jauge de progression : part du terrain disponible que chaque camp a conquis depuis 2000, plus le handicap (komi) qui compense la position de départ. Au centre : égalité.">
       <div class="v2-proj-titre">Jauge <small>${g.tete ? `avantage ${g.tete === "OCC" ? "Occident" : "BRICS"}` : "égalité"}</small></div>
@@ -412,7 +449,7 @@ function panneauOperations() {
       <div class="v2-jetons-libres">${Array.from({ length: e.points[j] }, (_, i) => `<span class="v2-jeton ${i < libres ? "" : "pose"}" draggable="${i < libres}" style="--c:${COUL[j]}"></span>`).join("")}</div>
       <button class="v2-proposer v2-sec">💡 Proposition des conseillers</button></div>
     <div class="v2-defile">${avisHtml()}${zonesHtml}
-    <div class="v2-plan"><h4>Ton plan pour 2000 <small>${budget} unité${budget > 1 ? "s" : ""} de budget libre${budget > 1 ? "s" : ""}</small></h4>${plan.length ? plan.map(o => `<div class="v2-plan-l" data-id="${o.id}"><span class="v2-op-ic">${M.op(o.type).icone}</span><span><b>${M.op(o.type).nom}</b><small>${zone(o.zone).court}${o.pays && M.op(o.type).cible === "pays" ? " · " + esc(e.pays[o.pays].nom) : ""}</small></span>
+    <div class="v2-plan"><h4>Ton plan pour ${e.annee} <small>${budget} unité${budget > 1 ? "s" : ""} de budget libre${budget > 1 ? "s" : ""}</small></h4>${plan.length ? `<p class="v2-astuce">◆ <b>Budget</b> : clique sur les losanges d'une opération pour la renforcer (+10 % d'effet par losange, 3 au plus). Le budget non dépensé est reporté.</p>` : ""}${plan.length ? plan.map(o => `<div class="v2-plan-l" data-id="${o.id}"><span class="v2-op-ic">${M.op(o.type).icone}</span><span><b>${M.op(o.type).nom}</b><small>${zone(o.zone).court}${o.pays && M.op(o.type).cible === "pays" ? " · " + esc(e.pays[o.pays].nom) : ""}</small></span>
       <span class="v2-pm"><button data-moins title="Retirer 1 point">−</button><b>${o.points}</b><button data-plus title="Ajouter 1 point" ${libres ? "" : "disabled"}>+</button></span>
       <span class="v2-boost" title="Boost : +10 % d'effet par unité de budget (3 au plus)">${[1, 2, 3].map(k => `<button data-boost="${k}" class="${o.boost >= k ? "on" : ""}" ${o.boost < k && budget < k - o.boost ? "disabled" : ""}>◆</button>`).join("")}</span><button class="v2-x" data-retirer title="Annuler l'opération">×</button></div>`).join("") : `<p class="v2-vide">Aucune opération pour l'instant.</p>`}</div></div>
     <div class="v2-panneau-pied"><span class="v2-etat">${libres ? `${libres} point${libres > 1 ? "s" : ""} encore libre${libres > 1 ? "s" : ""}` : "Tous tes points sont posés."}</span><button class="v2-ok v2-prim" ${plan.length ? "" : "disabled"}>Valider et révéler →</button></div>`;
@@ -459,7 +496,7 @@ function revelation() {
     const visibles = revelations.filter(r => r.op.camp === j || M.op(r.op.type).cat !== "secret" || r.op.revelee || r.demasquee);
     const cachees = revelations.filter(r => !visibles.includes(r)).length;
     const parZone = ZONES.map(z => ({ z, l: visibles.filter(r => r.op.zone === z.id || (r.op.type === "armee" && z.id === ZONE_DE[M.LEADER[r.op.camp]])) })).filter(x => x.l.length);
-    p.innerHTML = `<div class="v2-reserve"><div class="v2-reserve-tete"><b>Révélation 2000</b><span>${revelations.filter(r => r.op.camp === adv()).reduce((s, r) => s + r.op.points, 0)} points ${M.NOM_CAMP[adv()] === "BRICS" ? "des BRICS" : "de l'Occident"}</span></div>
+    p.innerHTML = `<div class="v2-reserve"><div class="v2-reserve-tete"><b>Révélation ${e.annee}</b><span>${revelations.filter(r => r.op.camp === adv()).reduce((s, r) => s + r.op.points, 0)} points ${M.NOM_CAMP[adv()] === "BRICS" ? "des BRICS" : "de l'Occident"}</span></div>
       <p class="v2-note">${cachees ? `${cachees} opération${cachees > 1 ? "s" : ""} secrète${cachees > 1 ? "s" : ""} adverse${cachees > 1 ? "s" : ""} reste${cachees > 1 ? "nt" : ""} cachée${cachees > 1 ? "s" : ""} (un « ? » sur la carte) : une opération secrète dans la zone les révèle.` : "Toutes les opérations adverses sont connues."}</p></div>
       <div class="v2-defile">${avisHtml()}${parZone.map((x, k) => `<div class="v2-rev" style="--z:${x.z.couleur};animation-delay:${k * 140}ms" data-zone="${x.z.id}"><h4>${x.z.nom}</h4>${x.l.map(r => `<div class="v2-rev-l" style="--c:${COUL[r.op.camp]}"><span class="v2-op-ic">${M.op(r.op.type).icone}</span><span><em class="v2-qui" style="background:${COUL[r.op.camp]}">${r.op.camp === j ? "Toi" : M.NOM_CAMP[r.op.camp]}</em><b>${M.op(r.op.type).nom}</b> · ${r.op.points} pt${r.op.points > 1 ? "s" : ""}${r.op.boost ? ` · boost ${r.op.boost}` : ""}${r.op.pays && M.op(r.op.type).cible === "pays" ? `<small>${esc(e.pays[r.op.pays].nom)}${r.risque ? ` · risque ${r.risque} %` : ""}</small>` : ""}${r.demasquee ? `<small class="moins">Démasquée ! ${esc(r.lignes[r.lignes.length - 1].texte.replace("Démasqué ! ", ""))}</small>` : ""}</span></div>`).join("")}</div>`).join("")}</div>
       <div class="v2-panneau-pied"><span class="v2-etat">Survole une zone de la liste pour la voir sur la carte.</span><button class="v2-ok v2-prim">Voir le bilan →</button></div>`;
@@ -498,6 +535,35 @@ function lancerTraque(o: M.Operation, suite: () => void) {
   };
   maj();
 }
+// Opérations de l'année dans le bilan (retour du 2 novembre 2026 : toutes les actions doivent y figurer, avec leur progression sur 3 ans).
+const NOM_BIEN = Object.fromEntries(RS.BIENS.map(b => [b.id, b.nom.toLowerCase()]));
+function effetsOp(r: M.Revelation, j: Camp): string[] {
+  const m = r.mesure; if (!m) return []; const moi = r.op.camp === j, envers = moi ? "toi" : M.NOM_CAMP[r.op.camp] === "BRICS" ? "les BRICS" : "l'Occident";
+  const l: string[] = [], seul = m.pays.length === 1 ? esc(e.pays[m.pays[0]].nom) : `${m.pays.length} pays`, d = (v: number) => `${sg(v)} degré${Math.abs(v) >= 2 ? "s" : ""}`;
+  if (Math.abs(m.pib) >= 0.005) l.push(`PIB ${seul} ${Math.abs(m.pib) < 0.1 ? (m.pib > 0 ? "+" : "−") + fr(Math.abs(m.pib), 2) : sg(m.pib)} %`);
+  if (Math.abs(m.stabilite) >= 0.05) l.push(`stabilité ${sg(m.stabilite)}`);
+  if (Math.abs(m.degres) >= 0.05) l.push(`attitude envers ${envers} ${d(m.degres)}`);
+  if (Math.abs(m.degresEco) >= 0.05) l.push(`économie avec ${envers} ${d(m.degresEco)}`);
+  if (Math.abs(m.degresAdv) >= 0.05) l.push(`liens avec ${moi ? "l'adversaire" : "toi"} ${d(m.degresAdv)}`);
+  if (Math.abs(m.militaire) >= 0.05) l.push(`armée ${sg(m.militaire)}`);
+  for (const [b, v] of Object.entries(m.soldes)) l.push(`${NOM_BIEN[b]} ${sg(v!)}`);
+  if (Math.abs(m.tension) >= 0.05) l.push(`tension mondiale ${sg(m.tension)}`);
+  return l;
+}
+function ligneOp(r: M.Revelation, j: Camp) {
+  const o = r.op, d = M.op(o.type), age = r.age ?? 0, cible = o.pays && d.cible === "pays" ? esc(e.pays[o.pays].nom) : o.type === "armee" ? "ton armée" : zone(o.zone).nom;
+  const reste = M.ETALEMENT.slice(age + 1).map((x, k) => `${Math.round(x * 100)} % (${e.annee + k + 1})`).join(", ");
+  const ef = effetsOp(r, j);
+  return `<li class="v2-opb"><span class="v2-op-ic">${d.icone}</span><div><b>${d.nom}</b> · ${cible} · <span class="nw">${o.points} pt${o.points > 1 ? "s" : ""}</span>${o.camp !== j ? ` <em class="v2-qui" style="background:${COUL[o.camp]}">${M.NOM_CAMP[o.camp]}</em>` : ""}
+    <div class="v2-opb-effets">${ef.length ? ef.map(x => `<span>${x}</span>`).join("") : `<span class="v2-gris">effet trop faible pour être mesuré cette année</span>`}${r.demasquee ? `<span class="moins">démasquée</span>` : ""}</div></div>
+    <div class="v2-opb-prog" title="L'effet d'une opération s'étale sur 3 ans : 50 %, 30 %, 20 %"><div>${M.ETALEMENT.map((x, k) => `<i style="flex:${x}" class="${k < age ? "fait" : k === age ? "ici" : ""}"></i>`).join("")}</div><small>année ${age + 1} sur 3 · ${Math.round((r.cumul ?? 0) * 100)} % appliqué${reste ? `<br>reste ${reste}` : " · terminée"}</small></div></li>`;
+}
+function opsBilan(j: Camp) {
+  const miennes = revelations.filter(r => r.op.camp === j), visibles = revelations.filter(r => r.op.camp !== j && (M.op(r.op.type).cat !== "secret" || r.op.revelee || r.demasquee));
+  const cachees = revelations.filter(r => r.op.camp !== j).length - visibles.length, tOps = revelations.reduce((s, r) => s + (r.mesure?.tension ?? 0), 0);
+  return `<section class="v2-bilan-ops"><h3>Opérations de l'année <small>${miennes.length} à toi, ${visibles.length} adverse${visibles.length > 1 ? "s" : ""} connue${visibles.length > 1 ? "s" : ""}${cachees ? `, ${cachees} cachée${cachees > 1 ? "s" : ""}` : ""} · tension mondiale ${fr(e.tension)} sur 10${Math.abs(tOps) >= 0.05 ? `, dont ${sg(tOps)} par les opérations` : ""}</small></h3>
+    <ul class="v2-opb-liste">${[...miennes, ...visibles].map(r => ligneOp(r, j)).join("") || `<li class="v2-vide">Aucune opération cette année.</li>`}</ul></section>`;
+}
 // 6. Bilan de l'année.
 function bilan() {
   const j = joueur(), ch = M.changementsNiveau(e), d = M.decompte(e), g = M.progression(e);
@@ -507,17 +573,20 @@ function bilan() {
   const groupes: { camp: Camp; echelle: "att" | "eco"; avant: number; apres: number; pays: string[]; poids: number }[] = [];
   for (const c of ch) { let g = groupes.find(x => x.camp === c.camp && x.echelle === c.echelle && x.avant === c.avant && x.apres === c.apres); if (!g) groupes.push(g = { camp: c.camp, echelle: c.echelle, avant: c.avant, apres: c.apres, pays: [], poids: 0 }); g.pays.push(c.iso); g.poids += e.pays[c.iso].poids; }
   groupes.sort((a, b) => (b.camp === j ? 1.5 : 1) * b.poids - (a.camp === j ? 1.5 : 1) * a.poids);
-  const f = fenetre(`<h1>Bilan de l'année 2000</h1>
-    <div class="v2-bilan">
+  const f = fenetre(`<h1>Bilan de l'année ${e.annee}</h1>
+    <div class="v2-bilan">${opsBilan(j)}
       <section><h3>Ce qui a changé <small>${ch.length} changement${ch.length > 1 ? "s" : ""} de niveau, regroupés</small></h3><ul class="v2-changements">${groupes.slice(0, 9).map(g => { const monte = g.apres > g.avant; const bon = (g.camp === j) === monte; return `<li><span class="v2-camp-chip" style="background:${COUL[g.camp]}">${g.camp === "OCC" ? "Occident" : "BRICS"}</span><span>${g.echelle === "att" ? "attitude" : "économie"}</span><span class="v2-chip" style="background:${pal(g.echelle)[g.avant]}">${nom(g.echelle, g.avant)}</span><i class="${bon ? "plus" : "moins"}" title="${bon ? "Bon pour toi" : "Mauvais pour toi"}">${monte ? "➜" : "➘"}</i><span class="v2-chip" style="background:${pal(g.echelle)[g.apres]}">${nom(g.echelle, g.apres)}</span><b class="v2-ch-pays">${g.pays.slice(0, 4).map(i => esc(e.pays[i].nom)).join(", ")}${g.pays.length > 4 ? ` <small>et ${g.pays.length - 4} autre${g.pays.length > 5 ? "s" : ""}</small>` : ""}</b></li>`; }).join("") || `<li class="v2-vide">Aucun pays n'a changé de niveau : les effets s'étalent sur 3 ans (50 %, 30 %, 20 %).</li>`}${groupes.length > 9 ? `<li class="v2-vide">… et ${groupes.length - 9} autres mouvements plus petits.</li>` : ""}</ul></section>
       <section><h3>Décompte <small>progression depuis 2000, puis poids par zone</small></h3><div class="v2-progres"><h4>Progression depuis 2000</h4>
           <div><span style="color:${COUL.OCC}">Occident</span><b>${sg(g.OCC)} %</b><small>du terrain disponible</small></div>
           <div><span style="color:${COUL.CHN}">BRICS</span><b>${sg(g.CHN)} %</b><small>du terrain disponible</small></div>
-          <div><span>Handicap de départ</span><b>${sg(g.komi)}</b><small>pour l'Occident (estimation)</small></div>
+          <div><span>Handicap</span><b>${sg(g.komi)}</b><small>${g.komi < 0 ? "en défaveur de l'Occident" : "en faveur de l'Occident"} (estimation)</small></div>
           <div class="v2-progres-jauge"><span>Jauge</span><b>${sg(g.jauge)}</b><small>${g.tete ? `avantage ${g.tete === "OCC" ? "Occident" : "BRICS"}` : "égalité"}</small></div></div>
-        <div class="v2-zones-bilan">${d.zones.slice().sort((a, b) => b.poids - a.poids).map(z => `<div class="v2-zb"><span>${zone(z.id).court}</span><div class="v2-zb-barre" title="Poids ${fr(z.poids)}"><i style="width:${(z.OCC / z.poids) * 100}%;background:${COUL.OCC}"></i><i style="width:${(z.CHN / z.poids) * 100}%;background:${COUL.CHN};margin-left:auto"></i></div><small>${fr(z.poids)}</small></div>`).join("")}</div>
+        <div class="v2-zones-bilan">${d.zones.slice().sort((a, b) => b.poids - a.poids).map(z => { const pz = M.partsZones(e)[z.id], a0 = e.zonesAnnee?.[z.id] ?? pz, d0 = e.zonesDepart?.[z.id] ?? pz;
+          const dv = (v: number, c: Camp) => `<b style="color:${Math.abs(v) < 0.05 ? "var(--gris)" : COUL[c]}">${Math.abs(v) < 0.05 ? "=" : sg(v)}</b>`;
+          return `<div class="v2-zb"><span>${zone(z.id).court}</span><div class="v2-zb-barre" title="Poids ${fr(z.poids)} : Occident ${fr(pz.OCC)} %, BRICS ${fr(pz.CHN)} %"><i style="width:${pz.OCC}%;background:${COUL.OCC}"></i><i style="width:${pz.CHN}%;background:${COUL.CHN};margin-left:auto"></i></div><small>${fr(z.poids)}</small>
+            <em class="v2-zb-prog"><span>Occ. ${fr(pz.OCC, 0)} % ${dv(pz.OCC - a0.OCC, "OCC")}${e.annee > M.ANNEE_DEBUT ? ` <i>(${sg(pz.OCC - d0.OCC)} depuis ${M.ANNEE_DEBUT})</i>` : ""}</span><span>BRICS ${fr(pz.CHN, 0)} % ${dv(pz.CHN - a0.CHN, "CHN")}${e.annee > M.ANNEE_DEBUT ? ` <i>(${sg(pz.CHN - d0.CHN)} depuis ${M.ANNEE_DEBUT})</i>` : ""}</span></em></div>`; }).join("")}<p class="v2-note">Sous chaque zone : part du poids de la zone tenue par chaque camp, et sa variation cette année (en points).</p></div>
         <div class="v2-total"><span style="color:${COUL.OCC}">Occident <b>${fr(d.OCC)}</b></span><span style="color:${COUL.CHN}">BRICS <b>${fr(d.CHN)}</b></span></div>
-<p class="v2-note">Chaque camp marque la part du terrain qu'il pouvait encore gagner en 2000 et qu'il a conquise. L'Occident part de très haut (${fr(e.decompteDepart!.OCC)} contre ${fr(e.decompteDepart!.CHN)}) : il a moins de marge, d'où un petit handicap en sa faveur chaque année.</p></section>
+<p class="v2-note">Chaque camp marque la part du terrain qu'il pouvait encore gagner en 2000 et qu'il a conquise. L'Occident part de très haut (${fr(e.decompteDepart!.OCC)} contre ${fr(e.decompteDepart!.CHN)}). Dans les simulations, il progresse pourtant un peu plus vite que les BRICS : un handicap en sa défaveur, qui grandit chaque année jusqu'en ${M.ANNEE_FIN}, rééquilibre la partie (calibré sur 200 parties).</p></section>
     </div>
     <div class="v2-pied"><span class="v2-etat">Fin de la maquette : dans le jeu complet, l'année 2001 commencerait ici.</span><button class="v2-sec v2-carte-voir">Voir la carte</button><button class="v2-ok v2-prim">Rejouer l'année</button></div>`, true);
   $(".v2-ok", f).onclick = () => demarrer(e.graine + 1);

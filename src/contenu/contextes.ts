@@ -354,3 +354,9 @@ export const MINEURS: Record<string, { titres: string[]; causes: string[] }> = {
   flambee_alimentaire: { titres: ["Le prix du pain augmente {en_pays}", "Hausse du prix du riz à {ville}"],
     causes: ["Le gouvernement subventionne les produits de base.", "Les ménages modestes réduisent leurs achats."] },
 };
+// Sujet avec article (« le Pakistan », « la Mauritanie », « les États-Unis », « l'Ouganda »), tiré de la forme « du / de la / des / de l' ».
+export const lePays = (iso: string, nom: string, majuscule = false) => {
+  const d = duPays(iso, nom), s = d.startsWith("du ") ? "le " + d.slice(3) : d.startsWith("de la ") ? "la " + d.slice(6) : d.startsWith("des ") ? "les " + d.slice(4) : d.startsWith("de l'") ? "l'" + d.slice(5) : nom;
+  return majuscule ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+};
+export const LE_CAMP = { OCC: "l'Occident", CHN: "les BRICS" } as const;

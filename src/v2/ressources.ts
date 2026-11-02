@@ -7,6 +7,7 @@ import donnees from "../data/pays2000.json";
 import scores from "../data/scores2000.json";
 import type { Carte } from "../moteur/types";
 import * as MN from "./monnaie";
+import { lePays, duPays, LE_CAMP } from "../contenu/contextes";
 import { type EtatV2, type Camp, type Ligne, partPays, tirer, niveau, autre, borne, LEADER, NOM_CAMP } from "./moteur";
 
 export type Bien = "energie" | "alimentation" | "metaux" | "terres" | "industrie";
@@ -66,10 +67,17 @@ export const TENDANCES: Tendance[] = [
   { iso: "COD", bien: "metaux", de: 2008, a: 2025, pas: 2, pourquoi: "cobalt et cuivre" },
   { iso: "IDN", bien: "metaux", de: 2014, a: 2025, pas: 3, pourquoi: "nickel" },
   { iso: "VNM", bien: "industrie", de: 2005, a: 2025, pas: 3, pourquoi: "usines d'exportation" },
-  { iso: "IND", bien: "industrie", de: 2005, a: 2035, pas: 2, pourquoi: "industrialisation" },
+  { iso: "IND", bien: "industrie", de: 2005, a: 2045, pas: 2, pourquoi: "industrialisation" },
   { iso: "POL", bien: "industrie", de: 2004, a: 2020, pas: 2, pourquoi: "entrée dans l'UE" },
   { iso: "BGD", bien: "industrie", de: 2005, a: 2025, pas: 2, pourquoi: "textile" },
   { iso: "TUR", bien: "industrie", de: 2002, a: 2020, pas: 1.5, pourquoi: "industrialisation" },
+  // prolongation 2035-2050 (requalification du 2 novembre 2026, estimation)
+  { iso: "ETH", bien: "industrie", de: 2026, a: 2050, pas: 1.5, pourquoi: "usines délocalisées" },
+  { iso: "NGA", bien: "industrie", de: 2030, a: 2050, pas: 1, pourquoi: "industrialisation" },
+  { iso: "CHN", bien: "industrie", de: 2035, a: 2050, pas: -1, pourquoi: "vieillissement de la main-d'œuvre" },
+  { iso: "IND", bien: "energie", de: 2035, a: 2050, pas: -1, pourquoi: "demande croissante" },
+  { iso: "CAN", bien: "alimentation", de: 2035, a: 2050, pas: 1, pourquoi: "terres agricoles plus au nord" },
+  { iso: "RUS", bien: "alimentation", de: 2035, a: 2050, pas: 1, pourquoi: "terres agricoles plus au nord" },
 ];
 export const EVOLUTION = { demande: 0.3, derive: 1, epuisement: 0.3, decouverte: 0.25, gainDecouverte: 20 }; // estimation
 
@@ -153,8 +161,8 @@ export function evenementsChantage(e: EtatV2) {
     cands.sort((x, y) => y.w - x.w);
     const { p, b } = cands[Math.floor(tirer(e) * Math.min(3, cands.length))];
     couper(e, p.iso, b, c, "evenement");
-    ev.push({ id: `chantage_${b}`, trimestre: 1 + Math.floor(tirer(e) * 4), titre: `${p.nom} coupe ses livraisons ${nomBien(b).de} ${c === "OCC" ? "à l'Occident" : "aux BRICS"}`,
-      texte: `Pour peser sur ${NOM_CAMP[c]}, ${p.nom} suspend pendant un an ses exportations ${nomBien(b).de} vers les pays de ce camp.`, pays: p.iso,
+    ev.push({ id: `chantage_${b}`, trimestre: 1 + Math.floor(tirer(e) * 4), titre: `Coupure ${nomBien(b).de} décidée par ${lePays(p.iso, p.nom)} contre ${LE_CAMP[c]}`,
+      texte: `Pour peser sur ${LE_CAMP[c]}, les exportations ${nomBien(b).de} ${duPays(p.iso, p.nom)} vers les pays de ce camp sont suspendues pendant un an.`, pays: p.iso,
       resume: `${NOM_CAMP[c]} : approvisionnement ${nomBien(b).de} réduit cette année · attitude de ${p.nom} ${CHANTAGE.attitude} · tension +${CHANTAGE.tension}` });
   }
   for (const a of R(e).annonces.splice(0)) ev.push({ id: "decouverte", trimestre: 1, titre: a.titre, texte: a.texte, pays: a.pays, resume: "Nouveau fournisseur possible (voir la vue Ressources)" });
@@ -164,7 +172,7 @@ export function evenementsChantage(e: EtatV2) {
 export function couperPar(e: EtatV2, fournisseur: string, b: Bien, c: Camp): Ligne[] {
   if (!e.pays[fournisseur] || role(e, fournisseur, b) !== "offre" || coupe(e, fournisseur, b, c)) return [];
   couper(e, fournisseur, b, c, "evenement");
-  return [{ texte: `${e.pays[fournisseur].nom} coupe ses livraisons ${nomBien(b).de} à ${NOM_CAMP[c]} pour un an`, camp: c, pays: fournisseur, signe: -1 }];
+  return [{ texte: `Coupure ${nomBien(b).de} décidée par ${lePays(fournisseur, e.pays[fournisseur].nom)} contre ${LE_CAMP[c]}, pour un an`, camp: c, pays: fournisseur, signe: -1 }];
 }
 // Carte de chantage : le camp qui la joue fait couper un bien par son meilleur fournisseur proche, au détriment de l'autre camp.
 export function chantageCarte(e: EtatV2, campJ: Camp, b: Bien): Ligne[] {
@@ -173,7 +181,7 @@ export function chantageCarte(e: EtatV2, campJ: Camp, b: Bien): Ligne[] {
     .sort((x, y) => y.poids * solde(e, y.iso, b) - x.poids * solde(e, x.iso, b))[0];
   if (!f) return [{ texte: `Aucun fournisseur ${nomBien(b).de} assez proche de ${NOM_CAMP[campJ]} : pas de coupure` }];
   couper(e, f.iso, b, cible, "carte");
-  return [{ texte: `${f.nom} coupe ses livraisons ${nomBien(b).de} à ${NOM_CAMP[cible]} pour un an`, camp: campJ, pays: f.iso, signe: 1 }];
+  return [{ texte: `Coupure ${nomBien(b).de} décidée par ${lePays(f.iso, f.nom)} contre ${LE_CAMP[cible]}, pour un an`, camp: campJ, pays: f.iso, signe: 1 }];
 }
 
 // Cartes de chantage (2 par camp), inspirées de pratiques réelles (embargo céréalier, contrôle des exportations, quotas, coupures de gaz).
