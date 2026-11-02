@@ -6,4 +6,6 @@ export const NOMS_EXCLUS = new Set([
   "Wang Qishan", "Wang Yang", "Wang Huning", "Zhao Leji", "Ding Xuexiang", "Han Zheng", "Hu Chunhua", "Sun Chunlan", "Yang Jiechi", "Dai Bingguo", "Zhou Yongkang", "Zeng Qinghong", "Jia Qinglin", "Wu Bangguo", "He Guoqiang", "Liu Yunshan", "Zhang Gaoli",
   "Yu Zhengsheng", "Li Changchun", "Meng Jianzhu", "Guo Shengkun", "Chen Quanguo", "Wei Fenghe", "Pan Gongsheng", "Zhou Xiaochuan", "Lou Jiwei", "Li Shangfu", "Chang Wanquan", "Liang Guanglie", "Cao Gangchuan", "Ma Xiaotian", "Xu Caihou", "Guo Boxiong", "Wang Huning",
 ]);
-export const nomExclu = (nom: string) => NOMS_EXCLUS.has(nom) || nom.split(" ").some(x => FAMILLES_EXCLUES.has(x));
+// Débuts trop proches de dirigeants réels (audit du 2 novembre 2026 : « Deng Xiaoling » rappelait Deng Xiaoping).
+export const DEBUTS_EXCLUS = [/^Deng Xiao/, /^Mao Ze/, /^Zhou En/, /^Jiang Ze/, /^Hu Jin/, /^Xi Jin/, /^Li Ke/, /^Wen Jia/, /^Zhu Rong/, /^Hua Guo/, /^Zhao Zi/, /^Liu Shao/, /^Lin Bia/];
+export const nomExclu = (nom: string) => NOMS_EXCLUS.has(nom) || nom.split(" ").some(x => FAMILLES_EXCLUES.has(x)) || DEBUTS_EXCLUS.some(r => r.test(nom));

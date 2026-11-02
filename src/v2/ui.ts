@@ -98,7 +98,7 @@ function squelette() {
       <ol class="v2-etapes">${ETAPES.map((n, i) => `<li data-e="${i}" title="${n} : ${AIDE_ETAPES[i]}"><b>${i + 1}</b><span>${n}</span></li>`).join("")}</ol>
       <div class="v2-compteurs"></div>
       <div class="v2-sons"><button class="v2-son" data-son="musique" aria-label="Musique"></button><button class="v2-son" data-son="bruitages" aria-label="Bruitages"></button></div>
-      <button class="v2-plein" title="Plein écran (Échap pour sortir)" aria-label="Plein écran">⛶</button>
+      <div class="v2-sons v2-outils"><button class="v2-plein v2-outil" title="Plein écran (Échap pour sortir)" aria-label="Plein écran">⛶</button><button class="v2-sauve v2-outil" title="Sauvegarder ou charger (3 emplacements)" aria-label="Sauvegarder ou charger">💾</button></div>
     </header>
     <div class="v2-carte"></div>
     <aside class="v2-equipe"></aside>
@@ -112,6 +112,7 @@ function squelette() {
     <div class="v2-info" hidden></div>
   </div>`));
   // Plein écran : bouton en haut à droite (si le navigateur ou l'hébergeur le refuse, le bouton est masqué).
+  document.querySelector<HTMLButtonElement>(".v2-sauve")!.onclick = ev => { ev.stopPropagation(); fenetreSauvegardes(false); };
   const plein = document.querySelector<HTMLButtonElement>(".v2-plein")!;
   if (!document.fullscreenEnabled) plein.hidden = true;
   plein.onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => { plein.hidden = true; });
@@ -240,6 +241,7 @@ function choisirZone(z: string | null) {
 const JAUGE_NUL = M.JAUGE.nul;
 const sg = (v: number) => `${v >= 0 ? "+" : "−"}${fr(Math.abs(v))}`;
 function compteurs() {
+  const an = document.querySelector(".v2-annee"); if (an) an.textContent = String(e.annee); // l'année du bandeau suit la partie (audit du 2 novembre 2026)
   document.querySelectorAll<HTMLLIElement>(".v2-etapes li").forEach(li => { const i = +li.dataset.e!; li.classList.toggle("faite", i < etape); li.classList.toggle("courante", i === etape); });
   if (etape < 0) { $(".v2-compteurs").innerHTML = ""; return; }
   const g = M.progression(e), j = joueur();
@@ -345,13 +347,17 @@ function accueil() {
     <b>${esc(d.nom)}</b><span class="v2-traits">${d.traits.map(t => `<i title="${esc(TRAITS_DIRIGEANT[t].aide)}">${TRAITS_DIRIGEANT[t].nom}</i>`).join("")}</span>
     <span class="v2-apts">${LISTE_APTITUDES.map(a => `<span title="${esc(APTITUDES[a].aide)}">${APTITUDES[a].nom}<b>${d.aptitudes[a]}</b></span>`).join("")}</span>
     <span class="v2-bouton">Jouer ${c === "OCC" ? "l'Occident" : "les BRICS"}</span></button>`; };
-  const f = fenetre(`<h1>Une année du monde, de janvier à décembre 2000</h1>
-    <p class="v2-intro">Chaque année se joue en 5 temps : un <b>briefing</b> de crise, puis tu reçois <b>6 cartes</b> et en écartes 2, les 4 autres te donnent des <b>points d'opérations</b> que tu poses sur les <b>12 zones</b> du monde, puis tout est <b>révélé</b> et les <b>événements</b> de l'année tombent avec le bilan. Tous les 5 ans, un décompte compte les pays qui te suivent.</p>
+  const f = fenetre(`<h1>Le monde de 2000 à ${M.ANNEE_FIN}</h1>
+    <p class="v2-intro">Une partie dure ${M.ANNEE_FIN - 1999} ans. Chaque année se joue en 5 temps : un <b>briefing</b> de crise, puis tu reçois <b>6 cartes</b> et en écartes 2, les 4 autres te donnent des <b>points d'opérations</b> que tu poses sur les <b>12 zones</b> du monde, puis tout est <b>révélé</b> et les <b>événements</b> de l'année tombent avec le bilan. Tous les 5 ans, un décompte compte les pays qui te suivent.</p>
+    ${(() => { const x = partieSauvee(); return x ? `<div class="v2-reprendre"><button class="v2-prim v2-reprise">Reprendre ta partie : ${x.joueur === "OCC" ? "Occident" : "BRICS"}, année ${x.annee}</button><small>ou commence une nouvelle partie ci-dessous (la sauvegarde sera remplacée)</small></div>` : ""; })()}
+    ${Array.from({ length: EMPLACEMENTS }, (_, k) => lireEmplacement(k + 1)).some(Boolean) ? `<div class="v2-reprendre"><button class="v2-sec v2-charger-acc">💾 Charger une sauvegarde</button></div>` : ""}
     <div class="v2-camps">${fiche("OCC")}${fiche("CHN")}</div>
-    <p class="v2-note">Maquette d'une année : les chiffres sont des estimations, à calibrer par simulation.</p>`, true);
+    <p class="v2-note">Les données de 2000 fixent le départ ; ensuite, le monde diverge selon vos choix. Chiffres marqués « estimation » quand ils ne sont pas sourcés. <a href="ancien/">Ancienne version du jeu</a></p>`, true);
+  const ch = f.querySelector<HTMLButtonElement>(".v2-charger-acc"); if (ch) ch.onclick = () => fenetreSauvegardes(true);
+  const rep = f.querySelector<HTMLButtonElement>(".v2-reprise"); if (rep) rep.onclick = () => { const x = partieSauvee(); if (!x) return; e = x; M.jouerEvenements(e); aller(1); };
   f.querySelectorAll<HTMLButtonElement>(".v2-camp").forEach(b => b.onclick = () => {
     const camp = b.dataset.camp as Camp, g = e.graine;
-    e = M.creerPartieV2(g, camp); guerreDemo();
+    e = M.creerPartieV2(g, camp); if (DEMO) guerreDemo();
     aller(0);
   });
 }
@@ -373,7 +379,7 @@ function cabinet() {
   $(".v2-auto", f).onclick = () => { M.cabinetIA(e, j); for (const d of M.DOMAINES) choix[d.id] = e.cabinet[j][d.id]!.id; e.cabinet[j] = {}; maj(); };
   $(".v2-ok", f).onclick = () => {
     for (const d of M.DOMAINES) M.nommerConseiller(e, j, e.candidats[j][d.id].find(c => c.id === choix[d.id])!);
-    M.cabinetIA(e, adv()); M.jouerEvenements(e); if (!e.crise && e.annee === 2000) CR.tirerCrise(e, true); aller(1); // maquette d'une année : la crise est montrée
+    M.cabinetIA(e, adv()); debutAnnee();
   };
   maj();
 }
@@ -653,6 +659,7 @@ function conflitsBilan() {
 }
 // 6. Bilan de l'année.
 function bilan() {
+  const derniere = e.annee >= M.ANNEE_FIN || !!e.defaite;
   const j = joueur(), ch = M.changementsNiveau(e), d = M.decompte(e), g = M.progression(e);
   const nom = (k: "att" | "eco", n: number) => (k === "att" ? M.ATTITUDES : ECO_COURT)[n];
   const pal = (k: "att" | "eco") => (k === "att" ? PALETTE_ATT : PALETTE_ECO);
@@ -675,12 +682,86 @@ function bilan() {
         <div class="v2-total"><span style="color:${COUL.OCC}">Occident <b>${fr(d.OCC)}</b></span><span style="color:${COUL.CHN}">BRICS <b>${fr(d.CHN)}</b></span></div>
 <p class="v2-note">Chaque camp marque la part du terrain qu'il pouvait encore gagner en 2000 et qu'il a conquise. L'Occident part de très haut (${fr(e.decompteDepart!.OCC)} contre ${fr(e.decompteDepart!.CHN)}). Dans les simulations, il progresse pourtant un peu plus vite que les BRICS : un handicap en sa défaveur, qui grandit chaque année jusqu'en ${M.ANNEE_FIN}, rééquilibre la partie (calibré sur 200 parties).</p></section>
     </div>
-    <div class="v2-pied"><span class="v2-etat">Fin de la maquette : dans le jeu complet, l'année 2001 commencerait ici.</span><button class="v2-sec v2-carte-voir">Voir la carte</button><button class="v2-ok v2-prim">Rejouer l'année</button></div>`, true);
-  $(".v2-ok", f).onclick = () => demarrer(e.graine + 1);
+    <div class="v2-pied"><span class="v2-etat">${derniere ? "C'était la dernière année : place au résultat final." : `Partie sauvegardée à chaque nouvelle année. Prochain décompte : ${prochainDecompte()}.`}</span><button class="v2-sec v2-carte-voir">Voir la carte</button><button class="v2-ok v2-prim">${derniere ? "Résultat final →" : `Passer en ${e.annee + 1} →`}</button></div>`, true);
+  $(".v2-ok", f).onclick = () => anneeNouvelle();
   $(".v2-carte-voir", f).onclick = () => { fermerFenetre(); mode = "att"; rafraichirCarte(); const b = h(`<button class="v2-retour-bilan v2-prim">Revenir au bilan</button>`); document.body.appendChild(b); b.onclick = () => { b.remove(); bilan(); }; };
   const moi = g[j], lui = g[adv()], avance = j === "OCC" ? g.jauge : -g.jauge;
   if (Math.abs(avance) > JAUGE_NUL) SON.jouerJingle(avance > 0);
   conseil("defense", `Sur l'année, nous avons conquis ${sg(moi)} % du terrain disponible, ${M.NOM_CAMP[adv()] === "BRICS" ? "les BRICS" : "l'Occident"} ${sg(lui)} %. ${avance > JAUGE_NUL ? "La jauge penche de notre côté." : avance < -JAUGE_NUL ? "La jauge penche du côté adverse." : "La jauge reste à l'équilibre."} Les points posés agiront encore deux ans (30 % puis 20 % de leur effet).`);
+}
+
+// ---------- Enchaînement des années (jeu complet, 2 novembre 2026) ----------
+const CLE_PARTIE = "occident-brics-v2-partie";
+function sauver() { try { localStorage.setItem(CLE_PARTIE, JSON.stringify(e)); } catch { /* stockage indisponible : la partie continue sans sauvegarde */ } }
+function partieSauvee(): M.EtatV2 | null { try { const t = localStorage.getItem(CLE_PARTIE); const x = t ? JSON.parse(t) as M.EtatV2 : null; return x && !x.fin && x.joueur ? x : null; } catch { return null; } }
+function oublierPartie() { try { localStorage.removeItem(CLE_PARTIE); } catch { /* rien */ } }
+const prochainDecompte = () => { let a = e.annee; while (!M.estAnneeDecompte(a)) a++; return `fin ${a}`; };
+// 3 emplacements de sauvegarde (demande du 2 novembre 2026). On sauvegarde l'état du début de l'année en cours
+// (celui de la sauvegarde automatique) : charger reprend au briefing de janvier de cette année.
+const EMPLACEMENTS = 3, cleEmpl = (i: number) => `occident-brics-v2-emplacement-${i}`;
+interface Emplacement { date: string; annee: number; joueur: Camp; dirigeant: string; etat: string }
+function lireEmplacement(i: number): Emplacement | null { try { const t = localStorage.getItem(cleEmpl(i)); return t ? JSON.parse(t) as Emplacement : null; } catch { return null; } }
+function ecrireEmplacement(i: number): boolean {
+  try { const etat = localStorage.getItem(CLE_PARTIE); if (!etat) return false; const x = JSON.parse(etat) as M.EtatV2;
+    localStorage.setItem(cleEmpl(i), JSON.stringify({ date: new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }), annee: x.annee, joueur: x.joueur, dirigeant: x.dirigeants[x.joueur].nom, etat })); return true;
+  } catch { return false; }
+}
+function chargerEmplacement(i: number) {
+  const em = lireEmplacement(i); if (!em) return;
+  try { e = JSON.parse(em.etat) as M.EtatV2; } catch { return; }
+  zoneChoisie = null; paysChoisi = null; mode = "zones"; debutAnnee();
+}
+type Avant = { cachee: boolean; cls: string; noeuds: Node[] };
+function fenetreSauvegardes(depuisAccueil: boolean, avant?: Avant) {
+  // la fenêtre en cours (et ses boutons branchés) est mise de côté puis remise telle quelle à la fermeture
+  if (!avant) { const v = $(".v2-voile"), f0 = $(".v2-fenetre"); avant = { cachee: v.hidden, cls: f0.className, noeuds: Array.from(f0.childNodes) }; }
+  const av = avant;
+  const enPartie = !depuisAccueil && etape >= 0, auto = partieSauvee();
+  const ligne = (i: number) => { const em = lireEmplacement(i);
+    return `<div class="v2-empl"><b>Emplacement ${i}</b><span>${em ? `${em.joueur === "OCC" ? "Occident" : "BRICS"} · ${esc(em.dirigeant)} · début ${em.annee}<small>sauvegardé le ${esc(em.date)}</small>` : "<em>vide</em>"}</span>
+      ${enPartie && auto ? `<button class="v2-sec" data-sauver="${i}">${em ? "Écraser" : "Sauvegarder ici"}</button>` : ""}${em ? `<button class="v2-prim" data-charger="${i}">Charger</button>` : ""}</div>`; };
+  const f = fenetre(`<h1>Sauvegardes</h1><p class="v2-intro">${enPartie ? `Sauvegarder enregistre ta partie au <b>début de ${auto?.annee ?? e.annee}</b> (briefing de janvier) : charger la reprendra à ce moment.` : "Choisis une partie à reprendre."} La partie en cours est aussi sauvegardée automatiquement à chaque nouvelle année.</p>
+    <div class="v2-empls">${Array.from({ length: EMPLACEMENTS }, (_, k) => ligne(k + 1)).join("")}</div>
+    <div class="v2-pied"><span class="v2-etat"></span><button class="v2-sec v2-fermer-s">Fermer</button></div>`, true);
+  f.querySelectorAll<HTMLButtonElement>("[data-sauver]").forEach(b => b.onclick = () => { const i = +b.dataset.sauver!; if (lireEmplacement(i) && !confirm(`Écraser l'emplacement ${i} ?`)) return; $(".v2-etat", f).textContent = ecrireEmplacement(i) ? `Partie sauvegardée dans l'emplacement ${i}.` : "Sauvegarde impossible (stockage du navigateur indisponible)."; fenetreSauvegardes(depuisAccueil, av); });
+  f.querySelectorAll<HTMLButtonElement>("[data-charger]").forEach(b => b.onclick = () => { if (enPartie && !confirm("Charger cette sauvegarde ? La partie en cours sera remplacée (sa sauvegarde automatique aussi).")) return; chargerEmplacement(+b.dataset.charger!); });
+  $(".v2-fermer-s", f).onclick = () => { f.replaceChildren(...av.noeuds); f.className = av.cls; $(".v2-voile").hidden = av.cachee; };
+}
+// Début d'une année : sauvegarde, événements automatiques (tirés pour toute l'année), briefing.
+function debutAnnee() {
+  sauver(); M.jouerEvenements(e);
+  if (DEMO && !e.crise && e.annee === 2000) CR.tirerCrise(e, true); // démo : une crise est montrée dès 2000
+  aller(1);
+}
+function anneeNouvelle() {
+  const d = M.anneeSuivante(e);
+  if (e.fin) return finPartie();
+  const suite = () => debutAnnee();
+  if (d) ecranDecompte(d, suite); else suite();
+}
+const nomCamp = (c: Camp | null) => (c === "OCC" ? "l'Occident" : c === "CHN" ? "les BRICS" : "personne");
+function ecranDecompte(d: M.Decompte, suite: () => void) {
+  const j = joueur(), avance = j === "OCC" ? d.jauge : -d.jauge;
+  const f = fenetre(`<h1>Décompte de ${d.annee}</h1><p class="v2-intro">Tous les 5 ans, on mesure la progression de chaque camp depuis 2000 (part du terrain disponible qu'il a conquise), handicap compris.</p>
+    <div class="v2-progres"><div><span style="color:${COUL.OCC}">Occident</span><b>${sg(d.OCC)} %</b></div><div><span style="color:${COUL.CHN}">BRICS</span><b>${sg(d.CHN)} %</b></div>
+      <div class="v2-progres-jauge"><span>Jauge</span><b>${sg(d.jauge)}</b><small>${d.tete ? `avantage ${nomCamp(d.tete)}` : "égalité"}</small></div></div>
+    ${histoDecomptes()}
+    <div class="v2-pied"><span class="v2-etat">${avance > JAUGE_NUL ? "Tu mènes." : avance < -JAUGE_NUL ? "Tu es mené." : "Égalité."} Fin de partie en ${M.ANNEE_FIN}.</span><button class="v2-ok v2-prim">Continuer en ${d.annee + 1} →</button></div>`, true);
+  if (Math.abs(avance) > JAUGE_NUL) SON.jouerJingle(avance > 0);
+  $(".v2-ok", f).onclick = suite;
+}
+const histoDecomptes = () => (e.decomptes?.length ? `<table class="v2-histo"><tr><th>Décompte</th><th>Occident</th><th>BRICS</th><th>Jauge</th></tr>${e.decomptes.map(x => `<tr><td>${x.annee}</td><td>${sg(x.OCC)} %</td><td>${sg(x.CHN)} %</td><td style="color:${x.tete ? COUL[x.tete] : "inherit"}">${sg(x.jauge)}</td></tr>`).join("")}</table>` : "");
+function finPartie() {
+  oublierPartie();
+  const j = joueur(), g = M.progression(e), def = e.defaite;
+  const gagnant: Camp | null = def ? M.autre(def.camp) : g.tete, issue = gagnant === j ? "victoire" : gagnant ? "defaite" : "nul";
+  const titre = issue === "victoire" ? "Victoire" : issue === "defaite" ? "Défaite" : "Match nul";
+  const f = fenetre(`<h1>${titre} · ${e.annee}</h1><p class="v2-intro">${def ? `Défaite ${nomCamp(def.camp) === "l'Occident" ? "de l'Occident" : "des BRICS"} : ${esc(def.raison)}.` : `Après ${e.annee - 1999} ans, ${gagnant ? `${nomCamp(gagnant)} l'emporte` : "aucun camp ne se détache"} : jauge finale ${sg(g.jauge)} (Occident ${sg(g.OCC)} %, BRICS ${sg(g.CHN)} %, handicap ${sg(g.komi)}).`}</p>
+    ${histoDecomptes()}
+    <div class="v2-pied"><span class="v2-etat">Graine de la partie : ${e.graine} (à rejouer avec ?graine=${e.graine}).</span><button class="v2-sec v2-carte-voir">Voir la carte</button><button class="v2-ok v2-prim">Nouvelle partie</button></div>`, true);
+  SON.musique(issue === "defaite" ? "defaite" : "victoire"); if (issue !== "nul") SON.jouerJingle(issue === "victoire");
+  $(".v2-ok", f).onclick = () => demarrer(graineDepart());
+  $(".v2-carte-voir", f).onclick = () => { fermerFenetre(); mode = "att"; rafraichirCarte(); const b = h(`<button class="v2-retour-bilan v2-prim">Revenir au résultat</button>`); document.body.appendChild(b); b.onclick = () => { b.remove(); finPartie(); }; };
 }
 
 // Démo de la phase de guerre (maquette) : la crise d'Abkhazie dégénère ; l'Occident garantit la Géorgie, les BRICS soutiennent la Russie.
@@ -688,9 +769,13 @@ function guerreDemo() {
   const g = CR.ouvrirGuerre(e, "RUS", "GEO", "démo : la crise d'Abkhazie dégénère");
   if (g) { g.garants = { OCC: "GEO" }; g.parCamp = { CHN: "RUS" }; g.allies = {}; e.appels = []; }
 }
+// Jeu public (2 novembre 2026) : graine au hasard à chaque partie. « ?demo » rejoue la démo (graine 2000 et guerre Russie-Géorgie),
+// « ?graine=N » rejoue une partie précise.
+const PARAMS = new URLSearchParams(location.search), DEMO = PARAMS.has("demo");
+const graineDepart = () => (DEMO ? 2000 : PARAMS.get("graine") ? +PARAMS.get("graine")! : 1 + Math.floor(Math.random() * 999_999));
 function demarrer(graine: number) {
-  e = M.creerPartieV2(graine, "OCC"); guerreDemo();
+  e = M.creerPartieV2(graine, "OCC"); if (DEMO) guerreDemo();
   zoneChoisie = null; paysChoisi = null; mode = "zones";
   squelette(); aller(-1);
 }
-demarrer(2000);
+demarrer(graineDepart());

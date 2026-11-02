@@ -44,7 +44,7 @@ describe("Retours de test du 2 novembre 2026 (acceptation)", () => {
     }
   }, 120_000);
   it("5. noms : aucun dirigeant ni conseiller trop proche d'une personne réelle (300 parties) ; articles corrects", () => {
-    expect(nomExclu("Arthur Vance")).toBe(true); expect(nomExclu("Ma Kai")).toBe(true); expect(nomExclu("Arthur Ellery")).toBe(false);
+    expect(nomExclu("Arthur Vance")).toBe(true); expect(nomExclu("Ma Kai")).toBe(true); expect(nomExclu("Deng Xiaoling")).toBe(true); expect(nomExclu("Arthur Ellery")).toBe(false);
     for (let g = 1; g <= 300; g++) { const e = M.creerPartieV2(g, null as any); for (const c of ["OCC", "CHN"] as const) for (const n of [e.dirigeants[c].nom, ...Object.values(e.candidats[c]).flat().map(x => x.nom)]) expect(nomExclu(n), n).toBe(false); }
     expect(lePays("USA", "États-Unis", true)).toBe("Les États-Unis"); expect(lePays("PAK", "Pakistan")).toBe("le Pakistan");
   });

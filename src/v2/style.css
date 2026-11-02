@@ -454,3 +454,11 @@ button:disabled { cursor: not-allowed; }
 @media (max-width: 900px) { .gu-corps { grid-template-columns: 1fr; } }
 
 .gu-credits { margin: 2px 6px 0; font-size: 10px; color: rgba(255,255,255,.55); }
+/* Jeu complet : reprise, décomptes */
+.v2-reprendre { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 4px 0 14px; } .v2-reprendre small { color: var(--gris, #666); }
+.v2-histo { border-collapse: collapse; margin: 12px 0; font-size: 13px; min-width: 340px; } .v2-histo th, .v2-histo td { padding: 4px 12px; border-bottom: 1px solid #e5dfd2; text-align: right; } .v2-histo th:first-child, .v2-histo td:first-child { text-align: left; }
+.v2-outils { margin-left: 8px; } .v2-outils .v2-plein { margin: 0; width: 26px; height: 24px; font-size: 13px; border-radius: 7px; }
+.v2-empls { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.v2-empl { display: grid; grid-template-columns: 120px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 14px; border: 1px solid var(--bord, #e5dfd2); border-radius: 12px; background: #fff; }
+.v2-empl span small { display: block; color: var(--gris, #777); font-size: 12px; } .v2-empl em { color: var(--gris, #999); }
+.v2-outil { width: 26px; height: 24px; padding: 0; border-radius: 7px; border: 1px solid var(--bord); background: #fff; font-size: 12px; line-height: 1; cursor: pointer; color: var(--encre); } .v2-outil:hover { background: #f5f1e8; }

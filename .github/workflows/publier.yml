@@ -1,5 +1,6 @@
 name: Publier le jeu
-# Construit le jeu (un seul fichier HTML) et le place sur la branche gh-pages, servie par GitHub Pages.
+# Construit le jeu et le place sur la branche gh-pages, servie par GitHub Pages.
+# Depuis le 2 novembre 2026 (choix de l'utilisateur) : la v2 est le jeu public (racine) ; l'ancien jeu reste sous /ancien/.
 on:
   push:
     branches: [main, v0.3-tranche]
@@ -18,7 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npx vite build
+      - run: npx vite build --outDir dist/ancien
+      - run: npx vite build --config vite.maquette.config.ts && ./outils/musiques-maquette.sh
+      - run: cp -r dist-maquette/. dist/ && mv dist/maquette.html dist/index.html
       - run: |
           cd dist && touch .nojekyll && git init -q -b gh-pages
           git config user.name "github-actions[bot]" && git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
