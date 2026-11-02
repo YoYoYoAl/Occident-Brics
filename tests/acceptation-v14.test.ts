@@ -91,7 +91,7 @@ describe("v14 — équilibre des nouveaux formats (contrôle léger ; calibrage 
 describe("v14 — illustrations de l'ère 2", () => {
   it("8. chaque événement et chaque carte de l'ère 2 a une illustration existante", async () => {
     const { readFileSync } = await import("node:fs");
-    const src = readFileSync("src/interface/images.ts", "utf8");
+    const src = readFileSync("src/interface/images.ts", "utf8") + readFileSync("src/interface/images-cartes.ts", "utf8");
     const ids = [...HISTORIQUES_ERE2.map(h => h.id), ...CARTES_ERE2.map(c => c.id)];
     for (const id of ids) {
       const m = src.match(new RegExp(`\\b${id}: "([a-z0-9_]+)"`));
