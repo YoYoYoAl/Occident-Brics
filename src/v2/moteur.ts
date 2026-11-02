@@ -7,6 +7,9 @@ import { creerPartie } from "../moteur/partie";
 import { femme } from "../moteur/pouvoir";
 import { CARTES_ERE1 } from "../contenu/cartes";
 import { HISTORIQUES_ERE1 } from "../contenu/historiques";
+import { HISTORIQUES_ERE2 } from "../contenu/historiques2";
+import { HISTORIQUES_RECENTS } from "../contenu/historiques3";
+import { HISTORIQUES_COMPLEMENTS } from "../contenu/historiques4";
 import { TRAITS_DIRIGEANT, type Dirigeant } from "../moteur/dirigeants";
 import type { Carte } from "../moteur/types";
 import { ZONES, ZONE_DE, ROUTES } from "./zones";
@@ -77,7 +80,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decompteDepart?: { OCC: number; CHN: number }; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -295,8 +298,10 @@ export function appliquerEffets(e: EtatV2, effets: any[], campJ: Camp, source: s
 }
 
 // ---------- Étape 1 : événements automatiques de l'année ----------
+// Tous les événements historiques connus, de 2000 à 2026 (au-delà : événements projetés, à brancher).
+export const HISTORIQUES_V2 = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_RECENTS, ...HISTORIQUES_COMPLEMENTS];
 export function jouerEvenements(e: EtatV2) {
-  e.evenements = HISTORIQUES_ERE1.filter(h => h.annee === e.annee).sort((a, b) => a.trimestre - b.trimestre).map(h => {
+  e.evenements = HISTORIQUES_V2.filter(h => h.annee === e.annee).sort((a, b) => a.trimestre - b.trimestre).map(h => {
     const lignes = appliquerEffets(e, h.effets as any[], "OCC", h.id);
     return { id: h.id, trimestre: h.trimestre, titre: h.titre, texte: h.texte, pays: h.pays, resume: lignes.map(l => l.texte).join(" · ") };
   });
@@ -521,9 +526,33 @@ export function decompte(e: EtatV2) {
 // Progression (décision du 2026-11-02) : chaque camp marque la part du terrain disponible qu'il a conquis depuis 2000
 // (gain ÷ marge restante au départ ; une perte se mesure sur ce qu'il détenait). La jauge = écart de progression en points,
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
-// Calibrage (estimation, 200 parties IA contre IA sur 35 ans avec les règles de la maquette) : sans komi, médiane −10,1
-// (le camp parti de plus bas a plus de marge), écart-type 4,6 ; komi 10,1 et nul à ±0,9 donnent 45 / 10 / 45.
-export const JAUGE = { komi: 10.1, nul: 0.9, annees: 35 };
+// Calibrage (estimation, 200 parties IA contre IA sur 36 ans, 2000-2035, avec tous les événements historiques) : sans komi,
+// médiane −6,5 (le camp parti de plus bas a plus de marge), écart-type 4,0 ; komi 6,5 et nul à ±0,65 visent 45 / 10 / 45.
+export const JAUGE = { komi: 6.5, nul: 0.65, annees: 36 };
+// ---------- Enchaînement des années ----------
+// Décompte en fin d'année tous les 5 ans (2004, 2009 … 2034) et décompte final fin 2035.
+export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2035;
+export const REVENU: Record<Camp, number> = { OCC: 6, CHN: 5 }; // budget versé chaque année (estimation) ; report plafonné à 2 ans
+export interface Decompte { annee: number; OCC: number; CHN: number; jauge: number; tete: Camp | null; final: boolean }
+export const estAnneeDecompte = (a: number) => a === ANNEE_FIN || (a - ANNEE_DEBUT) % 5 === 4;
+export function anneeSuivante(e: EtatV2): Decompte | null {
+  let d: Decompte | null = null;
+  if (estAnneeDecompte(e.annee)) {
+    const g = progression(e);
+    d = { annee: e.annee, OCC: g.OCC, CHN: g.CHN, jauge: g.jauge, tete: g.tete, final: e.annee === ANNEE_FIN };
+    (e.decomptes ??= []).push(d);
+  }
+  if (e.annee >= ANNEE_FIN) { e.fin = true; return d; }
+  for (const c of ["OCC", "CHN"] as Camp[]) {
+    e.budget[c] = Math.min(2 * REVENU[c], Math.max(0, e.budget[c] - e.boostsUtilises[c]) + REVENU[c]);
+    e.boostsUtilises[c] = 0; e.points[c] = 0; e.main[c] = [];
+  }
+  e.ops = e.ops.filter(o => ageOp(e, o) < 2); // une opération agit 3 ans (âges 0, 1, 2)
+  e.evenements = [];
+  e.annee++;
+  e.depart = Object.fromEntries(Object.values(e.pays).map(p => [p.iso, { att: { ...p.att }, eco: { ...p.eco } }]));
+  return d;
+}
 const progres = (d: number, d0: number) => (d >= d0 ? (d - d0) / Math.max(1e-9, 100 - d0) : (d - d0) / Math.max(1e-9, d0));
 export function progression(e: EtatV2) {
   const d = decompte(e), d0 = e.decompteDepart ?? { OCC: d.OCC, CHN: d.CHN };

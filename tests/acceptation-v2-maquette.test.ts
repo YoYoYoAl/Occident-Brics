@@ -78,9 +78,9 @@ describe("Cartes et points", () => {
 
 describe("Opérations et résolution", () => {
   const prete = () => { const e = nouvelle(5); M.jouerEvenements(e); M.distribuerMains(e); M.jouerMain(e, "OCC", [2, 3]); M.mainIA(e, "CHN"); return e; };
-  test("événements de l'année 2000 : 8 événements historiques, dans l'ordre des trimestres", () => {
+  test("événements de l'année 2000 : les 12 événements historiques, dans l'ordre des trimestres", () => {
     const e = nouvelle(); M.jouerEvenements(e);
-    expect(e.evenements).toHaveLength(8);
+    expect(e.evenements).toHaveLength(M.HISTORIQUES_V2.filter(h => h.annee === 2000).length); expect(e.evenements).toHaveLength(12);
     expect(e.evenements.map(x => x.trimestre)).toEqual([...e.evenements.map(x => x.trimestre)].sort());
   });
   test("on ne peut pas dépenser plus que ses points ; blocages expliqués", () => {
@@ -184,16 +184,40 @@ describe("Décompte en progression (décision du 2026-11-02)", () => {
     expect(Math.abs(g.OCC) + Math.abs(g.CHN)).toBeGreaterThan(0.1);
     expect(g.jauge).toBeCloseTo(g.OCC - g.CHN + g.komi);
   });
-  it("IA contre IA sur 35 ans (40 parties) : chaque camp gagne entre 25 et 65 %, nul au plus 25 %", () => {
+  it("IA contre IA sur la partie complète 2000-2035 (40 parties) : chaque camp gagne entre 25 et 65 %, nul au plus 25 %", () => {
     const r = { OCC: 0, CHN: 0, nul: 0 };
     for (let s = 301; s <= 340; s++) {
       const e = nouvelle(s);
-      for (let a = 0; a < 35; a++) { M.jouerEvenements(e); M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e); e.annee++; }
-      const t = M.progression(e).tete; r[t ?? "nul"]++;
+      while (!e.fin) { M.jouerEvenements(e); M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e); M.anneeSuivante(e); }
+      r[M.progression(e).tete ?? "nul"]++;
     }
     expect(r.OCC / 40).toBeGreaterThanOrEqual(0.25); expect(r.OCC / 40).toBeLessThanOrEqual(0.65);
     expect(r.CHN / 40).toBeGreaterThanOrEqual(0.25); expect(r.CHN / 40).toBeLessThanOrEqual(0.65);
     expect(r.nul / 40).toBeLessThanOrEqual(0.25);
-    console.log("IA contre IA 35 ans :", JSON.stringify(r));
+    console.log("IA contre IA 2000-2035 :", JSON.stringify(r));
   }, 120_000);
+});
+
+describe("Enchaînement des années 2000-2035", () => {
+  const annee = (e: ReturnType<typeof nouvelle>) => { M.jouerEvenements(e); M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e); return M.anneeSuivante(e); };
+  it("36 années jouées : 8 décomptes (2004 … 2034 et final 2035), fin de partie, aucune valeur non finie", () => {
+    const e = nouvelle(11); const d: number[] = [];
+    while (!e.fin) { const x = annee(e); if (x) d.push(x.annee); }
+    expect(d).toEqual([2004, 2009, 2014, 2019, 2024, 2029, 2034, 2035]);
+    expect(e.decomptes![e.decomptes!.length - 1].final).toBe(true); expect(e.annee).toBe(2035); expect(e.resolues).toBe(36);
+    for (const p of Object.values(e.pays)) for (const v of [p.att.OCC, p.att.CHN, p.eco.OCC, p.eco.CHN, p.pib, p.stabilite]) expect(Number.isFinite(v)).toBe(true);
+  }, 60_000);
+  it("budget : versé chaque année, report plafonné à 2 ans de revenu ; points et mains remis à zéro", () => {
+    const e = nouvelle(12); annee(e);
+    for (const c of ["OCC", "CHN"] as const) { expect(e.budget[c]).toBeLessThanOrEqual(2 * M.REVENU[c]); expect(e.budget[c]).toBeGreaterThanOrEqual(M.REVENU[c]); expect(e.points[c]).toBe(0); expect(e.main[c]).toHaveLength(0); expect(e.boostsUtilises[c]).toBe(0); }
+  });
+  it("une opération agit 3 années puis disparaît", () => {
+    const e = nouvelle(13); annee(e);
+    const ids = e.ops.filter(o => o.annee === 2000).map(o => o.id); expect(ids.length).toBeGreaterThan(0);
+    annee(e); expect(e.ops.some(o => ids.includes(o.id))).toBe(true);
+    annee(e); expect(e.ops.some(o => ids.includes(o.id))).toBe(false);
+  });
+  it("chaque année connue a ses événements historiques (2000-2026)", () => {
+    for (let a = 2000; a <= 2026; a++) expect(M.HISTORIQUES_V2.some(h => h.annee === a), String(a)).toBe(true);
+  });
 });
