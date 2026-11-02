@@ -50,7 +50,10 @@ const joueur = () => e.joueur, adv = () => M.autre(e.joueur);
 
 // ---------- Squelette ----------
 function squelette() {
-  document.body.innerHTML = "";
+  // L'hébergeur de l'artefact place la page dans <body> : on met d'abord styles et polices à l'abri dans <head>,
+  // puis on ne retire que nos propres éléments (sinon la feuille de style disparaît et la page s'affiche brute).
+  document.querySelectorAll("body style, body link").forEach(x => document.head.appendChild(x));
+  [...document.body.children].forEach(x => { if (x.tagName !== "SCRIPT") x.remove(); });
   document.body.appendChild(h(`<div class="v2">
     <header class="v2-haut">
       <div class="v2-marque"><span class="v2-logo"><i style="background:${COUL.OCC}"></i><i style="background:${COUL.CHN}"></i></span><span>Occident <em>contre</em> BRICS</span><span class="v2-annee">2000</span></div>
