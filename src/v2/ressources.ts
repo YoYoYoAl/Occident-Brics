@@ -102,8 +102,22 @@ export function bilan(e: EtatV2, c: Camp, b: Bien) {
     const s = solde(e, p.iso, b), w = p.poids * ouverture(e, p.iso, c) * Math.abs(s) / 100;
     if (s >= SEUIL && !coupe(e, p.iso, b, c)) offre += w; else if (s <= -SEUIL) besoin += w;
   }
-  return { offre, besoin, manque: besoin > offre, couverture: besoin > 0 ? Math.min(1, offre / besoin) : 1, debouche: offre > 0 ? Math.min(1, besoin / offre) : 1 };
+  return { offre, besoin, manque: besoin > offre, couverture: besoin > 0 ? Math.min(1, offre / besoin) : 1, debouche: offre > 0 ? Math.min(1, besoin / offre) : 1, bloc: bilanBloc(e, c, b) };
 }
+// Accords commerciaux (demande du 2 novembre 2026) : les pays liés à un même camp par des accords, le libre-échange ou
+// l'entraide forment un bloc commercial ; leurs excédents comblent en partie les pénuries des autres membres du bloc.
+// Part comblée : Accords 50 %, Libre-échange 70 %, Entraide 90 % de la couverture du bloc (estimation).
+export const COMBLE: Record<number, number> = { 4: 0.5, 5: 0.7, 6: 0.9 };
+function bilanBloc(e: EtatV2, c: Camp, b: Bien) {
+  let offre = 0, besoin = 0;
+  for (const p of Object.values(e.pays)) {
+    if (p.iso !== LEADER[c] && niveau(p.eco[c]) < 4) continue;
+    const s = solde(e, p.iso, b), w = p.poids * Math.abs(s) / 100;
+    if (s >= SEUIL && !coupe(e, p.iso, b, c)) offre += w; else if (s <= -SEUIL) besoin += w;
+  }
+  return besoin > 0 ? Math.min(1, offre / besoin) : 1;
+}
+export function combleParAccords(e: EtatV2, iso: string, c: Camp, bloc: number) { const n = iso === LEADER[c] ? 6 : niveau(e.pays[iso].eco[c]); return (COMBLE[n] ?? 0) * bloc; }
 
 export type Lecture = "fournisseur_ami" | "fournisseur" | "demandeur_ami" | "demandeur" | "neutre";
 export function lecture(e: EtatV2, c: Camp, iso: string, b: Bien): Lecture {
@@ -124,7 +138,7 @@ export function effetPib(e: EtatV2, iso: string, b0?: Record<Bien, Record<Camp, 
   for (const { id } of BIENS) {
     const r = role(e, iso, id);
     if (r === "besoin") {
-      const acces = (c: Camp) => b0![id][c].couverture * (R(e).coupures.some(x => x.annee === e.annee && x.bien === id && x.camp === c) ? 0.5 + 0.5 * MN.amortisseur(e, c) : 1); // les réserves amortissent la coupure
+      const acces = (c: Camp) => Math.max(b0![id][c].couverture, combleParAccords(e, iso, c, b0![id][c].bloc)) * (R(e).coupures.some(x => x.annee === e.annee && x.bien === id && x.camp === c) ? 0.5 + 0.5 * MN.amortisseur(e, c) : 1); // les réserves amortissent la coupure
       pct += EFFET_RES.besoin * ((wo * acces("OCC") + wc * acces("CHN")) - 0.5);
     } else if (r === "offre") {
       const deb = (c: Camp) => (coupe(e, iso, id, c) ? 0 : b0![id][c].debouche);

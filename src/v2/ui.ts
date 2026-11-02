@@ -9,6 +9,7 @@ import { ZONES, ZONE_DE, ROUTES, zone } from "./zones";
 import * as RS from "./ressources";
 import * as EV from "./evolution";
 import * as MN from "./monnaie";
+import * as CR from "./crises";
 import { dessinerCarteV2, type CarteV2 } from "./carte";
 import { APTITUDES, LISTE_APTITUDES, TRAITS_DIRIGEANT } from "../moteur/dirigeants";
 
@@ -348,7 +349,7 @@ function cabinet() {
   $(".v2-auto", f).onclick = () => { M.cabinetIA(e, j); for (const d of M.DOMAINES) choix[d.id] = e.cabinet[j][d.id]!.id; e.cabinet[j] = {}; maj(); };
   $(".v2-ok", f).onclick = () => {
     for (const d of M.DOMAINES) M.nommerConseiller(e, j, e.candidats[j][d.id].find(c => c.id === choix[d.id])!);
-    M.cabinetIA(e, adv()); M.jouerEvenements(e); aller(1);
+    M.cabinetIA(e, adv()); M.jouerEvenements(e); if (!e.crise && e.annee === 2000) CR.tirerCrise(e, true); aller(1); // maquette d'une année : la crise est montrée
   };
   maj();
 }
@@ -356,13 +357,54 @@ function cabinet() {
 function evenements() {
   const pris = new Set(e.imagesPrises);
   const parT = [1, 2, 3, 4].map(t => e.evenements.filter(x => x.trimestre === t));
-  const f = fenetre(`<h1>2000 : l'année en bref</h1><p class="v2-intro">Les événements automatiques sont tombés. Ils touchent les pays un par un, quelle que soit leur zone.</p>
+  const f = fenetre(`<h1>2000 : l'année en bref</h1><p class="v2-intro">Les événements automatiques sont tombés. Ils touchent les pays un par un, quelle que soit leur zone.</p>${blocCrise()}${blocAppels()}
     <div class="v2-trimestres">${parT.map((l, i) => `<div class="v2-trim"><div class="v2-trim-nom">${["Janvier – mars", "Avril – juin", "Juillet – septembre", "Octobre – décembre"][i]}</div>
       ${l.map(x => { const n = imageEvenement(x.id), u = n && !pris.has(n) ? img(n) : undefined; if (n) { pris.add(n); e.imagesPrises.push(n); }
         return `<article class="v2-ev">${u ? `<img src="${u}" alt="">` : `<div class="v2-ev-sans">📰</div>`}<div><h3>${esc(x.titre)}</h3><p>${esc(x.texte)}</p>${x.resume ? `<div class="v2-effets">${x.resume.split(" · ").map(r => `<span>${esc(r)}</span>`).join("")}</div>` : ""}</div></article>`; }).join("") || `<p class="v2-vide">Trimestre calme.</p>`}</div>`).join("")}</div>
     <div class="v2-pied"><span class="v2-etat"></span><button class="v2-ok v2-prim">Voir ma main de cartes →</button></div>`, true);
   $(".v2-ok", f).onclick = () => { M.distribuerMains(e); aller(2); };
+  brancherCrise(f);
   conseil("interieur", "Bulle Internet, Poutine au Kremlin, seconde Intifada : une année plus tendue qu'elle n'en a l'air. Rien de grave pour nous, mais la Russie change de cap.");
+}
+// Briefing de crise (tension) : le joueur répond sans connaître la réponse adverse ; le renseignement donne le penchant estimé.
+const NOM_REP: Record<CR.Reponse, string> = { apaiser: "Apaiser", fermete: "Fermeté", escalade: "Escalade" };
+function blocCrise() {
+  const k = e.crise; if (!k) return "";
+  const pen = k.penchant[adv()], pct = (x: number) => `${Math.round(x * 100)} %`;
+  return `<section class="v2-crise"><div class="v2-crise-tete"><span class="v2-crise-badge">Briefing de crise</span><span class="v2-crise-grav" title="Gravité : multiplie les gains, les pertes et la variation de tension (×0,7, ×1, ×1,4).">gravité ${k.gravite} sur 3</span><small>tension mondiale ${fr(e.tension)} sur 10 · plus elle est haute, plus les crises sont fréquentes</small></div>
+    <h2>${esc(k.titre)}</h2><p>${esc(k.texte)}</p>
+    <p class="v2-crise-rens">🕵 Renseignement (estimation) : ${M.NOM_CAMP[adv()] === "BRICS" ? "les BRICS penchent" : "l'Occident penche"} pour apaiser ${pct(pen.apaiser)}, fermeté ${pct(pen.fermete)}, escalade ${pct(pen.escalade)}.</p>
+    <div class="v2-crise-choix">${CR.REPONSES.map(r => `<button class="v2-crise-btn ${r.id}" data-rep="${r.id}" title="${esc(r.aide)}"><b>${r.nom}</b><small>${esc(r.aide)}</small></button>`).join("")}</div>
+    <p class="v2-crise-regle">Les deux apaisent : tension −1. L'un recule, l'autre gagne la région. Les deux escaladent : tension +1,8 et une chance sur deux d'incident armé l'an prochain, qui peut tourner à la guerre.</p>
+    <div class="v2-crise-issue" ${k.issue ? "" : "hidden"}>${issueCrise()}</div></section>`;
+}
+function issueCrise() {
+  const k = e.crise!; if (!k.issue) return "";
+  return `<p><b>Ta réponse : ${NOM_REP[k.reponses[joueur()]!]}</b> · <b>${M.NOM_CAMP[adv()]} : ${NOM_REP[k.reponses[adv()]!]}</b></p><div class="v2-effets">${(k.lignes ?? []).map(l => `<span>${esc(l.texte)}</span>`).join("")}</div>`;
+}
+const appelsJoueur = () => (e.appels ?? []).filter(a => a.camp === joueur() && a.annee === e.annee);
+function blocAppels() {
+  return appelsJoueur().map((a, i) => `<section class="v2-crise v2-appel" data-i="${i}"><div class="v2-crise-tete"><span class="v2-crise-badge">Appel aux armes</span><small>alliance : ${M.ATTITUDES[M.niveau(e.pays[a.allie].att[joueur()])]} avec ${esc(e.pays[a.allie].nom)}</small></div>
+    <h2>${esc(e.pays[a.allie].nom)} te demande d'entrer en guerre contre ${a.contre === "rebelles" ? "les rebelles" : esc(e.pays[a.contre]?.nom ?? "")}</h2>
+    <p>Accepter : ton leader soutient ${esc(e.pays[a.allie].nom)} chaque année (armée × ${fr(CR.ALLIANCE.appui, 2)}), tension +${fr(CR.ALLIANCE.tensionAn)} et PIB −${fr(CR.ALLIANCE.coutPib)} % par an, attitude de l'allié +${CR.ALLIANCE.gainAllie}. Refuser : l'allié perd confiance (attitude −${CR.ALLIANCE.perteRefus}).</p>
+    <div class="v2-crise-choix deux"><button class="v2-crise-btn escalade" data-ap="1"><b>Honorer l'alliance</b><small>Entrer en guerre à ses côtés</small></button><button class="v2-crise-btn apaiser" data-ap="0"><b>Refuser</b><small>Rester en dehors du conflit</small></button></div>
+    <div class="v2-crise-issue" hidden></div></section>`).join("");
+}
+function brancherCrise(f: HTMLElement) {
+  const k = e.crise, ok = $(".v2-ok", f) as HTMLButtonElement;
+  const appelsOk = () => appelsJoueur().every(a => a.reponse !== undefined);
+  f.querySelectorAll<HTMLElement>(".v2-appel").forEach(sec => { const a = appelsJoueur()[+sec.dataset.i!];
+    sec.querySelectorAll<HTMLButtonElement>("[data-ap]").forEach(b => b.onclick = () => { const l = CR.repondreAppel(e, a, b.dataset.ap === "1");
+      sec.querySelectorAll<HTMLButtonElement>("[data-ap]").forEach(x => { x.disabled = true; x.classList.toggle("choisi", x === b); });
+      const z = $(".v2-crise-issue", sec); z.innerHTML = `<div class="v2-effets">${l.map(x => `<span>${esc(x.texte)}</span>`).join("")}</div>`; z.hidden = false; majOk(); }); });
+  const majOk = () => { const fait = (!k || !!k.issue) && appelsOk(); ok.disabled = !fait; $(".v2-etat", f).textContent = fait ? "" : "Réponds d'abord au briefing."; };
+  majOk(); if (!k) return;
+  const maj = () => { const fait = !!k.issue; majOk(); 
+    f.querySelectorAll<HTMLButtonElement>(".v2-crise:not(.v2-appel) .v2-crise-btn").forEach(b => { b.disabled = fait || (b.dataset.rep === "escalade" && e.budget[joueur()] < CR.CRISE.coutEscalade); b.classList.toggle("choisi", k.reponses[joueur()] === b.dataset.rep); }); };
+  f.querySelectorAll<HTMLButtonElement>(".v2-crise:not(.v2-appel) .v2-crise-btn").forEach(b => b.onclick = () => {
+    CR.repondre(e, joueur(), b.dataset.rep as CR.Reponse); CR.resoudreCrise(e);
+    const z = $(".v2-crise:not(.v2-appel) .v2-crise-issue", f); z.innerHTML = issueCrise(); z.hidden = false; maj(); compteurs(); });
+  maj();
 }
 // Description lisible des effets d'une carte, du point de vue du camp qui en profite.
 function decrireEffets(c: M.CarteMain): string[] {
@@ -564,6 +606,11 @@ function opsBilan(j: Camp) {
   return `<section class="v2-bilan-ops"><h3>Opérations de l'année <small>${miennes.length} à toi, ${visibles.length} adverse${visibles.length > 1 ? "s" : ""} connue${visibles.length > 1 ? "s" : ""}${cachees ? `, ${cachees} cachée${cachees > 1 ? "s" : ""}` : ""} · tension mondiale ${fr(e.tension)} sur 10${Math.abs(tOps) >= 0.05 ? `, dont ${sg(tOps)} par les opérations` : ""}</small></h3>
     <ul class="v2-opb-liste">${[...miennes, ...visibles].map(r => ligneOp(r, j)).join("") || `<li class="v2-vide">Aucune opération cette année.</li>`}</ul></section>`;
 }
+function conflitsBilan() {
+  const l = e.conflits ?? []; if (!l.length) return "";
+  return `<section class="v2-bilan-conflits"><h3>Conflits armés <small>${l.length} en cours ou terminé${l.length > 1 ? "s" : ""} cette année · opération « Soutien dans un conflit » pour peser</small></h3>
+    <ul>${l.map(x => `<li><b>⚔ ${esc(x.titre)}</b><span>${esc(x.texte)}</span><div class="v2-effets">${x.resume.split(" · ").map(r => `<span>${esc(r)}</span>`).join("")}</div></li>`).join("")}</ul></section>`;
+}
 // 6. Bilan de l'année.
 function bilan() {
   const j = joueur(), ch = M.changementsNiveau(e), d = M.decompte(e), g = M.progression(e);
@@ -574,7 +621,7 @@ function bilan() {
   for (const c of ch) { let g = groupes.find(x => x.camp === c.camp && x.echelle === c.echelle && x.avant === c.avant && x.apres === c.apres); if (!g) groupes.push(g = { camp: c.camp, echelle: c.echelle, avant: c.avant, apres: c.apres, pays: [], poids: 0 }); g.pays.push(c.iso); g.poids += e.pays[c.iso].poids; }
   groupes.sort((a, b) => (b.camp === j ? 1.5 : 1) * b.poids - (a.camp === j ? 1.5 : 1) * a.poids);
   const f = fenetre(`<h1>Bilan de l'année ${e.annee}</h1>
-    <div class="v2-bilan">${opsBilan(j)}
+    <div class="v2-bilan">${opsBilan(j)}${conflitsBilan()}
       <section><h3>Ce qui a changé <small>${ch.length} changement${ch.length > 1 ? "s" : ""} de niveau, regroupés</small></h3><ul class="v2-changements">${groupes.slice(0, 9).map(g => { const monte = g.apres > g.avant; const bon = (g.camp === j) === monte; return `<li><span class="v2-camp-chip" style="background:${COUL[g.camp]}">${g.camp === "OCC" ? "Occident" : "BRICS"}</span><span>${g.echelle === "att" ? "attitude" : "économie"}</span><span class="v2-chip" style="background:${pal(g.echelle)[g.avant]}">${nom(g.echelle, g.avant)}</span><i class="${bon ? "plus" : "moins"}" title="${bon ? "Bon pour toi" : "Mauvais pour toi"}">${monte ? "➜" : "➘"}</i><span class="v2-chip" style="background:${pal(g.echelle)[g.apres]}">${nom(g.echelle, g.apres)}</span><b class="v2-ch-pays">${g.pays.slice(0, 4).map(i => esc(e.pays[i].nom)).join(", ")}${g.pays.length > 4 ? ` <small>et ${g.pays.length - 4} autre${g.pays.length > 5 ? "s" : ""}</small>` : ""}</b></li>`; }).join("") || `<li class="v2-vide">Aucun pays n'a changé de niveau : les effets s'étalent sur 3 ans (50 %, 30 %, 20 %).</li>`}${groupes.length > 9 ? `<li class="v2-vide">… et ${groupes.length - 9} autres mouvements plus petits.</li>` : ""}</ul></section>
       <section><h3>Décompte <small>progression depuis 2000, puis poids par zone</small></h3><div class="v2-progres"><h4>Progression depuis 2000</h4>
           <div><span style="color:${COUL.OCC}">Occident</span><b>${sg(g.OCC)} %</b><small>du terrain disponible</small></div>

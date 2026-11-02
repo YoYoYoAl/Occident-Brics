@@ -28,6 +28,7 @@ export const MON = {
   inflationPib: 0.1,    // −0,1 % de PIB par point d'inflation au-dessus de 4
   inflationStab: 0.4,   // −0,4 de stabilité par point au-dessus de 6
   amortisseur: 10,      // réserves : chaque unité réduit de 5 % l'effet d'une coupure (50 % au plus)
+  tensionDiversif: 3, diversifOcc: 0.012, diversifCrypto: 0.004, diversifDollar: 0.03, // par point de tension au-delà de 3 : cible occidentale −1,2 pt, cryptos +0,4 pt, dollar −3 % vers euro et autres (estimation)
   gel: 0.25,            // risque annuel de gel des réserves en devises adverses quand la tension ≥ 7
   maxDecisions: 2,
 };
@@ -145,11 +146,13 @@ export function finAnnee(e: EtatV2, croissance: Record<Camp, number>): { titre: 
   const sCHN = partEco(e, "CHN") / (partEco(e, "OCC") + partEco(e, "CHN")), sanctions = Object.values(e.pays).filter(p => p.eco.OCC <= -60).length;
   const w = m.mondiales, occ0 = 0.86;
   const ch = m.choc ?? { occ: 0, or: 0, crypto: 0 };
-  const cibleOcc = Math.max(0.3, Math.min(0.9, occ0 + ch.occ - 0.6 * Math.max(0, sCHN - m.partEco0) - 0.004 * sanctions - 0.02 * Math.max(0, m.inflation.OCC - 4)));
+  const tx = Math.max(0, e.tension - MON.tensionDiversif); // au-delà de 3, les banques centrales diversifient (demande du 2 novembre 2026)
+  const cibleOcc = Math.max(0.3, Math.min(0.9, occ0 + ch.occ - 0.6 * Math.max(0, sCHN - m.partEco0) - 0.004 * sanctions - 0.02 * Math.max(0, m.inflation.OCC - 4) - MON.diversifOcc * tx));
   const cibleOr = Math.max(0.05, Math.min(0.4, 0.13 + ch.or + 0.01 * e.tension + 0.01 * m.defauts.OCC * 5));
-  const cibleCrypto = Math.max(0, Math.min(0.15, ch.crypto));
+  const cibleCrypto = Math.max(0, Math.min(0.15, ch.crypto + MON.diversifCrypto * tx));
   const k = 0.1, occ = partOccidentale(e), nOcc = occ + k * (cibleOcc - occ);
   w.dollar *= nOcc / occ; w.euro *= nOcc / occ; w.autresOcc *= nOcc / occ;
+  const dd = k * MON.diversifDollar * tx * w.dollar; w.dollar -= dd; w.euro += dd / 2; w.autresOcc += dd / 2; // moins de dollar, plus d'euro et d'autres devises
   w.or += k * (cibleOr - w.or); w.crypto = (w.crypto ?? 0) + k * (cibleCrypto - (w.crypto ?? 0));
   normaliser(w);
   return annonces;

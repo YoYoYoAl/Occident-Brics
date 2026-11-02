@@ -18,6 +18,7 @@ import { CARTES_ERE3 } from "../contenu/cartes3";
 import { PROJECTIONS } from "../contenu/projections";
 import { nomExclu } from "../data/noms-exclus";
 import * as GV from "./generiques-v2";
+import * as CR from "./crises";
 import { RUPTURES, PROJECTIONS_2050, PROJECTIONS_2050_B, PROJECTIONS_2050_C, CONDITIONS_V2 } from "../contenu/ruptures";
 import type { Condition } from "../moteur/types";
 import * as RS from "./ressources";
@@ -97,7 +98,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -354,7 +355,9 @@ export function jouerEvenements(e: EtatV2) {
     return { id: h.id, trimestre: h.trimestre, titre: h.titre, texte: h.texte, pays: h.pays, resume: lignes.map(l => l.texte).join(" · ") };
   });
   for (const x of RS.evenementsChantage(e)) e.evenements.push({ ...x, pays: [x.pays] });
+  e.evenements.push(...CR.incidentsAnnee(e), ...CR.guerresSpontanees(e)); // envenimement : incidents armés de l'an dernier, guerres qui en sortent
   e.evenements.sort((a, b) => a.trimestre - b.trimestre);
+  CR.tirerCrise(e); // crise de tension de l'année (briefing à choix), plus probable quand la tension est haute
 }
 
 // ---------- Étape 2 : la main de 6 cartes (2 de ton camp, 2 adverses, 2 neutres) ----------
@@ -401,7 +404,7 @@ export function raisonBlocage(e: EtatV2, camp: Camp, type: TypeOp, zone: string,
   if (d.cible === "pays" && !pays) return "Choisis un pays de la zone.";
   if (pays && e.pays[pays]?.zone !== zone) return "Ce pays n'est pas dans la zone.";
   if (type === "guerre" && (!pays || !e.pays[pays].casusBelli[camp] || e.pays[pays].casusBelli[camp] > e.annee)) return "Il faut d'abord un casus belli contre ce pays (opération secrète, prête après 1 an).";
-  if (type === "soutien") return "Aucun conflit en cours dans la zone.";
+  if (type === "soutien" && !CR.guerresEnCours(e).some(g => (!pays || g.a === pays || g.b === pays) && [g.a, g.b].some(i => ZONE_DE[i] === zone))) return "Aucun conflit en cours dans la zone (choisis un pays en guerre).";
   if (pays && (type === "saboter" || type === "casusbelli") && pays === LEADER[camp]) return "Impossible contre ton propre pays leader.";
   if (pays && d.cat === "secret" && e.pays[pays].att[camp] >= 100) return "Ce pays est déjà entièrement acquis.";
   if (pointsLibres(e, camp) < (d.min ?? 1)) return d.min ? `Il faut au moins ${d.min} points libres.` : "Plus de points libres.";
@@ -484,6 +487,8 @@ function photo(e: EtatV2, l: string[], c: Camp) {
 }
 export function resoudreAnnee(e: EtatV2): Revelation[] {
   const res: Revelation[] = [];
+  CR.resoudreCrise(e); // l'IA répond pour le camp qui n'a pas répondu
+  CR.appelsEnAttente(e); // appels aux armes sans réponse du joueur : l'IA décide
   for (const o of opsActives(e)) {
     const age = ageOp(e, o), part = ETALEMENT[age], d = op(o.type), adv = autre(o.camp);
     const boost = 1 + BOOST.parUnite * o.boost;
@@ -515,6 +520,8 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
       if (HOSTILES.includes(o.type)) e.tension = borne(e.tension + (p.iso === LEADER[adv] ? EFFET.hostileLeader : partPays(p, adv) >= 0.4 ? EFFET.hostileProche : 0) * m, 0, 10);
       if (o.type === "reduire") { p.att[adv] = borne(p.att[adv] - EFFET.reduireAtt * m); p.eco[adv] = borne(p.eco[adv] - EFFET.reduireEco * m); }
       if (o.type === "casusbelli" && age === 0) { p.casusBelli[o.camp] = e.annee + 1; e.tension = borne(e.tension + EFFET.casusTension, 0, 10); }
+      if (o.type === "guerre" && age === 0) CR.ouvrirGuerre(e, LEADER[o.camp], p.iso, "declaration", p.iso === LEADER[adv]);
+      if (o.type === "soutien") CR.soutenir(e, o.camp, p.iso, m);
       if (o.type === "armes") { p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.armesAtt * m)); p.militaire += m; if (age === 0) e.budget[o.camp] += Math.round(EFFET.armesBudget * o.points); }
       lignes.push({ texte: `${op(o.type).nom} : ${p.nom}`, camp: o.camp, pays: p.iso, zone: o.zone, signe: 1 });
     }
@@ -534,6 +541,8 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
       soldes: Object.fromEntries(RS.BIENS.map(b => [b.id, apres.soldes[b.id] - avant.soldes[b.id]]).filter(([, v]) => Math.abs(v as number) >= 0.05)) };
     res.push({ op: o, lignes, demasquee, risque, mesure, age, part, cumul: ETALEMENT.slice(0, age + 1).reduce((s, x) => s + x, 0) });
   }
+  CR.coutsGarants(e);
+  e.conflits = CR.guerresAnnee(e); // guerres en cours : score, coûts, paix ou victoire
   EV.croissanceAnnee(e); // économie, ressources, routes, tendance de fond, stabilité et tension
   e.resolues = (e.resolues ?? 0) + 1;
   return res;
@@ -603,7 +612,7 @@ export function decompte(e: EtatV2) {
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
 // médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: -11.15, nul: 0.62, annees: 51 }; // recalibré le 2 novembre 2026 après les retours de test (tension des opérations hostiles, routes terrestres et aériennes, cartes de l'ère 3, événements après 2035) : 200 parties IA, médiane +11,1 pour l'Occident, résultat 45,5 % / 9 % / 45,5 % (estimation)
+export const JAUGE = { komi: -10.8, nul: 0.78, annees: 51 }; // recalibré le 2 novembre 2026 après les crises de tension, guerres, alliances, réserves et accords commerciaux : 200 parties IA, médiane +10,8 pour l'Occident, résultat 45 % / 10 % / 45 % (estimation)
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;
@@ -661,7 +670,10 @@ export function changementsNiveau(e: EtatV2) {
 }
 
 // ---------- Relations entre pays (mode « relations d'un pays ») : estimation tirée des attitudes envers les camps + rivalités connues ----------
-const RIVALITES: [string, string, number][] = [["IND", "PAK", -75], ["ISR", "IRN", -85], ["ISR", "SYR", -80], ["KOR", "PRK", -70], ["CHN", "TWN", -60], ["GRC", "TUR", -25], ["ARM", "AZE", -85], ["ETH", "ERI", -85], ["RUS", "GEO", -40], ["CHN", "JPN", -30], ["CHN", "IND", -30], ["USA", "CUB", -60], ["USA", "IRN", -70], ["USA", "PRK", -80], ["IRN", "IRQ", -50], ["IRN", "SAU", -45], ["SAU", "QAT", -10], ["MAR", "DZA", -40], ["COL", "VEN", -20], ["PER", "ECU", -20], ["SDN", "SSD", -50], ["RUS", "UKR", 10], ["RUS", "BLR", 70], ["CHN", "PAK", 70], ["CHN", "PRK", 75], ["USA", "ISR", 85], ["GBR", "USA", 90], ["FRA", "DEU", 85], ["RUS", "IND", 45], ["CHN", "RUS", 25]];
+const RIVALITES: [string, string, number][] = [["IND", "PAK", -75], ["ISR", "IRN", -85], ["ISR", "SYR", -80], ["KOR", "PRK", -70], ["CHN", "TWN", -60], ["GRC", "TUR", -25], ["ARM", "AZE", -85], ["ETH", "ERI", -85], ["RUS", "GEO", -40], ["CHN", "JPN", -30], ["CHN", "IND", -30], ["USA", "CUB", -60], ["USA", "IRN", -70], ["USA", "PRK", -80], ["IRN", "IRQ", -50], ["IRN", "SAU", -45], ["SAU", "QAT", -10], ["MAR", "DZA", -40], ["COL", "VEN", -20], ["PER", "ECU", -20], ["SDN", "SSD", -50], ["RUS", "UKR", 10], ["RUS", "BLR", 70], ["CHN", "PAK", 70], ["CHN", "PRK", 75], ["USA", "ISR", 85], ["GBR", "USA", 90], ["FRA", "DEU", 85], ["RUS", "IND", 45], ["CHN", "RUS", 25],
+  // alliances régionales utilisées pour les appels aux armes (2 novembre 2026, estimation)
+  ["TUR", "AZE", 80], ["RUS", "ARM", 60], ["IRN", "SYR", 70], ["SAU", "ARE", 80], ["EGY", "SAU", 65], ["PAK", "SAU", 60], ["RWA", "UGA", 60], ["GRC", "CYP", 85], ["IRN", "LBN", 60]];
+export const PAIRES_RIVALES = RIVALITES.filter(r => r[2] < 0).map(([a, b]) => [a, b] as [string, string]);
 export const rivalite = (iso: string): [string, number][] => RIVALITES.filter(([x, y]) => x === iso || y === iso).map(([x, y, f]) => [x === iso ? y : x, f]);
 export function relation(e: EtatV2, a: string, b: string): number {
   if (a === b) return 100;
