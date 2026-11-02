@@ -10,12 +10,14 @@ import * as RS from "./ressources";
 import * as EV from "./evolution";
 import * as MN from "./monnaie";
 import * as CR from "./crises";
+import * as B from "./bataille";
+import { phaseGuerre } from "./ui-guerre";
 import { dessinerCarteV2, type CarteV2 } from "./carte";
 import { APTITUDES, LISTE_APTITUDES, TRAITS_DIRIGEANT } from "../moteur/dirigeants";
 
 type Camp = M.Camp;
 // ---------- Images (fichiers séparés au build ; jamais deux fois la même dans une partie) ----------
-const FICHIERS = import.meta.glob(["../images/famille_*.webp", "../images/carte_5g.webp", "../images/carte_accord_de_paris.webp", "../images/carte_aukus.webp", "../images/carte_banque_ndb.webp", "../images/carte_brics_elargis.webp", "../images/carte_bulle_internet.webp", "../images/carte_controles_export.webp", "../images/carte_covid.webp", "../images/carte_creation_brics.webp", "../images/carte_cyberdefense.webp", "../images/carte_elargissement_otan_ue.webp", "../images/carte_fonte_des_poles.webp", "../images/carte_g20.webp", "../images/carte_gnl.webp", "../images/carte_iles_artificielles.webp", "../images/carte_immobilier_chinois.webp", "../images/carte_intelligence_artificielle.webp", "../images/carte_irak_2003.webp", "../images/carte_loups_guerriers.webp", "../images/carte_metaux_critiques.webp", "../images/carte_pivot_asie.webp", "../images/carte_quad.webp", "../images/carte_relocalisation.webp", "../images/carte_route_de_la_soie.webp", "../images/carte_tpp.webp", "../images/carte_yuan.webp", "./images/*.webp", "!./images/general_*.webp", "!./images/guerre_*.webp"], { eager: true, query: "?url", import: "default" }) as Record<string, string>;
+const FICHIERS = import.meta.glob(["../images/famille_*.webp", "../images/carte_5g.webp", "../images/carte_accord_de_paris.webp", "../images/carte_aukus.webp", "../images/carte_banque_ndb.webp", "../images/carte_brics_elargis.webp", "../images/carte_bulle_internet.webp", "../images/carte_controles_export.webp", "../images/carte_covid.webp", "../images/carte_creation_brics.webp", "../images/carte_cyberdefense.webp", "../images/carte_elargissement_otan_ue.webp", "../images/carte_fonte_des_poles.webp", "../images/carte_g20.webp", "../images/carte_gnl.webp", "../images/carte_iles_artificielles.webp", "../images/carte_immobilier_chinois.webp", "../images/carte_intelligence_artificielle.webp", "../images/carte_irak_2003.webp", "../images/carte_loups_guerriers.webp", "../images/carte_metaux_critiques.webp", "../images/carte_pivot_asie.webp", "../images/carte_quad.webp", "../images/carte_relocalisation.webp", "../images/carte_route_de_la_soie.webp", "../images/carte_tpp.webp", "../images/carte_yuan.webp", "./images/*.webp"], { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const IMG: Record<string, string> = Object.fromEntries(Object.entries(FICHIERS).map(([k, v]) => [k.split("/").pop()!.replace(".webp", ""), v]));
 // Images écartées : texte parasite visible (règle « aucun texte dans les images »).
 // Images écartées à l'audit du 2026-11-02 (faux texte ou scène irréaliste), en attente de régénération.
@@ -327,7 +329,7 @@ function accueil() {
     <p class="v2-note">Maquette d'une année : les chiffres sont des estimations, à calibrer par simulation.</p>`, true);
   f.querySelectorAll<HTMLButtonElement>(".v2-camp").forEach(b => b.onclick = () => {
     const camp = b.dataset.camp as Camp, g = e.graine;
-    e = M.creerPartieV2(g, camp);
+    e = M.creerPartieV2(g, camp); guerreDemo();
     aller(0);
   });
 }
@@ -556,7 +558,10 @@ function revelation() {
     conseil("renseignement", dem.length ? `Mauvaise nouvelle : ${dem.map(r => esc(e.pays[r.op.pays!].nom)).join(", ")} nous a démasqués. La tension monte.` : `Aucun de nos agents n'a été démasqué. ${cachees ? "L'adversaire cache encore des opérations secrètes." : ""}`);
     compteurs(); rafraichirCarte();
   };
-  if (traque) lancerTraque(traque, suite); else suite();
+  // Phase de guerre jouée : seulement les guerres où ton camp participe, avant la résolution de fin d'année.
+  const guerres = B.guerresDuJoueur(e).filter(g => g.batailleJouee?.annee !== e.annee);
+  const prochaine = () => { const g = guerres.shift(); if (!g) { fermerFenetre(); return traque ? lancerTraque(traque, suite) : suite(); } phaseGuerre(e, g, B.coteJoueur(e, g, j)!, prochaine, { fenetre, img, esc }); };
+  prochaine();
 }
 // La traque : choisir où envoyer ses équipes, sans dé.
 function lancerTraque(o: M.Operation, suite: () => void) {
@@ -650,8 +655,13 @@ function bilan() {
   conseil("defense", `Sur l'année, nous avons conquis ${sg(moi)} % du terrain disponible, ${M.NOM_CAMP[adv()] === "BRICS" ? "les BRICS" : "l'Occident"} ${sg(lui)} %. ${avance > JAUGE_NUL ? "La jauge penche de notre côté." : avance < -JAUGE_NUL ? "La jauge penche du côté adverse." : "La jauge reste à l'équilibre."} Les points posés agiront encore deux ans (30 % puis 20 % de leur effet).`);
 }
 
+// Démo de la phase de guerre (maquette) : la crise d'Abkhazie dégénère ; l'Occident garantit la Géorgie, les BRICS soutiennent la Russie.
+function guerreDemo() {
+  const g = CR.ouvrirGuerre(e, "RUS", "GEO", "démo : la crise d'Abkhazie dégénère");
+  if (g) { g.garants = { OCC: "GEO" }; g.parCamp = { CHN: "RUS" }; g.allies = {}; e.appels = []; }
+}
 function demarrer(graine: number) {
-  e = M.creerPartieV2(graine, "OCC");
+  e = M.creerPartieV2(graine, "OCC"); guerreDemo();
   zoneChoisie = null; paysChoisi = null; mode = "zones";
   squelette(); aller(-1);
 }

@@ -98,7 +98,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; evenementsJoues?: number; reparations?: { de: string; a: string; fin: number }[]; griefs?: Record<string, number>; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; evenementsJoues?: number; nucleaire?: { hiver: number; frappes: Partial<Record<Camp, number>>; points?: Partial<Record<Camp, number>>; crise?: boolean; bio?: number }; defaite?: { camp: Camp; raison: string }; reparations?: { de: string; a: string; fin: number }[]; missions?: { a: string; b: string; fin: number }[]; griefs?: Record<string, number>; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -620,7 +620,7 @@ export function decompte(e: EtatV2) {
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
 // médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: -11.55, nul: 0.65, annees: 51 }; // recalibré le 2 novembre 2026 après les événements en fin d'année et le score de guerre (occupation, traités) : 200 parties IA, médiane +11,5 pour l'Occident, résultat 45 % / 10 % / 45 % (estimation)
+export const JAUGE = { komi: -10.86, nul: 0.74, annees: 51 }; // recalibré le 2 novembre 2026 après le moteur de bataille (guerres simulées, renforts, ONU, chocs économiques) : 200 parties IA, médiane +10,9 pour l'Occident, résultat 45 % / 10,5 % / 44,5 % (estimation)
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;
@@ -647,7 +647,7 @@ export function anneeSuivante(e: EtatV2): Decompte | null {
     d = { annee: e.annee, OCC: g.OCC, CHN: g.CHN, jauge: g.jauge, tete: g.tete, final: e.annee === ANNEE_FIN };
     (e.decomptes ??= []).push(d);
   }
-  if (e.annee >= ANNEE_FIN) { e.fin = true; return d; }
+  if (e.annee >= ANNEE_FIN || e.defaite) { e.fin = true; return d; } // défaite sur seuil extrême (hiver nucléaire) : fin de partie
   for (const c of ["OCC", "CHN"] as Camp[]) {
     const rev = revenuAnnee(e, c); (e.revenu ??= { ...REVENU })[c] = rev;
     e.budget[c] = Math.min(2 * rev, Math.max(0, e.budget[c] - e.boostsUtilises[c]) + rev);
