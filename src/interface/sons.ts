@@ -71,10 +71,17 @@ export function jouerJingle(victoire: boolean) {
 // Musiques (CC0, OpenGameArt) : fichiers à part (musiques/*.mp3), chargés seulement à l'écoute, à faible volume.
 // Chaque situation a une liste de lecture : « nom », « nom_2 »… enchaînés au hasard sans répétition immédiate, avec fondu.
 // ere1 à ere3 : thèmes de carte composés pour le jeu (Suno), un par ère (2000-2007, 2008-2019, 2020 et après).
-export type Musique = "menu" | "carte" | "calme" | "ere1" | "ere2" | "ere3" | "tension" | "guerre" | "victoire" | "defaite";
-export const MUSIQUES: Record<Musique, number> = { menu: 3, carte: 3, calme: 5, ere1: 2, ere2: 2, ere3: 2, tension: 10, guerre: 5, victoire: 3, defaite: 3 };
+// Ajout du 2 novembre 2026 (Suno) : menu_4-5 « Pavillon de l'Étoile », occident « American Pastoral »,
+// chine « 东西碰个面 », rencontre « East Meets West ». Intégrés au HTML de la maquette (src/v2/musiques).
+export type Musique = "menu" | "carte" | "calme" | "ere1" | "ere2" | "ere3" | "tension" | "guerre" | "victoire" | "defaite" | "occident" | "chine" | "rencontre";
+export const MUSIQUES: Record<Musique, number> = { menu: 5, carte: 3, calme: 5, ere1: 2, ere2: 2, ere3: 2, tension: 10, guerre: 5, victoire: 3, defaite: 3, occident: 2, chine: 2, rencontre: 2 };
 export const musiqueEre = (annee: number): Musique => (annee < 2008 ? "ere1" : annee < 2020 ? "ere2" : "ere3");
-export const pisteMusique = (m: Musique, i: number) => `musiques/${m}${i > 1 ? `_${i}` : ""}.mp3`;
+// Musique d'une année de paix : rotation thème d'ère, thème du camp du joueur, thème de la rencontre Est-Ouest.
+export const musiqueAnnee = (annee: number, camp: string): Musique => [musiqueEre(annee), camp === "CHN" ? "chine" : "occident", "rencontre"][(annee - 2000) % 3] as Musique;
+const INTEGREES: Record<string, string> = {};
+// La maquette fournit certains morceaux directement (données intégrées) : chemin « musiques/x.mp3 » → URL.
+export const integrerMusiques = (m: Record<string, string>) => Object.assign(INTEGREES, m);
+export const pisteMusique = (m: Musique, i: number) => { const p = `musiques/${m}${i > 1 ? `_${i}` : ""}.mp3`; return INTEGREES[p] ?? p; };
 const FIN_DE_PARTIE = (m: Musique) => m === "victoire" || m === "defaite";
 const VOLUME_MUSIQUE = 0.18, FONDU_MS = 1500;
 let hymne: HTMLAudioElement | null = null;
@@ -136,3 +143,19 @@ function baisserMusique(a: HTMLAudioElement) {
 }
 // Le navigateur bloque l'audio avant le premier geste : on relance la musique voulue au premier clic.
 export const relancerMusique = () => { if (musiqueActive && voulu && morceau !== voulu) musique(voulu); };
+
+// Sons de bataille (2 novembre 2026) : 31 bruitages téléchargés pour la bataille (src/v2/sons/bat_*.mp3, 27 CC0 et 4 CC-BY 3.0,
+// voir public/musiques/LICENCES.md), fournis par la maquette via integrerSons ; à défaut, les bruitages d'événements déjà intégrés.
+export const integrerSons = (m: Record<string, string>) => { for (const [k, v] of Object.entries(m)) (VARIANTES[k.replace(/_\d+$/, "")] ??= []).push(v); };
+export type SonBataille = "terre" | "mitrailleuse" | "blinde" | "artillerie" | "air" | "helico" | "mer" | "torpille" | "impact" | "destruction" | "missile" | "mouvement";
+export const SONS_BATAILLE: Record<SonBataille, string[]> = {
+  terre: ["bat_infanterie", "bat_mitrailleuse"], mitrailleuse: ["bat_mitrailleuse"], blinde: ["bat_tir_char"], artillerie: ["bat_artillerie"],
+  air: ["bat_jet"], helico: ["bat_helicoptere"], mer: ["bat_canon_naval"], torpille: ["bat_torpille"],
+  impact: ["bat_explosion"], destruction: ["bat_explosion"], missile: ["bat_missile"], mouvement: ["bat_moteur_char"],
+};
+const SECOURS: Record<SonBataille, string> = { terre: "ev_fusillade", mitrailleuse: "ev_fusillade", blinde: "ev_explosion", artillerie: "ev_explosion", air: "ev_avion", helico: "ev_helico", mer: "ev_naval", torpille: "ev_naval", impact: "ev_explosion", destruction: "ev_explosion", missile: "ev_explosion", mouvement: "ev_machine" };
+export function jouerBataille(s: SonBataille, volume = 0.35) {
+  if (!actif) return;
+  const noms = SONS_BATAILLE[s].filter(n => VARIANTES[n]?.length), nom = tirer(noms.length ? noms : [SECOURS[s]], `bataille:${s}`), url = nom ? variante(nom) : null; if (!url) return;
+  try { const a = lire(url, s === "mouvement" ? volume * 0.5 : volume, 0.08); if (s === "mouvement") setTimeout(() => fondu(a, 0, () => a.pause()), 1200); } catch { /* audio indisponible */ }
+}

@@ -2,6 +2,8 @@
 // bonus et malus entre types, terrain, brouillard de guerre, 4 saisons, résultat non plafonné) ; projection, blocus, base alliée ;
 // nucléaire et biologique par la dissuasion ; front intérieur, diplomatie, négociation ; seulement les guerres du joueur.
 import { describe, it, expect } from "vitest";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
+import * as SON from "../src/interface/sons";
 import * as M from "../src/v2/moteur";
 import * as CR from "../src/v2/crises";
 import * as B from "../src/v2/bataille";
@@ -182,5 +184,32 @@ describe("Casques bleus", () => {
     expect(CR.ouvrirGuerre(e, "ETH", "ERI", "test")).toBeUndefined();
     const s = e.pays.ETH.stabilite; CR.missionsAnnee(e); expect(e.pays.ETH.stabilite).toBe(Math.min(100, s + 2));
     e.annee += 6; expect(CR.sousMission(e, "ETH", "ERI")).toBe(false);
+  });
+});
+describe("Ergonomie du champ (retour du 2 novembre 2026, soir)", () => {
+  it("31. coût de chaque case accessible et blocages expliqués (déplacer, attaquer, case)", () => {
+    const e = base(31), g = guerre(e, "RUS", "GEO"), b = B.preparerBataille(e, g, "a"); b.actif = "a";
+    const u = B.vivantes(b, "a").find(x => B.UNITES[x.type].domaine === "terre" && B.deplacements(b, x).length)!;
+    for (const p of B.deplacements(b, u)) { expect(p.cout).toBeGreaterThanOrEqual(1); expect(p.cout).toBeLessThanOrEqual(B.UNITES[u.type].mouvement); expect(B.blocageCase(b, u, p.c, p.r)).toBeNull(); }
+    expect(B.blocageBouger(b, u)).toBeNull();
+    const mer = b.cases.find(k => k.t === "mer"); if (mer) expect(B.blocageCase(b, u, mer.c, mer.r)).toMatch(/mer/);
+    b.a.logistique = 0; expect(B.blocageBouger(b, u)).toMatch(/logistique/); expect(B.blocageAttaquer(b, u)).toBeTruthy();
+    b.a.logistique = 3; u.tire = true; expect(B.blocageBouger(b, u)).toMatch(/attaqué/); expect(B.blocageAttaquer(b, u)).toMatch(/attaqué/);
+    b.actif = "b"; expect(B.blocageBouger(b, u)).toMatch(/tour/);
+  });
+  it("32. l'écran : vraies images (tuiles, pions), menu d'actions, glisser-déposer avec confirmation, animations, sons", () => {
+    const ui = readFileSync("src/v2/ui-guerre.ts", "utf8");
+    for (const x of ["terrain_", "pion_", "data-act=", "data-conf=", "pointerdown", "blocageCase", "animer(ff)", "SON.jouerBataille", "SON.integrerSons", "nayckron", "dklon", "lamoot"]) expect(ui, x).toContain(x);
+    for (const t of Object.keys(B.UNITES)) expect(existsSync(`src/v2/images/pion_${t}.webp`), t).toBe(true);
+    for (const t of Object.keys(B.TERRAINS)) for (const v of [1, 2, 3]) expect(existsSync(`src/v2/images/terrain_${t}_${v}.webp`), `${t}_${v}`).toBe(true);
+    expect(readFileSync("vite.maquette.config.ts", "utf8")).toMatch(/terrain_\|pion_/);
+  });
+});
+describe("Sons de bataille", () => {
+  it("33. 31 sons téléchargés, chaque famille utilisée existe, licences CC-BY créditées", () => {
+    const f = readdirSync("src/v2/sons").filter(x => x.endsWith(".mp3"));
+    expect(f.length).toBe(31);
+    for (const l of Object.values(SON.SONS_BATAILLE)) for (const n of l) expect(f.some(x => x.startsWith(n + "_")), n).toBe(true);
+    expect(readFileSync("src/v2/sons/LICENCES.md", "utf8")).toMatch(/nayckron[\s\S]*dklon[\s\S]*lamoot/);
   });
 });

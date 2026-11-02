@@ -199,8 +199,8 @@ function memoriser(b: Bataille, cote: Cote) { const f = b[cote]; for (const u of
 
 // ---------- Mouvement (1 point de logistique par unité déplacée) ----------
 // Les troupes au sol s'arrêtent en entrant au contact d'une unité ennemie terrestre (zone de contrôle) et en entrant dans une rivière.
-export function deplacements(b: Bataille, u: Unite): { c: number; r: number }[] {
-  const d = def(u), res: { c: number; r: number }[] = [], cout = new Map<number, number>([[u.r * b.cols + u.c, 0]]), file = [[u.c, u.r]];
+export function deplacements(b: Bataille, u: Unite): { c: number; r: number; cout: number }[] {
+  const d = def(u), res: { c: number; r: number; cout: number }[] = [], cout = new Map<number, number>([[u.r * b.cols + u.c, 0]]), file = [[u.c, u.r]];
   const zoc = (c: number, r: number) => voisins(c, r).some(([x, y]) => { const v = uniteEn(b, x, y); return v && v.cote !== u.cote && def(v).domaine === "terre"; });
   while (file.length) {
     const [c, r] = file.shift()!, k0 = cout.get(r * b.cols + c)!;
@@ -210,10 +210,39 @@ export function deplacements(b: Bataille, u: Unite): { c: number; r: number }[] 
       if (d.domaine === "mer" ? k.t !== "mer" : d.domaine === "terre" ? k.t === "mer" || (k.t === "montagne" && (u.type === "blindes" || u.type === "mecanisee")) : false) continue;
       const occ = uniteEn(b, x, y); if (occ && occ.cote !== u.cote) continue;
       const n = k0 + (d.domaine === "terre" ? TERRAINS[k.t].cout : 1); if (n > d.mouvement || (cout.get(y * b.cols + x) ?? 99) <= n) continue;
-      cout.set(y * b.cols + x, n); file.push([x, y]); if (!occ) res.push({ c: x, r: y });
+      cout.set(y * b.cols + x, n); file.push([x, y]); if (!occ) res.push({ c: x, r: y, cout: n });
     }
   }
-  return res.filter((p, i) => res.findIndex(q => q.c === p.c && q.r === p.r) === i);
+  // une case peut être atteinte plusieurs fois : on garde le chemin le moins coûteux
+  return res.filter((p, i) => res.findIndex(q => q.c === p.c && q.r === p.r) === i).map(p => ({ ...p, cout: cout.get(p.r * b.cols + p.c)! }));
+}
+// Pourquoi une unité ne peut pas bouger ou attaquer (null : elle peut). Affiché au joueur.
+export function blocageBouger(b: Bataille, u: Unite): string | null {
+  if (b.finie || b.actif !== u.cote) return "Ce n'est pas ton tour.";
+  if (u.tire) return "A déjà attaqué ce tour : une unité qui a attaqué ne bouge plus.";
+  if (u.bouge) return "A déjà bougé ce tour (un seul déplacement par saison).";
+  if (b[u.cote].logistique < 1) return "Plus de logistique : termine le tour pour la recharger.";
+  if (!deplacements(b, u).length) return def(u).domaine === "terre" ? "Bloquée : cases voisines occupées, interdites (mer, montagne pour les blindés) ou trop coûteuses." : "Bloquée : aucune case libre à sa portée de mouvement.";
+  return null;
+}
+export function blocageAttaquer(b: Bataille, u: Unite): string | null {
+  if (b.finie || b.actif !== u.cote) return "Ce n'est pas ton tour.";
+  if (u.tire) return "A déjà attaqué ce tour.";
+  if (u.type === "artillerie" && u.bouge) return "L'artillerie ne tire pas après avoir bougé.";
+  if (b[u.cote].logistique < 1) return "Plus de logistique : termine le tour pour la recharger.";
+  if (!ciblesDe(b, u).length) return `Aucun ennemi visible et attaquable à portée ${portee(b, u)}.`;
+  return null;
+}
+// Pourquoi une case n'est pas accessible (affiché au survol en mode déplacement).
+export function blocageCase(b: Bataille, u: Unite, c: number, r: number): string | null {
+  const k = caseEn(b, c, r), d = def(u); if (!k) return "Hors du champ.";
+  if (deplacements(b, u).some(p => p.c === c && p.r === r)) return null;
+  if (c === u.c && r === u.r) return "Position actuelle.";
+  if (d.domaine === "mer" && k.t !== "mer") return "Les navires restent en mer.";
+  if (d.domaine === "terre" && k.t === "mer") return "Les troupes au sol ne vont pas en mer.";
+  if (d.domaine === "terre" && k.t === "montagne" && (u.type === "blindes" || u.type === "mecanisee")) return "Montagne interdite aux blindés et à la mécanisée.";
+  if (uniteEn(b, c, r)) return "Case occupée.";
+  return `Trop loin : mouvement ${d.mouvement}${d.domaine === "terre" ? " ; forêt, colline et rivière coûtent 2, montagne 3 ; on s'arrête au contact de l'ennemi et dans une rivière" : ""}.`;
 }
 const prendre = (b: Bataille, u: Unite) => {
   if (def(u).domaine !== "terre") return;

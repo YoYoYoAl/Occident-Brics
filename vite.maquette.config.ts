@@ -8,5 +8,5 @@ export default defineConfig({
   publicDir: false,
   experimental: { renderBuiltUrl: (f: string) => "./" + f }, // images : chemins relatifs à la page (le script est intégré au HTML)
   plugins: [viteSingleFile({ useRecommendedBuildConfig: false, removeViteModuleLoader: true })],
-  build: { outDir: "dist-maquette", emptyOutDir: true, assetsInlineLimit: (f: string) => f.endsWith(".mp3") || /cartej_/.test(f), cssCodeSplit: false, rollupOptions: { input: "maquette.html", output: { inlineDynamicImports: true } } },
+  build: { outDir: "dist-maquette", emptyOutDir: true, assetsInlineLimit: (f: string) => f.endsWith(".mp3") || /cartej_|terrain_|pion_/.test(f), cssCodeSplit: false, rollupOptions: { input: "maquette.html", output: { inlineDynamicImports: true } } },
 });

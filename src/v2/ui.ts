@@ -13,6 +13,8 @@ import * as CR from "./crises";
 import * as B from "./bataille";
 import { phaseGuerre } from "./ui-guerre";
 import * as SON from "../interface/sons";
+// Morceaux ajoutés le 2 novembre 2026 : intégrés au HTML (pas de fichier publié en plus, limite de 511 fichiers).
+SON.integrerMusiques(Object.fromEntries(Object.entries(import.meta.glob("./musiques/*.mp3", { eager: true, query: "?url", import: "default" }) as Record<string, string>).map(([k, v]) => [`musiques/${k.slice(11)}`, v])));
 import { dessinerCarteV2, type CarteV2 } from "./carte";
 import { APTITUDES, LISTE_APTITUDES, TRAITS_DIRIGEANT } from "../moteur/dirigeants";
 
@@ -132,7 +134,7 @@ function squelette() {
 
 // ---------- Bande son (sons.ts du jeu : musiques Suno et CC0, bruitages Kenney) ----------
 // Ambiance : menu à l'accueil, thème de l'ère, « tension » si ton camp est en guerre, « guerre » pendant une bataille.
-const ambiance = (): SON.Musique => (etape < 0 ? "menu" : B.guerresDuJoueur(e).length ? "tension" : SON.musiqueEre(e.annee));
+const ambiance = (): SON.Musique => (etape < 0 ? "menu" : B.guerresDuJoueur(e).length ? "tension" : SON.musiqueAnnee(e.annee, e.joueur));
 function brancherSons() {
   const maj = () => document.querySelectorAll<HTMLButtonElement>(".v2-son").forEach(b => {
     const m = b.dataset.son === "musique", on = m ? SON.musiqueActivee() : SON.sonActif();

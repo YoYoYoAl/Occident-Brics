@@ -55,7 +55,8 @@ describe("Sons et musiques", () => {
     for (const m of Object.keys(MUSIQUES) as Musique[]) {
       if (m !== "menu") expect(MUSIQUES[m], m).toBeGreaterThanOrEqual(2);
       for (let i = 1; i <= MUSIQUES[m]; i++) {
-        const p = `public/${pisteMusique(m, i)}`;
+        // morceaux du 2 novembre 2026 intégrés au HTML de la maquette : src/v2/musiques
+        const p = existsSync(`public/${pisteMusique(m, i)}`) ? `public/${pisteMusique(m, i)}` : `src/v2/${pisteMusique(m, i)}`;
         expect(existsSync(p), p).toBe(true);
         expect(statSync(p).size, p).toBeLessThan(1.5e6); total += statSync(p).size;
       }
