@@ -6,6 +6,7 @@
 // Tous les chiffres sont des estimations. Import circulaire avec moteur.ts : rien de moteur n'est utilisé au chargement.
 import type { EtatV2, Camp, Ligne } from "./moteur";
 import * as M from "./moteur";
+import { REGIONS_CLES } from "../data/regions";
 
 export type Reponse = "apaiser" | "fermete" | "escalade";
 export const REPONSES: { id: Reponse; nom: string; aide: string }[] = [
@@ -131,7 +132,9 @@ const fr = (v: number) => String(Math.round(v * 10) / 10).replace(".", ",");
 // les belligérants, puis paix blanche possible ou victoire à ±60. Estimation.
 export interface Guerre { id: string; titre: string; a: string; b: string; debut: number; fin?: number; score: number; soutien: Record<string, number>; directe?: boolean; issue?: string;
   rebelles?: { region: string; force: number; parrain?: string };
-  allies?: Record<string, string[]>; garants?: Partial<Record<Camp, string>> } // alliés entrés en guerre par côté ; camps garants et côté soutenu // guerre séparatiste : a = l'État, b = le parrain éventuel (sinon a)
+  allies?: Record<string, string[]>; garants?: Partial<Record<Camp, string>>;
+  occ?: { a: number; b: number }; batailles?: number; objectif?: number; lassitude?: { a: number; b: number }; region?: string; // score de guerre (EU4) : occupation, batailles, objectif
+  parCamp?: Partial<Record<Camp, string>>; traite?: string[] } // alliés entrés en guerre par côté ; camps garants et côté soutenu // guerre séparatiste : a = l'État, b = le parrain éventuel (sinon a)
 export const GUERRE = {
   depuisIncident: 0.35, cranFort: 3, facteurCranFaible: 0.5, local: 0.00025, separatisme: 0.0002, // guerres locales et séparatistes : 0,025 % (État contre État) ou 0,02 % (séparatisme) × chaleur × cran × facteur de relation, par an et par foyer        // proba qu'un incident tourne à la guerre (×0,35 sous le cran 3)
   directe: 0.3, seuilDirect: 7,                                 // engagement direct du leader adverse : tension ≥ 9 et 25 %
@@ -139,11 +142,23 @@ export const GUERRE = {
   victoire: 60, paixBlanche: 0.3, armee: 0.4, alea: 12, soutienPoint: 3,
   gainVainqueur: 15, pertePerdant: { pib: -5, stab: -10 },
 };
+// Score de guerre façon EU4 (demande du 2 novembre 2026 : « score de guerre, contrôler, annexer, réparations, impact sur stabilité et influence »).
+// Score de −100 à +100 (positif = avantage de a, l'attaquant) = 0,5 × (occupation de a − occupation de b) + batailles (±10, plafond ±30)
+// + objectif (±5 par an pour qui tient la région disputée, plafond ±20). Valeurs : estimation.
+export const SCORE = { front: 25, poidsOcc: 0.5, bataille: 10, plafondBatailles: 30, objectif: 5, plafondObjectif: 20, tientObjectif: 15, annexionOcc: 30, total: 100, negocie: 50,
+  stabParOcc: -0.1, lassitudeAn: 10, lassitudeDefaite: 5, seuilLassitude: 50, stabLassitude: -3, paixBlancheLassitude: 40, paixBlancheScore: 35 };
+// Exigences du traité (coût en score) : le vainqueur dépense son score, des plus coûteuses aux moins coûteuses.
+export type Exigence = "annexer" | "controler" | "reparations" | "demilitariser";
+export const TRAITE: Record<Exigence, { nom: string; cout: number }> = {
+  annexer: { nom: "annexion de la région disputée", cout: 40 }, controler: { nom: "régime ami (contrôle)", cout: 25 },
+  reparations: { nom: "réparations (1 % du PIB pendant 5 ans)", cout: 20 }, demilitariser: { nom: "démilitarisation (armée −30 %)", cout: 15 } };
+export const ANNEXION = { partDefaut: 0.05, destruction: 0.7, stabPerdant: -10, stabVainqueur: 5, grief: -30, expansion: -5, influence: 5, reparations: 0.01, dureeReparations: 5, demilitarisation: 0.7 };
 const campDe = (e: EtatV2, iso: string): Camp => (M.partPays(e.pays[iso], "CHN") > M.partPays(e.pays[iso], "OCC") ? "CHN" : "OCC");
 export const guerresEnCours = (e: EtatV2) => (e.guerres ?? []).filter(g => !g.fin);
 export function ouvrirGuerre(e: EtatV2, a: string, b: string, cause: string, directe = false): Guerre | undefined {
   if (a === b || !e.pays[a] || !e.pays[b] || guerresEnCours(e).some(g => [g.a, g.b].includes(a) && [g.a, g.b].includes(b))) return undefined;
-  const g: Guerre = { id: `guerre_${a}_${b}_${e.annee}`, titre: directe ? `Guerre ouverte entre l'Occident et les BRICS : ${e.pays[a].nom} contre ${e.pays[b].nom}` : `Guerre entre ${e.pays[a].nom} et ${e.pays[b].nom}`, a, b, debut: e.annee, score: 0, soutien: {}, directe: directe || undefined, issue: cause };
+  const g: Guerre = { id: `guerre_${a}_${b}_${e.annee}`, titre: directe ? `Guerre ouverte entre l'Occident et les BRICS : ${e.pays[a].nom} contre ${e.pays[b].nom}` : `Guerre entre ${e.pays[a].nom} et ${e.pays[b].nom}`, a, b, debut: e.annee, score: 0, soutien: {}, directe: directe || undefined, issue: cause,
+    occ: { a: 0, b: 0 }, batailles: 0, objectif: 0, lassitude: { a: 0, b: 0 }, region: regionDisputee(b) };
   (e.guerres ??= []).push(g); e.tension = M.borne(e.tension + (directe ? 2 : 0.8), 0, 10); if (!directe) appelsAuxArmes(e, g); return g;
 }
 // Après un incident armé : guerre possible (rare), entre les deux camps seulement si la tension est extrême.
@@ -160,24 +175,21 @@ export function guerreDepuisIncident(e: EtatV2, i: Incident): Guerre | undefined
 }
 // Une année de guerre : retourne les événements à afficher.
 export function guerresAnnee(e: EtatV2) {
+  verserReparations(e);
   const ev: { id: string; trimestre: number; titre: string; texte: string; pays: string[]; resume: string }[] = [];
   for (const g of guerresEnCours(e)) {
     const A = e.pays[g.a], B = e.pays[g.b], ans = e.annee - g.debut + 1;
     if (g.rebelles) { ev.push(anneeSeparatiste(e, g, A, ans)); continue; }
-    g.score += GUERRE.armee * (A.militaire + forceAllies(e, g, g.a) - B.militaire - forceAllies(e, g, g.b)) + (g.soutien[g.a] ?? 0) * GUERRE.soutienPoint - (g.soutien[g.b] ?? 0) * GUERRE.soutienPoint + (M.tirer(e) * 2 - 1) * GUERRE.alea;
+    const d = GUERRE.armee * (A.militaire + forceAllies(e, g, g.a) - B.militaire - forceAllies(e, g, g.b)) + (g.soutien[g.a] ?? 0) * GUERRE.soutienPoint - (g.soutien[g.b] ?? 0) * GUERRE.soutienPoint + (M.tirer(e) * 2 - 1) * GUERRE.alea;
     g.soutien = {};
+    const r = anneeDeGuerre(e, g, d);
     A.pib *= 1 + GUERRE.pibA / 100; B.pib *= 1 + GUERRE.pibB / 100;
     A.stabilite = M.borne(A.stabilite + GUERRE.stab, 0, 100); B.stabilite = M.borne(B.stabilite + GUERRE.stab, 0, 100);
     e.tension = M.borne(e.tension + (g.directe ? GUERRE.tensionDirecte : GUERRE.tensionAn), 0, 10);
-    let fin = "";
-    if (Math.abs(g.score) >= GUERRE.victoire) {
-      const [v, p] = g.score > 0 ? [A, B] : [B, A], cv = campDe(e, v.iso);
-      if (p.iso !== M.LEADER.OCC && p.iso !== M.LEADER.CHN) p.att[cv] = M.borne(p.att[cv] + GUERRE.gainVainqueur);
-      p.pib *= 1 + GUERRE.pertePerdant.pib / 100; p.stabilite = M.borne(p.stabilite + GUERRE.pertePerdant.stab, 0, 100);
-      fin = `victoire de ${v.nom}`; g.fin = e.annee; g.issue = fin;
-    } else if (ans >= 2 && M.tirer(e) < GUERRE.paixBlanche) { fin = "cessez-le-feu sans vainqueur"; g.fin = e.annee; g.issue = fin; }
-    ev.push({ id: `${g.id}_${e.annee}`, trimestre: 4, titre: fin ? `${g.titre} : ${fin}` : `${g.titre} (année ${ans})`, texte: fin ? `Après ${ans} an${ans > 1 ? "s" : ""} de combats, ${fin}.` : `Les combats continuent. Score de guerre ${Math.round(g.score)} (victoire à ±${GUERRE.victoire}).`, pays: [g.a, g.b],
-      resume: [`PIB ${A.nom} ${GUERRE.pibA} %`, `PIB ${B.nom} ${GUERRE.pibB} %`, `stabilité ${GUERRE.stab}`, `tension mondiale +${fr(g.directe ? GUERRE.tensionDirecte : GUERRE.tensionAn)}`].join(" · ") });
+    const fin = finDeGuerre(e, g, ans);
+    ev.push({ id: `${g.id}_${e.annee}`, trimestre: 4, titre: fin ? `${g.titre} : ${fin}` : `${g.titre} (année ${ans})`,
+      texte: fin ? `Après ${ans} an${ans > 1 ? "s" : ""} de combats, ${fin}.` : `${r.bataille}. ${A.nom} occupe ${Math.round(g.occ!.a)} % de ${B.nom}, ${B.nom} ${Math.round(g.occ!.b)} % de ${A.nom}. Score de guerre ${Math.round(g.score)} (paix imposée à ±${SCORE.total}, négociable dès ±${SCORE.negocie}).`, pays: [g.a, g.b],
+      resume: [`PIB ${A.nom} ${GUERRE.pibA} %`, `PIB ${B.nom} ${GUERRE.pibB} %`, `stabilité ${GUERRE.stab}`, `tension mondiale +${fr(g.directe ? GUERRE.tensionDirecte : GUERRE.tensionAn)}`, ...(fin && g.traite?.length ? [`traité : ${g.traite.join(", ")}`] : [])].join(" · ") });
   }
   return ev;
 }
@@ -259,9 +271,70 @@ export function guerresSpontanees(e: EtatV2) {
 // celui-ci penche vers son camp, sinon les rebelles.
 export function soutenir(e: EtatV2, c: Camp, iso: string, m: number) {
   for (const g of guerresEnCours(e)) {
-    if (g.rebelles && (g.a === iso || g.b === iso)) { const cote = M.partPays(e.pays[g.a], c) >= M.partPays(e.pays[g.a], M.autre(c)) ? g.a : "rebelles"; g.soutien[cote] = (g.soutien[cote] ?? 0) + m; }
-    else if (g.a === iso || g.b === iso) g.soutien[iso] = (g.soutien[iso] ?? 0) + m;
+    if (g.rebelles && (g.a === iso || g.b === iso)) { const cote = M.partPays(e.pays[g.a], c) >= M.partPays(e.pays[g.a], M.autre(c)) ? g.a : "rebelles"; g.soutien[cote] = (g.soutien[cote] ?? 0) + m; (g.parCamp ??= {})[c] = cote; }
+    else if (g.a === iso || g.b === iso) { g.soutien[iso] = (g.soutien[iso] ?? 0) + m; (g.parCamp ??= {})[c] = iso; }
   }
+}
+
+// Région disputée : la plus stratégique des régions connues du pays visé (30 pays découpés), sinon une région frontalière générique.
+function regionDisputee(iso: string): string { const l = REGIONS_CLES[iso]; return l?.length ? l.slice().sort((x, y) => y.strat - x.strat)[0].nom : "la région frontalière"; }
+const partRegion = (iso: string, nom?: string) => REGIONS_CLES[iso]?.find(r => r.nom === nom)?.pop ?? ANNEXION.partDefaut;
+// Une bataille par an : le vainqueur fait avancer le front (de 0 à 25 % du territoire adverse, en libérant d'abord le sien).
+export function anneeDeGuerre(e: EtatV2, g: Guerre, d: number) {
+  g.occ ??= { a: 0, b: 0 }; g.lassitude ??= { a: 0, b: 0 }; g.batailles ??= 0; g.objectif ??= 0;
+  const A = e.pays[g.a], B = e.pays[g.b], gagneA = d >= 0, avance = Math.min(SCORE.front, Math.abs(d));
+  const [moi, lui] = gagneA ? ["a", "b"] as const : ["b", "a"] as const;
+  const libere = Math.min(g.occ[lui], avance); g.occ[lui] -= libere; g.occ[moi] = Math.min(100, g.occ[moi] + avance - libere);
+  g.batailles = M.borne(g.batailles + (gagneA ? 1 : -1) * SCORE.bataille, -SCORE.plafondBatailles, SCORE.plafondBatailles);
+  g.objectif = M.borne(g.objectif + (g.occ.a >= SCORE.tientObjectif ? 1 : -1) * SCORE.objectif, -SCORE.plafondObjectif, SCORE.plafondObjectif);
+  g.score = M.borne(SCORE.poidsOcc * (g.occ.a - g.occ.b) + g.batailles + g.objectif, -SCORE.total, SCORE.total);
+  // Stabilité : l'occupation pèse sur le pays occupé ; la lassitude s'accumule (plus vite chez le perdant de la bataille).
+  B.stabilite = M.borne(B.stabilite + SCORE.stabParOcc * g.occ.a, 0, 100); A.stabilite = M.borne(A.stabilite + SCORE.stabParOcc * g.occ.b, 0, 100);
+  g.lassitude[moi] += SCORE.lassitudeAn; g.lassitude[lui] += SCORE.lassitudeAn + SCORE.lassitudeDefaite;
+  for (const k of ["a", "b"] as const) if (g.lassitude[k] >= SCORE.seuilLassitude) { const P = e.pays[g[k]]; P.stabilite = M.borne(P.stabilite + SCORE.stabLassitude, 0, 100); }
+  return { bataille: `${(gagneA ? A : B).nom} remporte la bataille de l'année et avance de ${Math.round(avance)} %` };
+}
+// Fin de guerre : paix imposée à ±100 ; paix négociée dès ±50 si le perdant est las ; paix blanche si les deux s'usent sans vainqueur.
+export function finDeGuerre(e: EtatV2, g: Guerre, ans: number): string {
+  const s = g.score, perdant = s > 0 ? "b" : "a", las = g.lassitude![perdant];
+  let fin = "";
+  if (Math.abs(s) >= SCORE.total || (Math.abs(s) >= SCORE.negocie && (las >= 100 || M.tirer(e) < las / 100))) fin = traite(e, g, Math.abs(s));
+  else if (ans >= 2 && Math.abs(s) < SCORE.paixBlancheScore && Math.min(g.lassitude!.a, g.lassitude!.b) >= SCORE.paixBlancheLassitude && M.tirer(e) < GUERRE.paixBlanche) fin = "paix blanche, retour aux frontières d'avant-guerre";
+  if (fin) { g.fin = e.annee; g.issue = fin; }
+  return fin;
+}
+// Le vainqueur dépense son score en exigences, de la plus coûteuse à la moins coûteuse (choix de l'IA ; le joueur choisira dans la phase jouée).
+// On n'annexe que ce qu'on occupe : l'annexion exige de tenir au moins 30 % du territoire adverse (comme EU4).
+export function exigencesIA(points: number, occupe = 100): Exigence[] {
+  const l: Exigence[] = []; let reste = points;
+  for (const x of ["annexer", "controler", "reparations", "demilitariser"] as Exigence[]) if (TRAITE[x].cout <= reste && (x !== "annexer" || occupe >= SCORE.annexionOcc)) { l.push(x); reste -= TRAITE[x].cout; }
+  return l;
+}
+export function traite(e: EtatV2, g: Guerre, points: number, exigences = exigencesIA(points, g.score > 0 ? g.occ?.a ?? 0 : g.occ?.b ?? 0)): string {
+  const [v, p] = g.score > 0 ? [e.pays[g.a], e.pays[g.b]] : [e.pays[g.b], e.pays[g.a]], cv = campDe(e, v.iso), leader = (i: string) => i === M.LEADER.OCC || i === M.LEADER.CHN;
+  const faites: string[] = [];
+  for (const x of exigences) {
+    if (x === "annexer") {
+      const part = partRegion(p.iso, g.region);
+      v.population += p.population * part; v.pib += p.pib * part * ANNEXION.destruction; p.population *= 1 - part; p.pib *= 1 - part;
+      p.stabilite = M.borne(p.stabilite + ANNEXION.stabPerdant, 0, 100); v.stabilite = M.borne(v.stabilite + ANNEXION.stabVainqueur, 0, 100);
+      M.ajouterGrief(e, v.iso, p.iso, ANNEXION.grief);
+      for (const q of Object.values(e.pays)) if (q.zone === v.zone && q.iso !== v.iso && q.iso !== p.iso && !leader(q.iso)) q.att[cv] = M.borne(q.att[cv] + ANNEXION.expansion); // expansion agressive : les voisins se méfient
+      faites.push(`${v.nom} annexe ${g.region ?? "une région"}`);
+    } else if (x === "controler") { if (!leader(p.iso)) p.att[cv] = M.borne(p.att[cv] + GUERRE.gainVainqueur); faites.push(`${p.nom} se rapproche de ${M.NOM_CAMP[cv] === "BRICS" ? "des BRICS" : "de l'Occident"}`); }
+    else if (x === "reparations") { (e.reparations ??= []).push({ de: p.iso, a: v.iso, fin: e.annee + ANNEXION.dureeReparations }); faites.push(`${p.nom} paie des réparations pendant ${ANNEXION.dureeReparations} ans`); }
+    else { p.militaire *= ANNEXION.demilitarisation; faites.push(`${p.nom} est démilitarisé`); }
+  }
+  // Influence : le camp qui a soutenu le vainqueur y gagne, celui qui a soutenu le perdant y perd.
+  for (const [c, cote] of Object.entries(g.parCamp ?? {}) as [Camp, string][]) if (!leader(v.iso)) v.att[c] = M.borne(v.att[c] + (cote === v.iso ? 1 : -1) * ANNEXION.influence);
+  p.pib *= 1 + GUERRE.pertePerdant.pib / 100; p.stabilite = M.borne(p.stabilite + GUERRE.pertePerdant.stab, 0, 100);
+  g.traite = faites;
+  return `victoire de ${v.nom}${faites.length ? ` (${faites.join(" ; ")})` : ""}`;
+}
+// Réparations en cours : 1 % du PIB du perdant passe au vainqueur chaque année.
+export function verserReparations(e: EtatV2) {
+  e.reparations = (e.reparations ?? []).filter(r => r.fin >= e.annee);
+  for (const r of e.reparations) { const de = e.pays[r.de], a = e.pays[r.a]; if (!de || !a) continue; const m = de.pib * ANNEXION.reparations; de.pib -= m; a.pib += m; }
 }
 
 function anneeSeparatiste(e: EtatV2, g: Guerre, A: EtatV2["pays"][string], ans: number) {

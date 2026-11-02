@@ -72,14 +72,14 @@ describe("Crises de tension et guerres (acceptation)", () => {
 void annee;
 
 // Images du lot ob_13 (2 novembre 2026) : les événements de rupture et de projection 2027-2050 ont leur illustration,
-// sauf 18 scènes écartées pour faux texte (à régénérer) ; les cartes de l'ère 3 ont la leur.
+// le lot ob_14 en a régénéré 16 ; 3 restent sans image dédiée (faux texte : coree_guerre, usa_shutdown, russie_chine) ; les cartes de l'ère 3 ont la leur.
 import { RUPTURES, PROJECTIONS_2050, PROJECTIONS_2050_B, PROJECTIONS_2050_C } from "../src/contenu/ruptures";
 import { CARTES } from "../src/interface/images-cartes";
 describe("Images des nouveaux événements (lot ob_13)", () => {
-  it("au moins 145 des 164 nouveaux événements et 12 des 13 cartes de l'ère 3 ont une image, chaque image existe", () => {
+  it("au moins 160 des 164 nouveaux événements (lots ob_13 et ob_14) et les 13 cartes de l'ère 3 ont une image, chaque image existe", () => {
     const f = new Set(Object.keys(import.meta.glob("../src/v2/images/*.webp")).map((x: string) => x.split("/").pop()!.replace(".webp", "")));
     const ev = [...RUPTURES, ...PROJECTIONS_2050, ...PROJECTIONS_2050_B, ...PROJECTIONS_2050_C].filter(h => f.has(`ev_${h.id}`));
-    expect(ev.length).toBeGreaterThanOrEqual(145);
-    const c3 = Object.entries(CARTES).filter(([k]) => /^[ocn]3_/.test(k)); expect(c3.length).toBe(12); for (const [, n] of c3) expect(f.has(n), n).toBe(true);
+    expect(ev.length).toBeGreaterThanOrEqual(160);
+    const c3 = Object.entries(CARTES).filter(([k]) => /^[ocn]3_/.test(k)); expect(c3.length).toBe(13); for (const [, n] of c3) expect(f.has(n), n).toBe(true);
   });
 });

@@ -98,7 +98,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; evenementsJoues?: number; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; evenementsJoues?: number; reparations?: { de: string; a: string; fin: number }[]; griefs?: Record<string, number>; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -620,7 +620,7 @@ export function decompte(e: EtatV2) {
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
 // médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: -11.22, nul: 0.66, annees: 51 }; // recalibré le 2 novembre 2026 après le passage des événements automatiques en fin d'année : 200 parties IA, médiane +11,22 pour l'Occident, résultat 45 % / 10 % / 45 % (estimation)
+export const JAUGE = { komi: -11.55, nul: 0.65, annees: 51 }; // recalibré le 2 novembre 2026 après les événements en fin d'année et le score de guerre (occupation, traités) : 200 parties IA, médiane +11,5 pour l'Occident, résultat 45 % / 10 % / 45 % (estimation)
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;
@@ -640,6 +640,7 @@ export const estAnneeDecompte = (a: number) => a === ANNEE_FIN || (a - ANNEE_DEB
 export function anneeSuivante(e: EtatV2): Decompte | null {
   let d: Decompte | null = null;
   EV.evoluerFinAnnee(e); // population, armée, stabilité, ressources, interactions entre pays, poids
+  effacerGriefs(e);
   appliquerStabiliteCabinet(e);
   if (estAnneeDecompte(e.annee)) {
     const g = progression(e);
@@ -683,8 +684,15 @@ const RIVALITES: [string, string, number][] = [["IND", "PAK", -75], ["ISR", "IRN
   ["TUR", "AZE", 80], ["RUS", "ARM", 60], ["IRN", "SYR", 70], ["SAU", "ARE", 80], ["EGY", "SAU", 65], ["PAK", "SAU", 60], ["RWA", "UGA", 60], ["GRC", "CYP", 85], ["IRN", "LBN", 60]];
 export const PAIRES_RIVALES = RIVALITES.filter(r => r[2] < 0).map(([a, b]) => [a, b] as [string, string]);
 export const rivalite = (iso: string): [string, number][] => RIVALITES.filter(([x, y]) => x === iso || y === iso).map(([x, y, f]) => [x === iso ? y : x, f]);
+// Griefs durables entre deux pays (annexion, guerre perdue) : s'ajoutent à la relation et s'effacent de 10 % par an.
+const cleGrief = (a: string, b: string) => [a, b].sort().join("|");
+export function ajouterGrief(e: EtatV2, a: string, b: string, v: number) { const k = cleGrief(a, b); (e.griefs ??= {})[k] = borne((e.griefs[k] ?? 0) + v); }
+export function effacerGriefs(e: EtatV2) { for (const k of Object.keys(e.griefs ?? {})) { e.griefs![k] *= 0.9; if (Math.abs(e.griefs![k]) < 1) delete e.griefs![k]; } }
 export function relation(e: EtatV2, a: string, b: string): number {
   if (a === b) return 100;
+  return borne(relationBase(e, a, b) + (e.griefs?.[cleGrief(a, b)] ?? 0));
+}
+function relationBase(e: EtatV2, a: string, b: string): number {
   const r = RIVALITES.find(([x, y]) => (x === a && y === b) || (x === b && y === a));
   // Une rivalité s'apaise quand les deux pays se rangent fortement dans le même camp (jusqu'à moitié).
   if (r) { const A = e.pays[a], B = e.pays[b]; const meme = Math.max(...(["OCC", "CHN"] as Camp[]).map(c => Math.min(partPays(A, c), partPays(B, c)))); return Math.round(r[2] * (1 - 0.5 * meme)); }

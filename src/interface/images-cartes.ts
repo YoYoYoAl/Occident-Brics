@@ -14,7 +14,7 @@ export const CARTES: Record<string, string> = {
   c2_ndb: "carte_banque_ndb", c2_iles: "carte_iles_artificielles", c2_5g: "carte_5g", c2_masques: "carte_covid", c2_yuan: "carte_yuan", c2_loups: "carte_loups_guerriers",
   c2_brics_plus: "carte_brics_elargis", n2_g20: "carte_g20", n2_ia: "carte_intelligence_artificielle", n2_migrations: "famille_crise_migratoire", n2_terres_rares: "carte_metaux_critiques",
   // ère 3 (2026-2050), lot ob_13
-  o3_puces: "carte_o3_puces", o3_arctique: "carte_o3_arctique", o3_climat_sud: "carte_o3_climat_sud", o3_ia_regles: "carte_o3_ia_regles",
+  o3_puces: "carte_o3_puces", o3_dollar_num: "carte_o3_dollar_num", o3_arctique: "carte_o3_arctique", o3_climat_sud: "carte_o3_climat_sud", o3_ia_regles: "carte_o3_ia_regles",
   c3_compensation: "carte_c3_compensation", c3_lithographie: "carte_c3_lithographie", c3_route_nord: "carte_c3_route_nord", c3_greniers: "carte_c3_greniers", c3_ville_intel: "carte_c3_ville_intel",
   n3_vieillissement: "carte_n3_vieillissement", n3_eau: "carte_n3_eau", n3_fusion: "carte_n3_fusion",
 };
