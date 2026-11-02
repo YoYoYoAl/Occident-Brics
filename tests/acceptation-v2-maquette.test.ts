@@ -16,8 +16,10 @@ describe("Zones et routes", () => {
     expect(new Set(tous).size).toBe(194);
     expect(ISO.every(i => ZONE_DE[i])).toBe(true);
   });
-  test("12 routes, chacune tenue par des pays existants", () => {
-    expect(ROUTES).toHaveLength(12);
+  test("25 routes, chacune tenue par des pays existants, identifiants uniques", () => {
+    expect(ROUTES).toHaveLength(25);
+    expect(new Set(ROUTES.map(r => r.id)).size).toBe(25);
+    expect(ROUTES.every(r => r.trace.length >= 3 && r.trace.every(([x, y]) => Math.abs(x) <= 180 && Math.abs(y) <= 90))).toBe(true);
     expect(ROUTES.every(r => r.pays.length > 0 && r.pays.every(i => ZONE_DE[i]))).toBe(true);
   });
 });
@@ -219,5 +221,13 @@ describe("Enchaînement des années 2000-2035", () => {
   });
   it("chaque année connue a ses événements historiques (2000-2026)", () => {
     for (let a = 2000; a <= 2026; a++) expect(M.HISTORIQUES_V2.some(h => h.annee === a), String(a)).toBe(true);
+  });
+});
+
+describe("Carte : pas de mode redondant", () => {
+  it("un seul mode Attitude (les relations d'un pays sont dedans)", async () => {
+    const src = (await import("node:fs")).readFileSync("src/v2/ui.ts", "utf8");
+    expect(src).not.toMatch(/id: "rel"/);
+    expect(src).toMatch(/mode === "att" && etape !== 3\) \{ paysRelation/);
   });
 });

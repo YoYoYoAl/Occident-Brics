@@ -6,6 +6,7 @@ import genres from "./genres.json";
 import chefs from "./chefs.json";
 import * as M from "./moteur";
 import { ZONES, ZONE_DE, ROUTES, zone } from "./zones";
+import * as RS from "./ressources";
 import { dessinerCarteV2, type CarteV2 } from "./carte";
 import { APTITUDES, LISTE_APTITUDES, TRAITS_DIRIGEANT } from "../moteur/dirigeants";
 
@@ -33,17 +34,20 @@ const COUL = { OCC: "#2f6db5", CHN: "#c0392b" };
 const PALETTE_ATT = ["#9d1c24", "#d64b3f", "#f1a37f", "#efe8d8", "#a8d5a2", "#56ae6c", "#1f7a46"];
 const ECO_COURT = ["Sanctions", "Boycott", "Protectionnisme", "Neutre", "Accords", "Libre-échange", "Entraide"];
 const PALETTE_ECO = ["#7a3b0c", "#c06a1f", "#efbe7d", "#efe8d8", "#9fd0d6", "#3e9fb0", "#1b6b80"];
+// Vue Ressources : vert = a ce bien, orange = en manque ; teinte forte = proche de toi.
+const PALETTE_RES: Record<RS.Lecture, string> = { fournisseur_ami: "#2e8b57", fournisseur: "#a8d5a2", demandeur_ami: "#d9822b", demandeur: "#f3c99a", neutre: "#e9e4d8" };
+const NOMS_RES: Record<RS.Lecture, string> = { fournisseur_ami: "en a, proche de toi", fournisseur: "en a, pas proche", demandeur_ami: "en manque, proche de toi", demandeur: "en manque, pas proche", neutre: "ni l'un ni l'autre" };
 const ETAPES = ["Cabinet", "Événements", "Cartes", "Opérations", "Révélation", "Bilan"];
 const MODES = [
-  { id: "zones", nom: "Zones", icone: "◱" }, { id: "att", nom: "Attitude", icone: "☺" }, { id: "eco", nom: "Économie", icone: "⇄" },
-  { id: "rel", nom: "Relations d'un pays", icone: "◎" }, { id: "ops", nom: "Opérations", icone: "●" }, { id: "routes", nom: "Routes", icone: "⛴" },
+  { id: "zones", nom: "Zones", icone: "◱" }, { id: "att", nom: "Attitude", icone: "☺" }, { id: "eco", nom: "Économie", icone: "⇄" }, { id: "res", nom: "Ressources", icone: "⛏" },
+  { id: "ops", nom: "Opérations", icone: "●" }, { id: "routes", nom: "Routes", icone: "⛴" },
   { id: "mil", nom: "Militaire", icone: "🛡" }, { id: "pib", nom: "PIB", icone: "$" }, { id: "pop", nom: "Population", icone: "👥" },
 ] as const;
 type Mode = typeof MODES[number]["id"];
 
 let e: M.EtatV2;
 let carte: CarteV2;
-let etape = -1, mode: Mode = "zones", zoneChoisie: string | null = null, paysChoisi: string | null = null, paysRelation = "USA";
+let etape = -1, mode: Mode = "zones", zoneChoisie: string | null = null, paysChoisi: string | null = null, paysRelation: string | null = null, bienVu: RS.Bien = "energie"; // mode Attitude : null = envers toi, sinon relations de ce pays
 let revelations: M.Revelation[] = [];
 const ecartees = new Set<number>();
 const joueur = () => e.joueur, adv = () => M.autre(e.joueur);
@@ -88,9 +92,9 @@ const pointsZone = (z: string, c: Camp, visibles = true) => M.opsActives(e).filt
 function couleurPays(iso: string): string {
   const p = e.pays[iso], j = joueur();
   if (mode === "zones") return zone(p.zone).couleur;
-  if (mode === "att") return PALETTE_ATT[M.niveau(p.att[j])];
+  if (mode === "att") return !paysRelation ? PALETTE_ATT[M.niveau(p.att[j])] : iso === paysRelation ? "#f2c14e" : PALETTE_ATT[M.niveau(M.relation(e, paysRelation, iso))];
   if (mode === "eco") return PALETTE_ECO[M.niveau(p.eco[j])];
-  if (mode === "rel") return iso === paysRelation ? "#f2c14e" : PALETTE_ATT[M.niveau(M.relation(e, paysRelation, iso))];
+  if (mode === "res") return PALETTE_RES[RS.lecture(e, j, iso, bienVu)];
   if (mode === "ops") {
     const a = pointsZone(p.zone, j), b = pointsZone(p.zone, adv());
     if (!a && !b) return "#ece6d8";
@@ -110,14 +114,21 @@ function legende() {
   const l = $(".v2-legende"), j = M.NOM_CAMP[joueur()];
   const echelle = (titre: string, noms: string[], pal: string[]) => `<b>${titre}</b><div class="v2-ech">${noms.map((n, i) => `<span><i style="background:${pal[i]}"></i>${n}</span>`).join("")}</div>`;
   l.innerHTML = mode === "zones" ? `<b>Les 12 zones</b><p>Clique une zone pour y agir. Les traits blancs épais séparent les zones.</p>`
-    : mode === "att" ? echelle(`Attitude envers ${j === "BRICS" ? "les BRICS" : "l'Occident"} (toi)`, M.ATTITUDES, PALETTE_ATT)
+    : mode === "att" ? (!paysRelation ? echelle(`Attitude envers ${j === "BRICS" ? "les BRICS" : "l'Occident"} (toi)`, M.ATTITUDES, PALETTE_ATT) + `<p class="v2-note">Clique un pays pour voir ses relations avec les autres (hors phase Opérations).</p>`
+      : echelle(`Attitude de ${NOMS_PAYS[paysRelation]} envers chaque pays`, M.ATTITUDES, PALETTE_ATT) + `<p class="v2-note">Estimation. <button class="v2-lien" data-att-toi>Revenir à : envers toi</button></p>`)
     : mode === "eco" ? echelle(`Économie avec ${j === "BRICS" ? "les BRICS" : "l'Occident"} (toi)`, M.ECONOMIES, PALETTE_ECO)
-    : mode === "rel" ? echelle(`Relations de ${NOMS_PAYS[paysRelation]} (clique un autre pays pour changer)`, M.ATTITUDES, PALETTE_ATT) + `<p class="v2-note">Relations entre pays : estimation.</p>`
+    : mode === "res" ? (() => { const b = RS.bilan(e, joueur(), bienVu), nomB = RS.BIENS.find(x => x.id === bienVu)!.nom.toLowerCase(), de = /^[aeéèiou]/.test(nomB) ? `d'${nomB}` : `de ${nomB}`;
+        return `<div class="v2-biens">${RS.BIENS.map(x => `<button data-bien="${x.id}" class="${x.id === bienVu ? "actif" : ""}">${x.nom}</button>`).join("")}</div>
+        <p class="v2-res-bilan ${b.manque ? "manque" : "ok"}">${b.manque ? `Ton camp <b>manque</b> ${de} : cherche des fournisseurs (en vert).` : `Ton camp <b>a assez</b> ${de} : les pays en orange veulent tes ressources.`}</p>
+        <div class="v2-ech">${(Object.keys(NOMS_RES) as RS.Lecture[]).map(k => `<span><i style="background:${PALETTE_RES[k]}"></i>${NOMS_RES[k]}</span>`).join("")}</div>
+        <p class="v2-note">Données réelles 2000 ; seuils et bilan : estimation.</p>`; })()
     : mode === "ops" ? `<b>Opérations actives</b><div class="v2-ech"><span><i style="background:${COUL[joueur()]}"></i>tes points</span><span><i style="background:${COUL[adv()]}"></i>points adverses connus</span></div><p class="v2-note">Plus la teinte est forte, plus il y a de points.</p>`
-    : mode === "routes" ? `<b>12 routes commerciales</b><div class="v2-ech"><span><i style="background:${COUL.OCC}"></i>tenue par l'Occident</span><span><i style="background:${COUL.CHN}"></i>tenue par les BRICS</span><span><i style="background:#c9c3b4"></i>disputée</span></div><p class="v2-note">Une route est tenue quand tous ses pays sont au moins en accords commerciaux avec un camp.</p>`
+    : mode === "routes" ? `<b>25 routes commerciales</b><div class="v2-ech"><span><i style="background:${COUL.OCC}"></i>tenue par l'Occident</span><span><i style="background:${COUL.CHN}"></i>tenue par les BRICS</span><span><i style="background:#c9c3b4"></i>disputée</span></div><p class="v2-note">Une route est tenue quand tous ses pays sont au moins en accords commerciaux avec un camp.</p>`
     : mode === "mil" ? `<b>Puissance militaire</b><div class="v2-grad" style="background:linear-gradient(90deg,#efe8f6,#4b2a86)"></div><div class="v2-bornes"><span>faible</span><span>forte</span></div>`
     : mode === "pib" ? `<b>PIB 2000</b><div class="v2-grad" style="background:linear-gradient(90deg,#fbf3d6,#a8770a)"></div><div class="v2-bornes"><span>100 M$</span><span>13 000 Md$</span></div>`
     : `<b>Population 2000</b><div class="v2-grad" style="background:linear-gradient(90deg,#f7ecef,#8c2d59)"></div><div class="v2-bornes"><span>50 000</span><span>1,3 milliard</span></div>`;
+  l.querySelectorAll<HTMLButtonElement>("[data-bien]").forEach(x => x.addEventListener("click", () => { bienVu = x.dataset.bien as RS.Bien; rafraichirCarte(); }));
+  l.querySelector("[data-att-toi]")?.addEventListener("click", () => { paysRelation = null; rafraichirCarte(); });
 }
 function rafraichirCarte() {
   carte.colorer(couleurPays);
@@ -141,13 +152,13 @@ function survol(iso: string | null, ev: MouseEvent) {
     <table><tr><th></th><th style="color:${COUL.OCC}">Occident</th><th style="color:${COUL.CHN}">BRICS</th></tr>
     <tr><td>Attitude</td><td>${chipNiveau(p.att.OCC)}</td><td>${chipNiveau(p.att.CHN)}</td></tr>
     <tr><td>Économie</td><td>${chipNiveau(p.eco.OCC, true)}</td><td>${chipNiveau(p.eco.CHN, true)}</td></tr></table>
-    <div class="v2-bulle-pied"><span>Poids <b>${fr(p.poids, 2)}</b> / 100</span><span>Stabilité <b>${Math.round(p.stabilite)}</b></span>${mode === "rel" ? `<span>Relation avec ${esc(NOMS_PAYS[paysRelation])} : ${chipNiveau(M.relation(e, paysRelation, iso))}</span>` : ""}</div>`;
+    <div class="v2-bulle-pied"><span>Poids <b>${fr(p.poids, 2)}</b> / 100</span><span>Stabilité <b>${Math.round(p.stabilite)}</b></span>${mode === "res" ? `<span>${RS.BIENS.find(x => x.id === bienVu)!.nom} : <b>${NOMS_RES[RS.lecture(e, joueur(), iso, bienVu)]}</b></span>` : ""}${mode === "att" && paysRelation && paysRelation !== iso ? `<span>Attitude de ${esc(NOMS_PAYS[paysRelation])} : ${chipNiveau(M.relation(e, paysRelation, iso))}</span>` : ""}</div>`;
   b.hidden = false;
   const x = Math.min(window.innerWidth - b.offsetWidth - 12, ev.clientX + 16), y = Math.min(window.innerHeight - b.offsetHeight - 12, ev.clientY + 16);
   b.style.transform = `translate(${x}px, ${y}px)`;
 }
 function clicPays(iso: string) {
-  if (mode === "rel") { paysRelation = iso; rafraichirCarte(); return; }
+  if (mode === "att" && etape !== 3) { paysRelation = paysRelation === iso ? null : iso; rafraichirCarte(); return; }
   if (etape === 3) { paysChoisi = iso; choisirZone(ZONE_DE[iso]); return; }
 }
 function choisirZone(z: string | null) {

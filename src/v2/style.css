@@ -267,3 +267,9 @@ button:disabled { cursor: not-allowed; }
 .v2-progres div { display: grid; grid-template-columns: 11em 4.5em 1fr; align-items: baseline; gap: 8px; }
 .v2-progres b { text-align: right; font-variant-numeric: tabular-nums; } .v2-progres small { color: var(--gris); }
 .v2-progres-jauge { border-top: 1px solid #e6dcc8; padding-top: 4px; font-weight: 600; }
+.v2-lien { background: none; border: 0; padding: 0; color: #2f6db5; text-decoration: underline; cursor: pointer; font: inherit; }
+.v2-biens { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.v2-biens button { border: 1px solid #d8d2c4; background: #fff; border-radius: 999px; padding: 3px 9px; font: inherit; font-size: 12px; cursor: pointer; color: #333; }
+.v2-biens button.actif { background: #263238; color: #fff; border-color: #263238; }
+.v2-res-bilan { margin: 2px 0 6px; font-size: 12.5px; }
+.v2-res-bilan.manque b { color: #c0601a; } .v2-res-bilan.ok b { color: #2e8b57; }

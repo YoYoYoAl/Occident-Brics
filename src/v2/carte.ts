@@ -125,7 +125,7 @@ export function dessinerCarteV2(conteneur: HTMLElement, idsJeu: Map<string, stri
         const c = f(r.id);
         const g = el("g", { class: "v2-route" });
         g.append(el("polyline", { points: pts, class: "v2-route-fond" }), el("polyline", { points: pts, class: "v2-route-trait", stroke: c ?? "#8a8f98" }));
-        const m = proj(r.trace[Math.floor(r.trace.length / 2)])!;
+        const m = proj(r.etiq ?? r.trace[Math.floor(r.trace.length / 2)])!;
         const t = el("text", { x: m[0], y: m[1] - 4, class: "v2-route-nom" }); t.textContent = r.nom;
         const titre = el("title"); titre.textContent = `${r.nom} : ${r.bonus}`;
         g.append(t, titre); gRoutes.appendChild(g);
