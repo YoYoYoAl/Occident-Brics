@@ -187,7 +187,7 @@ describe("Décompte en progression (décision du 2026-11-02)", () => {
     expect(Math.abs(g.OCC) + Math.abs(g.CHN)).toBeGreaterThan(0.1);
     expect(g.jauge).toBeCloseTo(g.OCC - g.CHN + g.komi);
   });
-  it("IA contre IA sur la partie complète 2000-2035 (40 parties) : chaque camp gagne entre 25 et 65 %, nul au plus 25 %", () => {
+  it("IA contre IA sur la partie complète 2000-2050 (40 parties) : chaque camp gagne entre 25 et 65 %, nul au plus 25 %", () => {
     const r = { OCC: 0, CHN: 0, nul: 0 };
     for (let s = 301; s <= 340; s++) {
       const e = nouvelle(s);
@@ -197,17 +197,17 @@ describe("Décompte en progression (décision du 2026-11-02)", () => {
     expect(r.OCC / 40).toBeGreaterThanOrEqual(0.25); expect(r.OCC / 40).toBeLessThanOrEqual(0.65);
     expect(r.CHN / 40).toBeGreaterThanOrEqual(0.25); expect(r.CHN / 40).toBeLessThanOrEqual(0.65);
     expect(r.nul / 40).toBeLessThanOrEqual(0.25);
-    console.log("IA contre IA 2000-2035 :", JSON.stringify(r));
-  }, 120_000);
+    console.log("IA contre IA 2000-2050 :", JSON.stringify(r));
+  }, 240_000);
 });
 
-describe("Enchaînement des années 2000-2035", () => {
+describe("Enchaînement des années 2000-2050", () => {
   const annee = (e: ReturnType<typeof nouvelle>) => { M.jouerEvenements(e); M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e); return M.anneeSuivante(e); };
-  it("36 années jouées : 8 décomptes (2004 … 2034 et final 2035), fin de partie, aucune valeur non finie", () => {
+  it("51 années jouées : 11 décomptes (2004 … 2049 et final 2050), fin de partie, aucune valeur non finie", () => {
     const e = nouvelle(11); const d: number[] = [];
     while (!e.fin) { const x = annee(e); if (x) d.push(x.annee); }
-    expect(d).toEqual([2004, 2009, 2014, 2019, 2024, 2029, 2034, 2035]);
-    expect(e.decomptes![e.decomptes!.length - 1].final).toBe(true); expect(e.annee).toBe(2035); expect(e.resolues).toBe(36);
+    expect(d).toEqual([2004, 2009, 2014, 2019, 2024, 2029, 2034, 2039, 2044, 2049, 2050]);
+    expect(e.decomptes![e.decomptes!.length - 1].final).toBe(true); expect(e.annee).toBe(2050); expect(e.resolues).toBe(51);
     for (const p of Object.values(e.pays)) for (const v of [p.att.OCC, p.att.CHN, p.eco.OCC, p.eco.CHN, p.pib, p.stabilite]) expect(Number.isFinite(v)).toBe(true);
   }, 60_000);
   it("budget : versé chaque année, report plafonné à 2 ans de revenu ; points et mains remis à zéro", () => {

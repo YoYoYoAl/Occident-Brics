@@ -210,7 +210,7 @@ function tresor() {
         <p class="v2-note">Qui la détient :</p>${barre([["chez toi", h.interieur, "#7c8aa0"], ["alliés", h.allies, j === "OCC" ? COUL.OCC : COUL.CHN], ["camp adverse", h.adverses, j === "OCC" ? COUL.CHN : COUL.OCC]])}</section>
       <section><h4>Inflation <b>${fr(m.inflation[j])} %</b></h4><p>${m.inflation[j] > 4 ? `Freine ton PIB de ${fr(-MN.effetInflationPib(e, j), 2)} % par an${m.inflation[j] > 6 ? " et ta stabilité" : ""}.` : "Sans effet sous 4 %."} Elle revient d'elle-même vers 2 % (30 % par an).</p></section>
       <section><h4>Réserves <b>${fr(r.stock)} unités</b></h4><p>Amortissent ${Math.round(MN.amortisseur(e, j) * 100)} % d'une coupure de ressources.</p>${barre([["devises occidentales", r.occ, COUL.OCC], ["devises BRICS", r.brics, COUL.CHN], ["or", r.or, "#d49a1a"]])}
-        <p class="v2-note">Réserves mondiales :</p>${barre([["dollar", w.dollar, "#2f6db5"], ["euro", w.euro, "#5b8fd6"], ["autres occ.", w.autresOcc, "#9db8e0"], ["BRICS", w.brics, COUL.CHN], ["or", w.or, "#d49a1a"]])}</section>
+        <p class="v2-note">Réserves mondiales :</p>${barre([["dollar", w.dollar, "#2f6db5"], ["euro", w.euro, "#5b8fd6"], ["autres occ.", w.autresOcc, "#9db8e0"], ["BRICS", w.brics, COUL.CHN], ["or", w.or, "#d49a1a"], ...((w.crypto ?? 0) > 0.0005 ? [["cryptos", w.crypto!, "#7a5cc4"] as [string, number, string]] : [])])}</section>
     </div>
     <div class="v2-tresor-dec">${MN.DECISIONS.map(d => { const r2 = MN.possible(e, j, d.id); return `<button data-dec="${d.id}" ${r2 ? `disabled title="${esc(r2)}"` : `title="${esc(d.aide)}"`}><b>${d.nom}</b><small>${esc(d.aide)}</small></button>`; }).join("")}</div>
     <p class="v2-note">Valeurs de départ : ordres de grandeur réels de 2000 ; effets : estimation.</p>`;

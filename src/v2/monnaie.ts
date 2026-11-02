@@ -2,7 +2,8 @@
 // 3 chiffres par camp : dette (% du PIB du leader), inflation (%/an), réserves (stock en unités de budget, composition).
 // Plus la répartition des réserves mondiales : devises occidentales (dollar, euro, autres), devises BRICS (yuan…), or.
 // Départ 2000 : ordres de grandeur réels (dette publique États-Unis ≈ 55 %, Chine ≈ 23 % ; inflation ≈ 3,4 % et 0,4 % ;
-// réserves mondiales ≈ 62 % dollar, 16 % euro, 8 % autres occidentales, 1 % autres, 13 % or) : estimation.
+// réserves mondiales ≈ 62 % dollar, 16 % euro, 8 % autres occidentales, 1 % autres, 13 % or ; cryptos 0) : estimation.
+// Cryptos (ajout du 2 novembre 2026) : part des réserves et des règlements mondiaux, nulle au départ, portée par les événements.
 // Décisions (2 par an au plus, idée reprise d'EU4 : emprunt et inflation) : emprunter, rembourser, planche à billets, acheter de l'or.
 import * as RS from "./ressources";
 import { type EtatV2, type Camp, borne, autre, LEADER, NOM_CAMP, partEco, partPays, tirer, type Ligne } from "./moteur";
@@ -10,7 +11,8 @@ import { type EtatV2, type Camp, borne, autre, LEADER, NOM_CAMP, partEco, partPa
 export interface Reserves { stock: number; occ: number; brics: number; or: number } // parts du stock (somme 1)
 export interface EtatMonnaie {
   dette: Record<Camp, number>; inflation: Record<Camp, number>; reserves: Record<Camp, Reserves>;
-  mondiales: { dollar: number; euro: number; autresOcc: number; brics: number; or: number };
+  mondiales: { dollar: number; euro: number; autresOcc: number; brics: number; or: number; crypto?: number };
+  choc?: { occ: number; or: number; crypto: number }; // part durable des chocs (monnaie BRICS, crise du dollar…) : elle déplace les cibles
   decisions: Record<Camp, number>; partEco0: number; defauts: Record<Camp, number>;
   detenteurs: Record<Camp, { interieur: number; allies: number; adverses: number }>; // qui détient la dette (parts, somme 1)
   prime: Record<Camp, number>; // surcoût de taux après une vente massive de titres par l'adversaire (retombe de moitié par an)
@@ -34,11 +36,17 @@ export function initialiser(e: EtatV2) {
   e.monnaie = {
     dette: { OCC: 55, CHN: 23 }, inflation: { OCC: 3.4, CHN: 0.4 },
     reserves: { OCC: { stock: 2, occ: 0.35, brics: 0, or: 0.65 }, CHN: { stock: 3, occ: 0.95, brics: 0, or: 0.05 } },
-    mondiales: { dollar: 0.62, euro: 0.16, autresOcc: 0.08, brics: 0.01, or: 0.13 },
+    mondiales: { dollar: 0.62, euro: 0.16, autresOcc: 0.08, brics: 0.01, or: 0.13, crypto: 0 }, choc: { occ: 0, or: 0, crypto: 0 },
     // Détenteurs de la dette (estimation) : en 2000, environ 30 % de la dette américaine est à l'étranger (Japon, Europe…), 2 % en Chine.
     detenteurs: { OCC: { interieur: 0.70, allies: 0.28, adverses: 0.02 }, CHN: { interieur: 0.97, allies: 0.02, adverses: 0.01 } }, prime: { OCC: 0, CHN: 0 },
     decisions: { OCC: 0, CHN: 0 }, partEco0: partEco(e, "CHN") / (partEco(e, "OCC") + partEco(e, "CHN")), defauts: { OCC: 0, CHN: 0 },
   };
+}
+// Les parts de réserves mondiales somment à 1 : si cryptos et or débordent, les autres parts sont réduites à proportion.
+function normaliser(w: EtatMonnaie["mondiales"]) {
+  const c = w.crypto ?? 0, n = w.dollar + w.euro + w.autresOcc;
+  w.brics = 1 - n - w.or - c;
+  if (w.brics < 0) { const k = (1 - c) / (n + w.or); w.dollar *= k; w.euro *= k; w.autresOcc *= k; w.or *= k; w.brics = 0; }
 }
 const MN = (e: EtatV2) => { if (!e.monnaie) initialiser(e); return e.monnaie!; };
 export const partOccidentale = (e: EtatV2) => { const m = MN(e).mondiales; return m.dollar + m.euro + m.autresOcc; };
@@ -136,13 +144,14 @@ export function finAnnee(e: EtatV2, croissance: Record<Camp, number>): { titre: 
   // Réserves mondiales : elles suivent lentement le poids économique, les sanctions, l'inflation et la tension (dédollarisation possible).
   const sCHN = partEco(e, "CHN") / (partEco(e, "OCC") + partEco(e, "CHN")), sanctions = Object.values(e.pays).filter(p => p.eco.OCC <= -60).length;
   const w = m.mondiales, occ0 = 0.86;
-  const cibleOcc = Math.max(0.3, occ0 - 0.6 * Math.max(0, sCHN - m.partEco0) - 0.004 * sanctions - 0.02 * Math.max(0, m.inflation.OCC - 4));
-  const cibleOr = Math.min(0.4, 0.13 + 0.01 * e.tension + 0.01 * m.defauts.OCC * 5);
-  const cibleBrics = Math.max(0.01, 1 - cibleOcc - cibleOr);
+  const ch = m.choc ?? { occ: 0, or: 0, crypto: 0 };
+  const cibleOcc = Math.max(0.3, Math.min(0.9, occ0 + ch.occ - 0.6 * Math.max(0, sCHN - m.partEco0) - 0.004 * sanctions - 0.02 * Math.max(0, m.inflation.OCC - 4)));
+  const cibleOr = Math.max(0.05, Math.min(0.4, 0.13 + ch.or + 0.01 * e.tension + 0.01 * m.defauts.OCC * 5));
+  const cibleCrypto = Math.max(0, Math.min(0.15, ch.crypto));
   const k = 0.1, occ = partOccidentale(e), nOcc = occ + k * (cibleOcc - occ);
   w.dollar *= nOcc / occ; w.euro *= nOcc / occ; w.autresOcc *= nOcc / occ;
-  w.or += k * (cibleOr - w.or); w.brics = Math.max(0, 1 - nOcc - w.or);
-  void cibleBrics;
+  w.or += k * (cibleOr - w.or); w.crypto = (w.crypto ?? 0) + k * (cibleCrypto - (w.crypto ?? 0));
+  normaliser(w);
   return annonces;
 }
 
@@ -156,8 +165,15 @@ export function effetEvenement(e: EtatV2, f: any): Ligne[] {
   if (f.type === "reserves") { for (const c of camps) m.reserves[c].stock = Math.max(0, m.reserves[c].stock + f.valeur); return camps.map(c => ({ texte: `Réserves ${NOM_CAMP[c]} ${sg(f.valeur)}`, camp: c, signe: (f.valeur > 0 ? 1 : -1) as 1 | -1 })); }
   if (f.type === "mondiales") {
     const w = m.mondiales, occ = partOccidentale(e), d = f.occ ?? 0, n = Math.max(0.3, occ + d);
-    w.dollar *= n / occ; w.euro *= n / occ; w.autresOcc *= n / occ; w.or = Math.max(0, w.or + (f.or ?? 0)); w.brics = Math.max(0, 1 - n - w.or);
-    return [{ texte: `Réserves mondiales : devises occidentales ${sg(d * 100)} pts`, camp: "OCC", signe: d < 0 ? -1 : 1 }];
+    w.dollar *= n / occ; w.euro *= n / occ; w.autresOcc *= n / occ; w.or = Math.max(0, w.or + (f.or ?? 0)); w.crypto = Math.max(0, (w.crypto ?? 0) + (f.crypto ?? 0));
+    normaliser(w);
+    // La moitié du choc est durable : la cible de long terme se déplace (sinon les parts reviendraient en quelques années).
+    const ch = (m.choc ??= { occ: 0, or: 0, crypto: 0 }); ch.occ += d / 2; ch.or += (f.or ?? 0) / 2; ch.crypto += (f.crypto ?? 0) / 2;
+    const l: Ligne[] = [];
+    if (d) l.push({ texte: `Réserves mondiales : devises occidentales ${sg(d * 100)} pts`, camp: "OCC", signe: d < 0 ? -1 : 1 });
+    if (f.crypto) l.push({ texte: `Cryptos dans les réserves mondiales ${sg(f.crypto * 100)} pts`, signe: f.crypto > 0 ? -1 : 1 });
+    if (!d && !f.crypto && f.or) l.push({ texte: `Or dans les réserves mondiales ${sg(f.or * 100)} pts`, signe: -1 });
+    return l;
   }
   if (f.type === "solde" && e.pays[f.pays]) { RS.ajusterSolde(e, f.pays, f.bien, f.valeur); return []; }
   if (f.type === "blocage") { (e.blocages ??= []).push({ route: f.route, annee: e.annee }); return [{ texte: `Route bloquée cette année : ${f.route}`, signe: -1 }]; }

@@ -15,6 +15,8 @@ import type { Carte } from "../moteur/types";
 import { ZONES, ZONE_DE, ROUTES } from "./zones";
 import { CARTES_ERE2 } from "../contenu/cartes2";
 import { PROJECTIONS } from "../contenu/projections";
+import { RUPTURES, PROJECTIONS_2050, PROJECTIONS_2050_B, CONDITIONS_V2 } from "../contenu/ruptures";
+import type { Condition } from "../moteur/types";
 import * as RS from "./ressources";
 import * as EV from "./evolution";
 import * as MN from "./monnaie";
@@ -88,7 +90,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -318,11 +320,25 @@ export function appliquerEffets(e: EtatV2, effets: any[], campJ: Camp, source: s
 }
 
 // ---------- Étape 1 : événements automatiques de l'année ----------
-// Tous les événements historiques connus, de 2000 à 2026 (au-delà : événements projetés, à brancher).
-export const HISTORIQUES_V2 = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_RECENTS, ...HISTORIQUES_COMPLEMENTS, ...PROJECTIONS];
+// Tous les événements historiques connus (2000-2026), puis les scénarios projetés et les ruptures de l'ordre mondial jusqu'en 2050.
+export const HISTORIQUES_V2 = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_RECENTS, ...HISTORIQUES_COMPLEMENTS, ...PROJECTIONS, ...RUPTURES, ...PROJECTIONS_2050, ...PROJECTIONS_2050_B];
+// Conditions des scénarios projetés (ceux qui ont une probabilité) : enchaînements (« a eu lieu » / « n'a pas eu lieu »),
+// cran de tension (1 à 5, tension v2 de 0 à 10 : cran = 1 + tension / 2,5, estimation) et stabilité. L'alignement n'est pas encore lu.
+// Les événements historiques (sans probabilité) arrivent toujours : leur cas reste à arbitrer (audit).
+export const cranV2 = (e: EtatV2) => Math.min(5, 1 + Math.floor(e.tension / 2.5));
+export function conditionV2(e: EtatV2, c: Condition): boolean {
+  const entre = (v: number, x: { min?: number; max?: number }) => (x.min === undefined || v >= x.min) && (x.max === undefined || v <= x.max);
+  if (c.type === "evenement") return (e.faits ?? []).includes(c.id) === c.fait;
+  if (c.type === "cran") return entre(cranV2(e), c);
+  if (c.type === "stabilite") return !e.pays[c.pays] || entre(e.pays[c.pays].stabilite, c);
+  return true;
+}
+const possibleV2 = (e: EtatV2, h: { id: string; probabilite?: number; conditions?: Condition[] }) => h.probabilite === undefined || ([...(h.conditions ?? []), ...(CONDITIONS_V2[h.id] ?? [])].every(c => conditionV2(e, c)) && tirer(e) < h.probabilite);
 export function jouerEvenements(e: EtatV2) {
-  // Projections (après octobre 2026) : chacune n'a lieu qu'avec sa probabilité (conditions : à brancher).
-  e.evenements = HISTORIQUES_V2.filter(h => h.annee === e.annee && (h.probabilite === undefined || tirer(e) < h.probabilite)).sort((a, b) => a.trimestre - b.trimestre).map(h => {
+  const annee = HISTORIQUES_V2.filter(h => h.annee === e.annee).sort((a, b) => a.trimestre - b.trimestre);
+  const retenus = annee.filter(h => possibleV2(e, h)); // conditions lues sur le monde au début de l'année
+  (e.faits ??= []).push(...retenus.map(h => h.id));
+  e.evenements = retenus.map(h => {
     const campDe = (iso: string): Camp => (e.pays[iso] && partPays(e.pays[iso], "CHN") > partPays(e.pays[iso], "OCC") ? "CHN" : "OCC");
     const eco = effetsEco(h).map(f => (f.camp === "$camp" ? { ...f, camp: campDe(h.pays[0]) } : f));
     const lignes = appliquerEffets(e, [...(h.effets as any[]), ...eco], "OCC", h.id);
@@ -556,13 +572,12 @@ export function decompte(e: EtatV2) {
 // Progression (décision du 2026-11-02) : chaque camp marque la part du terrain disponible qu'il a conquis depuis 2000
 // (gain ÷ marge restante au départ ; une perte se mesure sur ce qu'il détenait). La jauge = écart de progression en points,
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
-// Calibrage (estimation, 200 parties IA contre IA sur 36 ans, 2000-2035, avec tous les événements historiques) : sans komi,
-// avec l'évolution de tout (PIB, population, ressources, routes, interactions) : médiane +2,0 pour l'Occident (p10 −7,3, p90 +11,6) ;
-// komi −2,0 et nul à ±1,3 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: -2.0, nul: 1.3, annees: 36 }; // recalibré le 2 novembre 2026 (tout évolue + monnaie + événements reliés, 200 parties IA) : estimation
+// Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
+// médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
+export const JAUGE = { komi: -7.9, nul: 0.8, annees: 51 }; // recalibré le 2 novembre 2026 pour la partie 2000-2050 avec les ruptures (200 parties IA, médiane +7,9 pour l'Occident) : estimation
 // ---------- Enchaînement des années ----------
-// Décompte en fin d'année tous les 5 ans (2004, 2009 … 2034) et décompte final fin 2035.
-export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2035;
+// Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
+export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;
 export const REVENU: Record<Camp, number> = { OCC: 6, CHN: 5 };
 // Poids économique d'un camp : PIB de ses pays pondéré par leur alignement. Le budget suit (à moitié) son évolution depuis 2000.
 export const partEco = (e: EtatV2, c: Camp) => Object.values(e.pays).reduce((s, p) => s + p.pib * partPays(p, c), 0);

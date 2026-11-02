@@ -24,8 +24,10 @@ const lisse = (s: number[] | undefined, i: number) => {
 export function tendancePib(iso: string, annee: number): number {
   const i = annee - 2000, t = TRAJ[iso]?.pib;
   if (t && i < t.length - 2) { const g = lisse(t, i); if (g !== undefined) return Math.max(-0.05, Math.min(0.1, g)) * 100; }
-  const p = CROISSANCE_PROJETEE[iso]; if (p) return Math.max(-3, Math.min(8, p.g[3]));
-  return 3; // estimation
+  // Au-delà : rythme de moyen terme du FMI, qui converge ensuite vers 2 % (7 % de l'écart par an après 2030, estimation) :
+  // une économie qui s'enrichit ralentit, et rien ne garantit les rythmes de 2025 jusqu'en 2050.
+  const p = CROISSANCE_PROJETEE[iso], g = p ? Math.max(-3, Math.min(8, p.g[3])) : 3; // 3 % : estimation
+  return 2 + (g - 2) * Math.pow(0.93, Math.max(0, annee - 2030));
 }
 export function tendancePop(iso: string, annee: number): number {
   const t = TRAJ[iso]?.population, i = annee - 2000;
