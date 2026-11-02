@@ -41,7 +41,7 @@ export const ROUTES: Route[] = [
   { id: "manche", nom: "Manche et mer du Nord", pays: ["GBR", "FRA", "BEL", "NLD", "DEU"], bonus: "ports d'Europe du Nord, +1 point", valeur: 0.08, trace: [[-6, 49], [-1.5, 50], [1.5, 51], [4, 52.5], [7, 54]] },
   { id: "danois", nom: "Détroits danois", pays: ["DNK", "SWE"], bonus: "accès Baltique, naval +5 %", valeur: 0.03, trace: [[6, 57.5], [10.5, 57.8], [11.5, 56], [12.7, 55.6], [15, 55]] },
   { id: "mozambique", nom: "Canal du Mozambique", pays: ["MOZ", "MDG"], bonus: "gaz et commerce Afrique-Asie +10 %", valeur: 0.03, trace: [[40, -11], [41.5, -17], [40, -22], [36, -27]] },
-  { id: "guinee", nom: "Golfe de Guinée", pays: ["NGA", "GHA", "CIV", "CMR"], bonus: "pétrole africain, +1 point", valeur: 0.04, trace: [[-15, 5], [-5, 3.5], [3, 3], [8, 3.5], [9, 2]] },
+  { id: "guinee", nom: "Golfe de Guinée", pays: ["NGA", "GHA", "CIV", "CMR"], bonus: "pétrole africain, +1 point", valeur: 0.04, trace: [[-15, 5], [-5, 3.5], [3, 3], [8, 3.5], [9, 2]], etiq: [-4, -1.5] },
   { id: "btc", nom: "Oléoduc Bakou-Ceyhan", pays: ["AZE", "GEO", "TUR"], bonus: "pétrole de la Caspienne sans la Russie", valeur: 0.03, trace: [[49.9, 40.4], [44.8, 41.7], [41, 40], [35.8, 36.9]], etiq: [31, 45.5] },
   { id: "droujba", nom: "Oléoduc Droujba", pays: ["RUS", "BLR", "UKR", "POL"], bonus: "pétrole russe vers l'Europe, +1 point", valeur: 0.04, trace: [[52, 53], [40, 52], [30, 52.5], [24, 52], [19, 52]], etiq: [36, 56] },
   { id: "mexique", nom: "Golfe du Mexique", pays: ["USA", "MEX", "CUB"], bonus: "pétrole et ports du Golfe, +1 point", valeur: 0.05, trace: [[-97, 26], [-90, 25], [-84, 23.5], [-80, 25]] },
