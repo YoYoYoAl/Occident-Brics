@@ -22,7 +22,7 @@ export interface CarteV2 {
   surligner(zone: string | null): void;
   choisirPays(iso: string | null): void;
   etiquettes(f: (zone: string) => string): void; // HTML de chaque étiquette de zone
-  routes(f: ((id: string) => string | null) | null): void; // couleur de chaque route, ou null pour les cacher
+  routes(f: ((id: string) => { couleur: string | null; occ: number; chn: number; info: string }) | null): void; // contrôle de chaque route (0-100), ou null pour les cacher
   zoneSous(x: number, y: number): string | null;
   centrerSur(zone: string | null): void;
   marges(m: { g: number; d: number; h: number; b: number }): void; // place prise par les panneaux, en pixels
@@ -122,13 +122,18 @@ export function dessinerCarteV2(conteneur: HTMLElement, idsJeu: Map<string, stri
       if (!f) return;
       for (const r of ROUTES) {
         const pts = r.trace.map(c => proj(c)!).map(p => p.join(",")).join(" ");
-        const c = f(r.id);
+        const x = f(r.id), c = x.couleur;
         const g = el("g", { class: "v2-route" });
         g.append(el("polyline", { points: pts, class: "v2-route-fond" }), el("polyline", { points: pts, class: "v2-route-trait", stroke: c ?? "#8a8f98" }));
         const m = proj(r.etiq ?? r.trace[Math.floor(r.trace.length / 2)])!;
-        const t = el("text", { x: m[0], y: m[1] - 4, class: "v2-route-nom" }); t.textContent = r.nom;
-        const titre = el("title"); titre.textContent = `${r.nom} : ${r.bonus}`;
-        g.append(t, titre); gRoutes.appendChild(g);
+        const t = el("text", { x: m[0], y: m[1] - 8, class: "v2-route-nom" }); t.textContent = r.nom;
+        const k = el("text", { x: m[0], y: m[1] - 1, class: "v2-route-ctrl" });
+        const so = el("tspan", { class: "occ" }); so.textContent = `${x.occ} %`;
+        const sep = el("tspan", {}); sep.textContent = " · ";
+        const sc = el("tspan", { class: "chn" }); sc.textContent = `${x.chn} %`;
+        k.append(so, sep, sc);
+        const titre = el("title"); titre.textContent = `${r.nom} : ${x.info}`;
+        g.append(t, k, titre); gRoutes.appendChild(g);
       }
     },
     zoneSous(x, y) {

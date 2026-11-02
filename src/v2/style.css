@@ -273,3 +273,18 @@ button:disabled { cursor: not-allowed; }
 .v2-biens button.actif { background: #263238; color: #fff; border-color: #263238; }
 .v2-res-bilan { margin: 2px 0 6px; font-size: 12.5px; }
 .v2-res-bilan.manque b { color: #c0601a; } .v2-res-bilan.ok b { color: #2e8b57; }
+.v2-route-ctrl { font: 700 6px var(--texte); paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; pointer-events: none; fill: #555; }
+.v2-route-ctrl .occ { fill: #2f6db5; } .v2-route-ctrl .chn { fill: #c0392b; }
+.v2-pill.tresor { cursor: pointer; font: inherit; color: inherit; } .v2-pill.tresor span { color: #6b5b95; } .v2-pill.tresor b { font-size: 15px; } .v2-pill.tresor:hover { border-color: var(--bord2); }
+.v2-tresor { position: fixed; top: 70px; right: 16px; z-index: 40; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 90px); overflow: auto; background: var(--creme); border: 1px solid var(--bord); border-radius: 16px; box-shadow: var(--ombre); padding: 14px 16px; font-size: 13px; color: var(--encre); }
+.v2-tresor-tete { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; } .v2-tresor-tete b { font-size: 16px; } .v2-tresor-tete small { color: var(--gris); flex: 1; }
+.v2-x { border: 0; background: none; font-size: 20px; cursor: pointer; color: var(--gris); line-height: 1; }
+.v2-tresor-grille { display: grid; gap: 10px; } .v2-tresor-grille section { background: #fff; border: 1px solid var(--bord); border-radius: 12px; padding: 8px 12px; }
+.v2-tresor-grille h4 { margin: 0 0 4px; font-size: 13px; display: flex; justify-content: space-between; } .v2-tresor-grille p { margin: 2px 0 4px; color: var(--encre2); }
+.v2-barre { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: #eee; margin: 4px 0 3px; } .v2-barre i { display: block; height: 100%; }
+.v2-barre-leg { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11.5px; color: var(--encre2); } .v2-barre-leg i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.v2-tresor-dec { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; margin-top: 10px; }
+.v2-tresor-dec button { text-align: left; border: 1px solid var(--bord2); background: #fff; border-radius: 10px; padding: 6px 9px; cursor: pointer; font: inherit; color: var(--encre); }
+.v2-tresor-dec button:hover:not(:disabled) { background: #f6f0e2; } .v2-tresor-dec button:disabled { opacity: .45; cursor: not-allowed; }
+.v2-tresor-dec b { display: block; font-size: 13px; } .v2-tresor-dec small { color: var(--gris); font-size: 11px; line-height: 1.3; display: block; }
+@media (max-width: 1400px) { .v2-pill.tresor small { display: none; } .v2-pill.tresor { gap: 4px; padding: 5px 9px; } }

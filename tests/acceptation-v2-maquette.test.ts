@@ -82,7 +82,8 @@ describe("Opérations et résolution", () => {
   const prete = () => { const e = nouvelle(5); M.jouerEvenements(e); M.distribuerMains(e); M.jouerMain(e, "OCC", [2, 3]); M.mainIA(e, "CHN"); return e; };
   test("événements de l'année 2000 : les 12 événements historiques, dans l'ordre des trimestres", () => {
     const e = nouvelle(); M.jouerEvenements(e);
-    expect(e.evenements).toHaveLength(M.HISTORIQUES_V2.filter(h => h.annee === 2000).length); expect(e.evenements).toHaveLength(12);
+    const hist = e.evenements.filter(x => !x.id.startsWith("chantage") && x.id !== "decouverte"); // + chantages tirés par la partie
+    expect(hist).toHaveLength(M.HISTORIQUES_V2.filter(h => h.annee === 2000).length); expect(hist).toHaveLength(12);
     expect(e.evenements.map(x => x.trimestre)).toEqual([...e.evenements.map(x => x.trimestre)].sort());
   });
   test("on ne peut pas dépenser plus que ses points ; blocages expliqués", () => {

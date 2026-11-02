@@ -13,6 +13,12 @@ import { HISTORIQUES_COMPLEMENTS } from "../contenu/historiques4";
 import { TRAITS_DIRIGEANT, type Dirigeant } from "../moteur/dirigeants";
 import type { Carte } from "../moteur/types";
 import { ZONES, ZONE_DE, ROUTES } from "./zones";
+import { CARTES_ERE2 } from "../contenu/cartes2";
+import { PROJECTIONS } from "../contenu/projections";
+import * as RS from "./ressources";
+import * as EV from "./evolution";
+import * as MN from "./monnaie";
+import { effetsEco } from "./evenements-eco";
 
 export type Camp = "OCC" | "CHN";
 export const autre = (c: Camp): Camp => (c === "OCC" ? "CHN" : "OCC");
@@ -25,7 +31,7 @@ export const ECONOMIES = ["Sanctions", "Boycott", "Protectionnisme", "Neutre", "
 export const PAS_DEGRE = 200 / 21;
 export const degre = (v: number) => Math.max(-10, Math.min(10, Math.round(v / PAS_DEGRE))); // −10 … +10
 export const niveau = (v: number) => Math.max(0, Math.min(6, Math.floor((degre(v) + 10) / 3))); // 0 … 6 (Neutre = 3)
-const borne = (v: number, a = -100, b = 100) => Math.max(a, Math.min(b, v));
+export const borne = (v: number, a = -100, b = 100) => Math.max(a, Math.min(b, v));
 // Effet des niveaux d'attitude (tableau des règles) : coût des opérations du camp et risque d'être démasqué.
 export const COUT_NIVEAU = [1.5, 1.3, 1.15, 1, 0.9, 0.8, 0.7];
 export const RISQUE_NIVEAU = [15, 10, 5, 0, -5, -10, -15];
@@ -39,16 +45,16 @@ export type TypeOp = "influence" | "partenariat" | "developpement" | "infiltrer"
 export interface DefOp { id: TypeOp; nom: string; cat: "dev" | "secret" | "mil"; cible: "zone" | "pays" | "soi"; risque: number; icone: string; aide: string; min?: number }
 export const OPERATIONS: DefOp[] = [
   { id: "influence", nom: "Développer l'influence", cat: "dev", cible: "zone", risque: 0, icone: "📣", aide: "Fait monter l'attitude des pays de la zone envers ton camp (poids : population et stabilité)." },
-  { id: "partenariat", nom: "Partenariat économique", cat: "dev", cible: "zone", risque: 0, icone: "🤝", aide: "Fait monter le fonctionnement économique avec ton camp (poids : PIB et ressources)." },
-  { id: "developpement", nom: "Développement du pays", cat: "dev", cible: "zone", risque: 0, icone: "🏗", aide: "1/3 militaire, 1/3 économie, 1/3 ressources. Chez un autre pays, il gagne aussi de l'attitude envers toi." },
+  { id: "partenariat", nom: "Partenariat économique", cat: "dev", cible: "zone", risque: 0, icone: "🤝", aide: "Fait monter le fonctionnement économique avec ton camp (poids : PIB et ressources ; priorité aux pays qui ont ce qui manque à ton camp). Améliore ton contrôle des routes et ton accès aux ressources." },
+  { id: "developpement", nom: "Développement du pays", cat: "dev", cible: "zone", risque: 0, icone: "🏗", aide: "1/3 économie (PIB), 1/3 militaire, 1/3 ressources (industrie et production). Chez un autre pays, il gagne aussi de l'attitude envers toi." },
   { id: "infiltrer", nom: "Infiltrer le gouvernement", cat: "secret", cible: "pays", risque: 15, icone: "🕵", aide: "Bonus d'influence politique dans le pays ; révèle les points adverses de la zone." },
   { id: "gouvernement", nom: "Influencer le gouvernement", cat: "secret", cible: "pays", risque: 20, icone: "🗳", aide: "Pousse le gouvernement vers ton camp, jusqu'au coup d'État." },
-  { id: "saboter", nom: "Saboter", cat: "secret", cible: "pays", risque: 25, icone: "💣", aide: "Réduit le PIB et la stabilité du pays." },
-  { id: "reduire", nom: "Réduire l'influence adverse", cat: "secret", cible: "pays", risque: 20, icone: "✂", aide: "Retire de l'attitude et de l'économie envers le camp adverse." },
+  { id: "saboter", nom: "Saboter", cat: "secret", cible: "pays", risque: 25, icone: "💣", aide: "Réduit le PIB et la stabilité du pays, et abîme sa principale production (énergie, métaux…)." },
+  { id: "reduire", nom: "Réduire l'influence adverse", cat: "secret", cible: "pays", risque: 20, icone: "✂", aide: "Retire de l'attitude et de l'économie envers le camp adverse : il perd du contrôle sur les routes et de l'accès aux ressources." },
   { id: "eliminer", nom: "Éliminer des points adverses", cat: "secret", cible: "pays", risque: 30, icone: "🎯", aide: "Déclenche la traque : tes équipes cherchent les points adverses dans la zone.", min: 2 },
-  { id: "casusbelli", nom: "Fabriquer un casus belli", cat: "secret", cible: "pays", risque: 25, icone: "📜", aide: "Donne un casus belli contre le pays après 1 an." },
-  { id: "armee", nom: "Améliorer l'armée", cat: "mil", cible: "soi", risque: 0, icone: "🛡", aide: "Puissance militaire de ton pays leader." },
-  { id: "exercice", nom: "Exercice conjoint", cat: "mil", cible: "zone", risque: 0, icone: "⚓", aide: "Rapproche tes amis et alliés de la zone ; les pays hostiles se méfient davantage." },
+  { id: "casusbelli", nom: "Fabriquer un casus belli", cat: "secret", cible: "pays", risque: 25, icone: "📜", aide: "Donne un casus belli contre le pays après 1 an. Fait monter la tension mondiale." },
+  { id: "armee", nom: "Améliorer l'armée", cat: "mil", cible: "soi", risque: 0, icone: "🛡", aide: "Puissance militaire de ton pays leader. Financé en partie par la dette (+0,3 point par point engagé)." },
+  { id: "exercice", nom: "Exercice conjoint", cat: "mil", cible: "zone", risque: 0, icone: "⚓", aide: "Rapproche tes amis et alliés de la zone ; les pays hostiles se méfient davantage et la tension monte un peu." },
   { id: "armes", nom: "Vente d'armes", cat: "mil", cible: "pays", risque: 0, icone: "🚀", aide: "Budget gagné et attitude du client ; renforce son armée." },
   { id: "soutien", nom: "Soutien dans un conflit", cat: "mil", cible: "pays", risque: 0, icone: "🎖", aide: "Ajoute du score de guerre au camp soutenu." },
   { id: "guerre", nom: "Déclarer la guerre", cat: "mil", cible: "pays", risque: 0, icone: "⚔", aide: "Ouvre une phase de conflit annuelle. Au moins 5 points et un casus belli.", min: 5 },
@@ -57,7 +63,9 @@ export const op = (id: TypeOp) => OPERATIONS.find(o => o.id === id)!;
 // Étalement d'un point sur 3 ans : 50 %, 30 %, 20 % (part immédiate et part long terme).
 export const ETALEMENT = [0.5, 0.3, 0.2];
 // Effet d'un point sur une année pleine (100 %), en points d'échelle (−100…100) : estimation à calibrer.
-export const EFFET = { influence: 12, partenariat: 12, devAttitude: 4, devPib: 0.15, infiltrer: 8, gouvernement: 10, saboterPib: 0.2, saboterStab: 2, reduireAtt: 8, reduireEco: 6, armee: 1.5, exercice: 4, exerciceHostile: 2, armesAtt: 6, armesBudget: 0.5 };
+export const EFFET = { influence: 12, partenariat: 12, devAttitude: 4, devPib: 0.15, infiltrer: 8, gouvernement: 10, saboterPib: 0.2, saboterStab: 2, reduireAtt: 8, reduireEco: 6, armee: 1.5, exercice: 4, exerciceHostile: 2, armesAtt: 6, armesBudget: 0.5,
+  // liens avec ressources, routes, dette et tension (2 novembre 2026, estimation)
+  devMil: 1, devRes: 3, saboterRes: 4, armeeDette: 0.3, casusTension: 0.3, exerciceTension: 0.1, partenariatManque: 1.5 };
 export const BOOST = { parUnite: 0.1, max: 3 }; // +10 % par unité de budget, jusqu'à +30 %
 
 // ---------- État ----------
@@ -80,7 +88,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -131,6 +139,13 @@ export function creerPartieV2(graine: number, joueur: Camp): EtatV2 {
   for (const c of ["OCC", "CHN"] as Camp[]) { const d = e.dirigeants[c], p = choisirChef(c, d, e.imagesPrises); if (p) d.illustre = p; else delete d.illustre; }
   for (const d of Object.values(e.dirigeants)) if (d.illustre) e.imagesPrises.push(d.illustre);
   for (const c of ["OCC", "CHN"] as Camp[]) e.candidats[c] = tirerCandidats(e, c);
+  RS.initialiser(e);
+  e.relationsDepart = Object.fromEntries(Object.values(pays).map(p => [p.iso, { att: { ...p.att }, eco: { ...p.eco } }]));
+  e.stabiliteDepart = Object.fromEntries(Object.values(pays).map(p => [p.iso, p.stabilite]));
+  e.ressourcesDepart = Object.fromEntries(Object.values(pays).map(p => [p.iso, p.ressources]));
+  e.pibDebutAnnee = Object.fromEntries(Object.values(pays).map(p => [p.iso, p.pib]));
+  e.partEcoDepart = { OCC: partEco(e, "OCC"), CHN: partEco(e, "CHN") }; e.revenu = { ...REVENU };
+  MN.initialiser(e);
   e.resolues = 0; { const d = decompte(e); e.decompteDepart = { OCC: d.OCC, CHN: d.CHN }; }
   e.depart = Object.fromEntries(Object.values(pays).map(p => [p.iso, { att: { ...p.att }, eco: { ...p.eco } }]));
   return e;
@@ -285,8 +300,13 @@ export function appliquerEffets(e: EtatV2, effets: any[], campJ: Camp, source: s
       for (const iso of l) e.pays[iso].pib *= 1 + pct / 100;
       lignes.push({ texte: `PIB ${l.length > 3 ? l.length + " pays" : l.map(i => e.pays[i].nom).join(", ")} ${pct > 0 ? "+" : ""}${pct.toFixed(2)} %`, pays: l[0], signe: pct > 0 ? 1 : -1 });
     } else if (f.type === "tension") {
-      e.tension = borne(e.tension + f.valeur / 2, 0, 10);
-      lignes.push({ texte: `Tension mondiale ${f.valeur > 0 ? "+" : ""}${(f.valeur / 2).toFixed(1)}`, signe: f.valeur > 0 ? -1 : 1 });
+      const v = f.valeur / 4; // échelle v2 : tension 0-10, qui retombe de 40 % par an (évolution.ts)
+      e.tension = borne(e.tension + v, 0, 10);
+      lignes.push({ texte: `Tension mondiale ${v > 0 ? "+" : ""}${v.toFixed(1)}`, signe: v > 0 ? -1 : 1 });
+    } else if (f.type === "coupure") {
+      lignes.push(...(f.fournisseur ? RS.couperPar(e, f.fournisseur, f.bien, f.camp) : RS.chantageCarte(e, campJ, f.bien)));
+    } else if (["dette", "inflation", "reserves", "prime", "mondiales", "solde", "blocage"].includes(f.type)) {
+      lignes.push(...MN.effetEvenement(e, f));
     } else if (f.type === "cp" || f.type === "budget") {
       const c: Camp = f.camp === "OCC" || f.camp === "CHN" ? f.camp : campCible;
       const v = Math.round(f.valeur / 2);
@@ -299,19 +319,25 @@ export function appliquerEffets(e: EtatV2, effets: any[], campJ: Camp, source: s
 
 // ---------- Étape 1 : événements automatiques de l'année ----------
 // Tous les événements historiques connus, de 2000 à 2026 (au-delà : événements projetés, à brancher).
-export const HISTORIQUES_V2 = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_RECENTS, ...HISTORIQUES_COMPLEMENTS];
+export const HISTORIQUES_V2 = [...HISTORIQUES_ERE1, ...HISTORIQUES_ERE2, ...HISTORIQUES_RECENTS, ...HISTORIQUES_COMPLEMENTS, ...PROJECTIONS];
 export function jouerEvenements(e: EtatV2) {
-  e.evenements = HISTORIQUES_V2.filter(h => h.annee === e.annee).sort((a, b) => a.trimestre - b.trimestre).map(h => {
-    const lignes = appliquerEffets(e, h.effets as any[], "OCC", h.id);
+  // Projections (après octobre 2026) : chacune n'a lieu qu'avec sa probabilité (conditions : à brancher).
+  e.evenements = HISTORIQUES_V2.filter(h => h.annee === e.annee && (h.probabilite === undefined || tirer(e) < h.probabilite)).sort((a, b) => a.trimestre - b.trimestre).map(h => {
+    const campDe = (iso: string): Camp => (e.pays[iso] && partPays(e.pays[iso], "CHN") > partPays(e.pays[iso], "OCC") ? "CHN" : "OCC");
+    const eco = effetsEco(h).map(f => (f.camp === "$camp" ? { ...f, camp: campDe(h.pays[0]) } : f));
+    const lignes = appliquerEffets(e, [...(h.effets as any[]), ...eco], "OCC", h.id);
     return { id: h.id, trimestre: h.trimestre, titre: h.titre, texte: h.texte, pays: h.pays, resume: lignes.map(l => l.texte).join(" · ") };
   });
+  for (const x of RS.evenementsChantage(e)) e.evenements.push({ ...x, pays: [x.pays] });
+  e.evenements.sort((a, b) => a.trimestre - b.trimestre);
 }
 
 // ---------- Étape 2 : la main de 6 cartes (2 de ton camp, 2 adverses, 2 neutres) ----------
 // Plus l'événement t'est favorable, moins la carte rapporte : ton camp 1-2 points, neutre 2-3, adverse 3-4.
 export const pointsCarte = (c: Carte, source: CarteMain["source"]) => ({ propre: 1, neutre: 2, adverse: 3 }[source] + (c.valeur >= 3 ? 1 : 0));
 export function distribuerMains(e: EtatV2) {
-  const parCamp = (c: Camp | "NEUTRE") => melanger(e, CARTES_ERE1.filter(k => k.camp === c));
+  const pool = e.annee <= 2008 ? CARTES_ERE1 : [...CARTES_ERE1.filter(c => c.type === "reutilisable"), ...CARTES_ERE2]; // cartes de l'époque
+  const parCamp = (c: Camp | "NEUTRE") => melanger(e, [...pool, ...RS.CARTES_CHANTAGE].filter(k => k.camp === c));
   const occ = parCamp("OCC"), chn = parCamp("CHN"), neu = parCamp("NEUTRE");
   const main = (moi: Camp): CarteMain[] => {
     const a = moi === "OCC" ? occ : chn, b = moi === "OCC" ? chn : occ;
@@ -395,6 +421,7 @@ export function propositionConseillers(e: EtatV2, camp: Camp): { type: TypeOp; z
   return plan;
 }
 export function repartitionIA(e: EtatV2, camp: Camp) {
+  MN.monnaieIA(e, camp); // décisions de trésorerie de l'IA (emprunt, or, planche à billets)
   for (const p of propositionConseillers(e, camp)) if (!raisonBlocage(e, camp, p.type, p.zone, p.pays)) engager(e, camp, p.type, p.zone, p.points, p.pays, tirer(e) < 0.4 && e.budget[camp] - e.boostsUtilises[camp] > 0 ? 1 : 0);
 }
 
@@ -410,10 +437,10 @@ export function risqueDemasque(e: EtatV2, o: Operation): number {
 }
 // Rendement décroissant : plus un pays est haut, moins un point le fait monter.
 const rendement = (v: number, gain: number) => (gain > 0 ? gain * (1 - Math.max(0, v) / 130) : gain);
-export function poidsDansZone(e: EtatV2, zone: string, type: TypeOp): [string, number][] {
+export function poidsDansZone(e: EtatV2, zone: string, type: TypeOp, camp?: Camp): [string, number][] {
   const l = ZONES.find(z => z.id === zone)!.pays.map(i => e.pays[i]);
   const f = (p: PaysV2) => type === "influence" ? Math.sqrt(p.population) * (0.5 + p.stabilite / 100)
-    : type === "partenariat" ? p.pib + 2e10 * p.ressources
+    : type === "partenariat" ? (p.pib + 2e10 * p.ressources) * (camp && RS.BIENS.some(b => RS.role(e, p.iso, b.id) === "offre" && RS.bilan(e, camp, b.id).manque) ? EFFET.partenariatManque : 1)
     : type === "developpement" ? p.population / Math.max(1, p.pib / p.population) // besoins : PIB par habitant faible = poids fort
     : p.militaire + 5;
   const t = l.reduce((s, p) => s + f(p), 0);
@@ -430,24 +457,27 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
     const lignes: Ligne[] = [];
     const eff = (iso: string) => 1 / COUT_NIVEAU[niveau(e.pays[iso].att[o.camp])]; // coût des opérations selon l'attitude (réduction plafonnée à −30 %)
     if (o.type === "influence" || o.type === "partenariat" || o.type === "developpement" || o.type === "exercice") {
-      for (const [iso, w] of poidsDansZone(e, o.zone, o.type)) {
+      for (const [iso, w] of poidsDansZone(e, o.zone, o.type, o.camp)) {
         const p = e.pays[iso];
         if (o.type === "influence") p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.influence * m * w * eff(iso)));
         if (o.type === "partenariat") p.eco[o.camp] = borne(p.eco[o.camp] + rendement(p.eco[o.camp], EFFET.partenariat * m * w * eff(iso)));
-        if (o.type === "developpement") { p.pib *= 1 + EFFET.devPib * m * w / 100 * 3; if (iso !== LEADER[o.camp]) p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.devAttitude * m * w * eff(iso) * 3)); }
+        if (o.type === "developpement") { p.pib *= 1 + EFFET.devPib * m * w / 100 * 3; p.militaire = Math.min(100, p.militaire + EFFET.devMil * m * w); RS.ajusterSolde(e, iso, "industrie", EFFET.devRes * m * w); RS.ajusterSolde(e, iso, "alimentation", EFFET.devRes * m * w / 2); if (iso !== LEADER[o.camp]) p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.devAttitude * m * w * eff(iso) * 3)); }
+        if (o.type === "exercice" && niveau(p.att[o.camp]) <= 2) e.tension = borne(e.tension + EFFET.exerciceTension * m * w, 0, 10);
         if (o.type === "exercice") { if (niveau(p.att[o.camp]) >= 5) p.att[o.camp] = borne(p.att[o.camp] + EFFET.exercice * m / 2); else if (niveau(p.att[o.camp]) <= 2) p.att[o.camp] = borne(p.att[o.camp] - EFFET.exerciceHostile * m / 2); }
       }
       lignes.push({ texte: `${op(o.type).nom} : ${o.points} pt${o.points > 1 ? "s" : ""}, ${Math.round(part * 100)} % de l'effet cette année`, camp: o.camp, zone: o.zone, signe: 1 });
     } else if (o.type === "armee") {
       e.militaire[o.camp] += EFFET.armee * m; e.pays[LEADER[o.camp]].militaire += EFFET.armee * m;
+      if (e.monnaie) e.monnaie.dette[o.camp] += EFFET.armeeDette * m; // dépenses militaires financées en partie par la dette
       lignes.push({ texte: `Armée ${NOM_CAMP[o.camp]} +${(EFFET.armee * m).toFixed(1)}`, camp: o.camp, signe: 1 });
     } else if (o.pays) {
       const p = e.pays[o.pays];
       if (o.type === "infiltrer") { p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.infiltrer * m * eff(p.iso))); p.infiltre[o.camp] = true; }
       if (o.type === "gouvernement") p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.gouvernement * m * eff(p.iso)));
-      if (o.type === "saboter") { p.pib *= 1 - EFFET.saboterPib * m / 100; p.stabilite = borne(p.stabilite - EFFET.saboterStab * m, 0, 100); }
+      if (o.type === "saboter") { p.pib *= 1 - EFFET.saboterPib * m / 100; p.stabilite = borne(p.stabilite - EFFET.saboterStab * m, 0, 100);
+        const b = RS.BIENS.map(x => x.id).filter(x => x !== "industrie").sort((a, c) => RS.solde(e, p.iso, c) - RS.solde(e, p.iso, a))[0]; if (RS.solde(e, p.iso, b) > 0) RS.ajusterSolde(e, p.iso, b, -EFFET.saboterRes * m); } // infrastructures de sa principale production
       if (o.type === "reduire") { p.att[adv] = borne(p.att[adv] - EFFET.reduireAtt * m); p.eco[adv] = borne(p.eco[adv] - EFFET.reduireEco * m); }
-      if (o.type === "casusbelli" && age === 0) p.casusBelli[o.camp] = e.annee + 1;
+      if (o.type === "casusbelli" && age === 0) { p.casusBelli[o.camp] = e.annee + 1; e.tension = borne(e.tension + EFFET.casusTension, 0, 10); }
       if (o.type === "armes") { p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.armesAtt * m)); p.militaire += m; if (age === 0) e.budget[o.camp] += Math.round(EFFET.armesBudget * o.points); }
       lignes.push({ texte: `${op(o.type).nom} : ${p.nom}`, camp: o.camp, pays: p.iso, zone: o.zone, signe: 1 });
     }
@@ -462,7 +492,7 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
     if (d.cat === "secret") for (const x of opsActives(e)) if (x.camp === adv && x.zone === o.zone) x.revelee = true; // une opération secrète révèle les points adverses de la zone
     res.push({ op: o, lignes, demasquee, risque });
   }
-  appliquerEconomie(e);
+  EV.croissanceAnnee(e); // économie, ressources, routes, tendance de fond, stabilité et tension
   e.resolues = (e.resolues ?? 0) + 1;
   return res;
 }
@@ -527,16 +557,29 @@ export function decompte(e: EtatV2) {
 // (gain ÷ marge restante au départ ; une perte se mesure sur ce qu'il détenait). La jauge = écart de progression en points,
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 36 ans, 2000-2035, avec tous les événements historiques) : sans komi,
-// médiane −6,5 (le camp parti de plus bas a plus de marge), écart-type 4,0 ; komi 6,5 et nul à ±0,65 visent 45 / 10 / 45.
-export const JAUGE = { komi: 6.5, nul: 0.65, annees: 36 };
+// avec l'évolution de tout (PIB, population, ressources, routes, interactions) : médiane +2,0 pour l'Occident (p10 −7,3, p90 +11,6) ;
+// komi −2,0 et nul à ±1,3 visent 45 / 10 / 45 (Occident / nul / BRICS).
+export const JAUGE = { komi: -2.0, nul: 1.3, annees: 36 }; // recalibré le 2 novembre 2026 (tout évolue + monnaie + événements reliés, 200 parties IA) : estimation
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2034) et décompte final fin 2035.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2035;
-export const REVENU: Record<Camp, number> = { OCC: 6, CHN: 5 }; // budget versé chaque année (estimation) ; report plafonné à 2 ans
+export const REVENU: Record<Camp, number> = { OCC: 6, CHN: 5 };
+// Poids économique d'un camp : PIB de ses pays pondéré par leur alignement. Le budget suit (à moitié) son évolution depuis 2000.
+export const partEco = (e: EtatV2, c: Camp) => Object.values(e.pays).reduce((s, p) => s + p.pib * partPays(p, c), 0);
+export function revenuAnnee(e: EtatV2, c: Camp) {
+  const r = partEco(e, c) / (e.partEcoDepart?.[c] || partEco(e, c)), autreR = partEco(e, autre(c)) / (e.partEcoDepart?.[autre(c)] || partEco(e, autre(c)));
+  return Math.round(REVENU[c] * Math.max(0.75, Math.min(1.35, 1 + 0.25 * (r / autreR - 1)))); // relatif : seule l'avance sur l'autre camp compte
+}
+// Conseillers : leur bonus ou malus de stabilité s'applique chaque année au pays leader.
+export function appliquerStabiliteCabinet(e: EtatV2) {
+  for (const c of ["OCC", "CHN"] as Camp[]) { const v = mods(e, c).reduce((s, m) => s + (m.stabilite ?? 0), 0); const p = e.pays[LEADER[c]]; p.stabilite = borne(p.stabilite + v, 0, 100); }
+} // budget versé chaque année (estimation) ; report plafonné à 2 ans
 export interface Decompte { annee: number; OCC: number; CHN: number; jauge: number; tete: Camp | null; final: boolean }
 export const estAnneeDecompte = (a: number) => a === ANNEE_FIN || (a - ANNEE_DEBUT) % 5 === 4;
 export function anneeSuivante(e: EtatV2): Decompte | null {
   let d: Decompte | null = null;
+  EV.evoluerFinAnnee(e); // population, armée, stabilité, ressources, interactions entre pays, poids
+  appliquerStabiliteCabinet(e);
   if (estAnneeDecompte(e.annee)) {
     const g = progression(e);
     d = { annee: e.annee, OCC: g.OCC, CHN: g.CHN, jauge: g.jauge, tete: g.tete, final: e.annee === ANNEE_FIN };
@@ -544,7 +587,8 @@ export function anneeSuivante(e: EtatV2): Decompte | null {
   }
   if (e.annee >= ANNEE_FIN) { e.fin = true; return d; }
   for (const c of ["OCC", "CHN"] as Camp[]) {
-    e.budget[c] = Math.min(2 * REVENU[c], Math.max(0, e.budget[c] - e.boostsUtilises[c]) + REVENU[c]);
+    const rev = revenuAnnee(e, c); (e.revenu ??= { ...REVENU })[c] = rev;
+    e.budget[c] = Math.min(2 * rev, Math.max(0, e.budget[c] - e.boostsUtilises[c]) + rev);
     e.boostsUtilises[c] = 0; e.points[c] = 0; e.main[c] = [];
   }
   e.ops = e.ops.filter(o => ageOp(e, o) < 2); // une opération agit 3 ans (âges 0, 1, 2)
@@ -573,10 +617,12 @@ export function changementsNiveau(e: EtatV2) {
 
 // ---------- Relations entre pays (mode « relations d'un pays ») : estimation tirée des attitudes envers les camps + rivalités connues ----------
 const RIVALITES: [string, string, number][] = [["IND", "PAK", -75], ["ISR", "IRN", -85], ["ISR", "SYR", -80], ["KOR", "PRK", -70], ["CHN", "TWN", -60], ["GRC", "TUR", -25], ["ARM", "AZE", -85], ["ETH", "ERI", -85], ["RUS", "GEO", -40], ["CHN", "JPN", -30], ["CHN", "IND", -30], ["USA", "CUB", -60], ["USA", "IRN", -70], ["USA", "PRK", -80], ["IRN", "IRQ", -50], ["IRN", "SAU", -45], ["SAU", "QAT", -10], ["MAR", "DZA", -40], ["COL", "VEN", -20], ["PER", "ECU", -20], ["SDN", "SSD", -50], ["RUS", "UKR", 10], ["RUS", "BLR", 70], ["CHN", "PAK", 70], ["CHN", "PRK", 75], ["USA", "ISR", 85], ["GBR", "USA", 90], ["FRA", "DEU", 85], ["RUS", "IND", 45], ["CHN", "RUS", 25]];
+export const rivalite = (iso: string): [string, number][] => RIVALITES.filter(([x, y]) => x === iso || y === iso).map(([x, y, f]) => [x === iso ? y : x, f]);
 export function relation(e: EtatV2, a: string, b: string): number {
   if (a === b) return 100;
   const r = RIVALITES.find(([x, y]) => (x === a && y === b) || (x === b && y === a));
-  if (r) return r[2];
+  // Une rivalité s'apaise quand les deux pays se rangent fortement dans le même camp (jusqu'à moitié).
+  if (r) { const A = e.pays[a], B = e.pays[b]; const meme = Math.max(...(["OCC", "CHN"] as Camp[]).map(c => Math.min(partPays(A, c), partPays(B, c)))); return Math.round(r[2] * (1 - 0.5 * meme)); }
   const A = e.pays[a], B = e.pays[b];
   const proche = A.zone === B.zone ? 10 : 0;
   return borne(0.5 * (A.att.OCC * B.att.OCC + A.att.CHN * B.att.CHN) / 100 + proche);
