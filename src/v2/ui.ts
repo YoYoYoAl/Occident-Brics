@@ -3,6 +3,7 @@ import "./style.css";
 import donnees from "../data/pays2000.json";
 import { CARTES } from "../interface/images-cartes";
 import genres from "./genres.json";
+import chefs from "./chefs.json";
 import * as M from "./moteur";
 import { ZONES, ZONE_DE, ROUTES, zone } from "./zones";
 import { dessinerCarteV2, type CarteV2 } from "./carte";
@@ -10,13 +11,15 @@ import { APTITUDES, LISTE_APTITUDES, TRAITS_DIRIGEANT } from "../moteur/dirigean
 
 type Camp = M.Camp;
 // ---------- Images (fichiers séparés au build ; jamais deux fois la même dans une partie) ----------
-const FICHIERS = import.meta.glob(["../images/dirigeant_*.webp", "../images/famille_*.webp", "../images/carte_5g.webp", "../images/carte_accord_de_paris.webp", "../images/carte_aukus.webp", "../images/carte_banque_ndb.webp", "../images/carte_brics_elargis.webp", "../images/carte_bulle_internet.webp", "../images/carte_controles_export.webp", "../images/carte_covid.webp", "../images/carte_creation_brics.webp", "../images/carte_cyberdefense.webp", "../images/carte_elargissement_otan_ue.webp", "../images/carte_fonte_des_poles.webp", "../images/carte_g20.webp", "../images/carte_gnl.webp", "../images/carte_iles_artificielles.webp", "../images/carte_immobilier_chinois.webp", "../images/carte_intelligence_artificielle.webp", "../images/carte_irak_2003.webp", "../images/carte_loups_guerriers.webp", "../images/carte_metaux_critiques.webp", "../images/carte_pivot_asie.webp", "../images/carte_quad.webp", "../images/carte_relocalisation.webp", "../images/carte_route_de_la_soie.webp", "../images/carte_tpp.webp", "../images/carte_yuan.webp", "./images/*.webp"], { eager: true, query: "?url", import: "default" }) as Record<string, string>;
+const FICHIERS = import.meta.glob(["../images/famille_*.webp", "../images/carte_5g.webp", "../images/carte_accord_de_paris.webp", "../images/carte_aukus.webp", "../images/carte_banque_ndb.webp", "../images/carte_brics_elargis.webp", "../images/carte_bulle_internet.webp", "../images/carte_controles_export.webp", "../images/carte_covid.webp", "../images/carte_creation_brics.webp", "../images/carte_cyberdefense.webp", "../images/carte_elargissement_otan_ue.webp", "../images/carte_fonte_des_poles.webp", "../images/carte_g20.webp", "../images/carte_gnl.webp", "../images/carte_iles_artificielles.webp", "../images/carte_immobilier_chinois.webp", "../images/carte_intelligence_artificielle.webp", "../images/carte_irak_2003.webp", "../images/carte_loups_guerriers.webp", "../images/carte_metaux_critiques.webp", "../images/carte_pivot_asie.webp", "../images/carte_quad.webp", "../images/carte_relocalisation.webp", "../images/carte_route_de_la_soie.webp", "../images/carte_tpp.webp", "../images/carte_yuan.webp", "./images/*.webp", "!./images/general_*.webp", "!./images/guerre_*.webp"], { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const IMG: Record<string, string> = Object.fromEntries(Object.entries(FICHIERS).map(([k, v]) => [k.split("/").pop()!.replace(".webp", ""), v]));
 // Images écartées : texte parasite visible (règle « aucun texte dans les images »).
-const EXCLUES = new Set(["famille_crise_change", "famille_nationalisation", "famille_crise_bancaire"]);
+// Images écartées à l'audit du 2026-11-02 (faux texte ou scène irréaliste), en attente de régénération.
+const EXCLUES = new Set(["famille_crise_change", "famille_nationalisation", "famille_crise_bancaire", "carte_banque_ndb", "carte_bulle_internet", "carte_metaux_critiques", "famille_choc_petrolier", "famille_guerre_commerciale", "famille_mega_incendie", "famille_panne_infrastructure", "famille_proliferation_nucleaire", "famille_cyclone", "famille_flambee_alimentaire", "famille_assassinat_dirigeant"]);
 const img = (n?: string) => (n && !EXCLUES.has(n) ? IMG[n] : undefined);
 const IMAGES_EVENEMENTS: Record<string, string> = { h_bulle_internet: "carte_bulle_internet" };
 const imageEvenement = (id: string) => (IMG[`ev_${id}`] ? `ev_${id}` : IMAGES_EVENEMENTS[id]);
+M.enregistrerChefs(Object.entries(chefs as Record<string, boolean>).map(([nom, femme]) => ({ nom, femme })));
 M.enregistrerPortraits(Object.keys(IMG).filter(n => n.startsWith("conseiller2_")).map(nom => ({ nom, femme: !!(genres as Record<string, boolean>)[nom] })));
 
 // ---------- Outils d'affichage ----------
@@ -42,7 +45,6 @@ let e: M.EtatV2;
 let carte: CarteV2;
 let etape = -1, mode: Mode = "zones", zoneChoisie: string | null = null, paysChoisi: string | null = null, paysRelation = "USA";
 let revelations: M.Revelation[] = [];
-let decompteDebut: ReturnType<typeof M.decompte> | null = null; // projection au début de l'année, pour le bilan
 const ecartees = new Set<number>();
 const joueur = () => e.joueur, adv = () => M.autre(e.joueur);
 
@@ -154,18 +156,20 @@ function choisirZone(z: string | null) {
 }
 
 // ---------- Haut : étapes, points, budget, projection ----------
+const JAUGE_NUL = M.JAUGE.nul;
+const sg = (v: number) => `${v >= 0 ? "+" : "−"}${fr(Math.abs(v))}`;
 function compteurs() {
   document.querySelectorAll<HTMLLIElement>(".v2-etapes li").forEach(li => { const i = +li.dataset.e!; li.classList.toggle("faite", i < etape); li.classList.toggle("courante", i === etape); });
   if (etape < 0) { $(".v2-compteurs").innerHTML = ""; return; }
-  const d = M.decompte(e), j = joueur();
+  const g = M.progression(e), j = joueur();
   const libres = M.pointsLibres(e, j), budget = e.budget[j] - e.boostsUtilises[j];
   $(".v2-compteurs").innerHTML = `
     <div class="v2-pill points" title="Points d'opérations de l'année : somme des 4 cartes jouées + bonus du cabinet"><span>★</span><b>${etape >= 3 ? `${libres} / ${e.points[j]}` : e.points[j] || "—"}</b><small>points</small></div>
     <div class="v2-pill budget" title="Budget : chaque unité renforce une opération de 10 % (3 au plus)"><span>◆</span><b>${budget}</b><small>budget</small></div>
-    <div class="v2-proj" title="Projection du décompte de fin 2004 : poids des pays en coopération (40 %), amitié (70 %) ou alliance (100 %) avec chaque camp">
-      <div class="v2-proj-titre">Décompte 2004 <small>(projection)</small></div>
-      <div class="v2-proj-barre"><i style="width:${d.OCC}%;background:${COUL.OCC}"></i><i style="width:${d.CHN}%;background:${COUL.CHN};margin-left:auto"></i></div>
-      <div class="v2-proj-val"><span style="color:${COUL.OCC}">Occident ${fr(d.OCC)}</span><span style="color:${COUL.CHN}">BRICS ${fr(d.CHN)}</span></div>
+    <div class="v2-proj" title="Jauge de progression : part du terrain disponible que chaque camp a conquis depuis 2000, plus le handicap (komi) qui compense la position de départ. Au centre : égalité.">
+      <div class="v2-proj-titre">Jauge <small>${g.tete ? `avantage ${g.tete === "OCC" ? "Occident" : "BRICS"}` : "égalité"}</small></div>
+      <div class="v2-jauge"><i class="v2-jauge-occ"></i><i class="v2-jauge-chn"></i><b style="left:${50 - Math.max(-50, Math.min(50, g.jauge * 50 / 15))}%"></b></div>
+      <div class="v2-proj-val"><span style="color:${COUL.OCC}">Occ. ${sg(g.OCC)} %</span><span style="color:${COUL.CHN}">BRICS ${sg(g.CHN)} %</span></div>
     </div>`;
 }
 
@@ -261,7 +265,7 @@ function cabinet() {
   $(".v2-auto", f).onclick = () => { M.cabinetIA(e, j); for (const d of M.DOMAINES) choix[d.id] = e.cabinet[j][d.id]!.id; e.cabinet[j] = {}; maj(); };
   $(".v2-ok", f).onclick = () => {
     for (const d of M.DOMAINES) M.nommerConseiller(e, j, e.candidats[j][d.id].find(c => c.id === choix[d.id])!);
-    M.cabinetIA(e, adv()); decompteDebut = M.decompte(e); M.jouerEvenements(e); aller(1);
+    M.cabinetIA(e, adv()); M.jouerEvenements(e); aller(1);
   };
   maj();
 }
@@ -450,7 +454,7 @@ function lancerTraque(o: M.Operation, suite: () => void) {
 }
 // 6. Bilan de l'année.
 function bilan() {
-  const j = joueur(), ch = M.changementsNiveau(e), d = M.decompte(e);
+  const j = joueur(), ch = M.changementsNiveau(e), d = M.decompte(e), g = M.progression(e);
   const nom = (k: "att" | "eco", n: number) => (k === "att" ? M.ATTITUDES : ECO_COURT)[n];
   const pal = (k: "att" | "eco") => (k === "att" ? PALETTE_ATT : PALETTE_ECO);
   // Mouvements regroupés (même camp, même échelle, même passage de niveau), les plus lourds d'abord ; ton camp en premier à poids égal.
@@ -460,16 +464,20 @@ function bilan() {
   const f = fenetre(`<h1>Bilan de l'année 2000</h1>
     <div class="v2-bilan">
       <section><h3>Ce qui a changé <small>${ch.length} changement${ch.length > 1 ? "s" : ""} de niveau, regroupés</small></h3><ul class="v2-changements">${groupes.slice(0, 9).map(g => { const monte = g.apres > g.avant; const bon = (g.camp === j) === monte; return `<li><span class="v2-camp-chip" style="background:${COUL[g.camp]}">${g.camp === "OCC" ? "Occident" : "BRICS"}</span><span>${g.echelle === "att" ? "attitude" : "économie"}</span><span class="v2-chip" style="background:${pal(g.echelle)[g.avant]}">${nom(g.echelle, g.avant)}</span><i class="${bon ? "plus" : "moins"}" title="${bon ? "Bon pour toi" : "Mauvais pour toi"}">${monte ? "➜" : "➘"}</i><span class="v2-chip" style="background:${pal(g.echelle)[g.apres]}">${nom(g.echelle, g.apres)}</span><b class="v2-ch-pays">${g.pays.slice(0, 4).map(i => esc(e.pays[i].nom)).join(", ")}${g.pays.length > 4 ? ` <small>et ${g.pays.length - 4} autre${g.pays.length > 5 ? "s" : ""}</small>` : ""}</b></li>`; }).join("") || `<li class="v2-vide">Aucun pays n'a changé de niveau : les effets s'étalent sur 3 ans (50 %, 30 %, 20 %).</li>`}${groupes.length > 9 ? `<li class="v2-vide">… et ${groupes.length - 9} autres mouvements plus petits.</li>` : ""}</ul></section>
-      <section><h3>Projection du décompte 2004 <small>par zone</small></h3><div class="v2-zones-bilan">${d.zones.slice().sort((a, b) => b.poids - a.poids).map(z => `<div class="v2-zb"><span>${zone(z.id).court}</span><div class="v2-zb-barre" title="Poids ${fr(z.poids)}"><i style="width:${(z.OCC / z.poids) * 100}%;background:${COUL.OCC}"></i><i style="width:${(z.CHN / z.poids) * 100}%;background:${COUL.CHN};margin-left:auto"></i></div><small>${fr(z.poids)}</small></div>`).join("")}</div>
+      <section><h3>Décompte <small>progression depuis 2000, puis poids par zone</small></h3><div class="v2-progres"><h4>Progression depuis 2000</h4>
+          <div><span style="color:${COUL.OCC}">Occident</span><b>${sg(g.OCC)} %</b><small>du terrain disponible</small></div>
+          <div><span style="color:${COUL.CHN}">BRICS</span><b>${sg(g.CHN)} %</b><small>du terrain disponible</small></div>
+          <div><span>Handicap de départ</span><b>${sg(g.komi)}</b><small>pour l'Occident (estimation)</small></div>
+          <div class="v2-progres-jauge"><span>Jauge</span><b>${sg(g.jauge)}</b><small>${g.tete ? `avantage ${g.tete === "OCC" ? "Occident" : "BRICS"}` : "égalité"}</small></div></div>
+        <div class="v2-zones-bilan">${d.zones.slice().sort((a, b) => b.poids - a.poids).map(z => `<div class="v2-zb"><span>${zone(z.id).court}</span><div class="v2-zb-barre" title="Poids ${fr(z.poids)}"><i style="width:${(z.OCC / z.poids) * 100}%;background:${COUL.OCC}"></i><i style="width:${(z.CHN / z.poids) * 100}%;background:${COUL.CHN};margin-left:auto"></i></div><small>${fr(z.poids)}</small></div>`).join("")}</div>
         <div class="v2-total"><span style="color:${COUL.OCC}">Occident <b>${fr(d.OCC)}</b></span><span style="color:${COUL.CHN}">BRICS <b>${fr(d.CHN)}</b></span></div>
-        <p class="v2-note">Au décompte, un pays donne son poids à un camp selon le niveau moyen (attitude et économie) : coopération 40 %, amitié 70 %, alliance 100 %. Les leaders comptent pleinement pour leur camp.</p></section>
+<p class="v2-note">Chaque camp marque la part du terrain qu'il pouvait encore gagner en 2000 et qu'il a conquise. L'Occident part de très haut (${fr(e.decompteDepart!.OCC)} contre ${fr(e.decompteDepart!.CHN)}) : il a moins de marge, d'où un petit handicap en sa faveur chaque année.</p></section>
     </div>
     <div class="v2-pied"><span class="v2-etat">Fin de la maquette : dans le jeu complet, l'année 2001 commencerait ici.</span><button class="v2-sec v2-carte-voir">Voir la carte</button><button class="v2-ok v2-prim">Rejouer l'année</button></div>`, true);
   $(".v2-ok", f).onclick = () => demarrer(e.graine + 1);
   $(".v2-carte-voir", f).onclick = () => { fermerFenetre(); mode = "att"; rafraichirCarte(); const b = h(`<button class="v2-retour-bilan v2-prim">Revenir au bilan</button>`); document.body.appendChild(b); b.onclick = () => { b.remove(); bilan(); }; };
-  const d0 = decompteDebut ?? d, gainMoi = d[j] - d0[j], gainAdv = d[adv()] - d0[adv()];
-  const signe = (v: number) => `${v >= 0 ? "+" : "−"}${fr(Math.abs(v))}`;
-  conseil("defense", `Projection du décompte 2004 sur l'année : nous ${signe(gainMoi)}, ${M.NOM_CAMP[adv()] === "BRICS" ? "les BRICS" : "l'Occident"} ${signe(gainAdv)}. ${gainMoi > gainAdv + 0.05 ? "Bonne année pour nous." : gainMoi < gainAdv - 0.05 ? "L'adversaire a mieux avancé." : "Année équilibrée."} Les points posés agiront encore deux ans (30 % puis 20 % de leur effet).`);
+  const moi = g[j], lui = g[adv()], avance = j === "OCC" ? g.jauge : -g.jauge;
+  conseil("defense", `Sur l'année, nous avons conquis ${sg(moi)} % du terrain disponible, ${M.NOM_CAMP[adv()] === "BRICS" ? "les BRICS" : "l'Occident"} ${sg(lui)} %. ${avance > JAUGE_NUL ? "La jauge penche de notre côté." : avance < -JAUGE_NUL ? "La jauge penche du côté adverse." : "La jauge reste à l'équilibre."} Les points posés agiront encore deux ans (30 % puis 20 % de leur effet).`);
 }
 
 function demarrer(graine: number) {

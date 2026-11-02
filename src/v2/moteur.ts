@@ -4,6 +4,7 @@ import donnees from "../data/pays2000.json";
 import scores from "../data/scores2000.json";
 import { ALLIES_2000, SANCTIONNES_2000 } from "../data/geographie";
 import { creerPartie } from "../moteur/partie";
+import { femme } from "../moteur/pouvoir";
 import { CARTES_ERE1 } from "../contenu/cartes";
 import { HISTORIQUES_ERE1 } from "../contenu/historiques";
 import { TRAITS_DIRIGEANT, type Dirigeant } from "../moteur/dirigeants";
@@ -76,7 +77,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decompteDepart?: { OCC: number; CHN: number }; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -124,8 +125,10 @@ export function creerPartieV2(graine: number, joueur: Camp): EtatV2 {
     dirigeants: ancien.dirigeants, candidats: { OCC: {} as any, CHN: {} as any }, cabinet: { OCC: {}, CHN: {} },
     evenements: [], journal: [], imagesPrises: [],
   };
+  for (const c of ["OCC", "CHN"] as Camp[]) { const d = e.dirigeants[c], p = choisirChef(c, d, e.imagesPrises); if (p) d.illustre = p; else delete d.illustre; }
   for (const d of Object.values(e.dirigeants)) if (d.illustre) e.imagesPrises.push(d.illustre);
   for (const c of ["OCC", "CHN"] as Camp[]) e.candidats[c] = tirerCandidats(e, c);
+  e.resolues = 0; { const d = decompte(e); e.decompteDepart = { OCC: d.OCC, CHN: d.CHN }; }
   e.depart = Object.fromEntries(Object.values(pays).map(p => [p.iso, { att: { ...p.att }, eco: { ...p.eco } }]));
   return e;
 }
@@ -180,6 +183,17 @@ const PROFILS: Record<Domaine, [Modificateur, Modificateur][]> = {
 };
 // Portraits disponibles par domaine (noms de fichiers sans extension). Remplacés par le lot ob_11 dès qu'il est intégré.
 export const PORTRAITS: Record<Camp, Record<Domaine, { nom: string; femme: boolean }[]>> = { OCC: {} as any, CHN: {} as any };
+// Portraits de dirigeants (lot ob_11, revus : sans faux texte ni ressemblance avec un dirigeant réel).
+// Choix sans aléa : un portrait de son trait et de son genre d'abord, sinon un autre portrait libre du même genre.
+const CHEFS: { nom: string; camp: Camp; trait: string; femme: boolean }[] = [];
+export function enregistrerChefs(liste: { nom: string; femme: boolean }[]) {
+  CHEFS.length = 0;
+  for (const p of liste) { const [, c, t] = p.nom.split("_"); CHEFS.push({ nom: p.nom, camp: c.toUpperCase() as Camp, trait: t, femme: p.femme }); }
+}
+export function choisirChef(c: Camp, d: Dirigeant, pris: string[]): string | undefined {
+  const f = femme(c, d.nom), libres = CHEFS.filter(p => p.camp === c && p.femme === f && !pris.includes(p.nom));
+  return (d.traits.map(t => libres.find(p => p.trait === t)).find(Boolean) ?? libres[0])?.nom;
+}
 export function enregistrerPortraits(liste: { nom: string; femme: boolean }[]) {
   for (const c of ["OCC", "CHN"] as Camp[]) for (const d of DOMAINES) PORTRAITS[c][d.id] = liste.filter(p => p.nom.startsWith(`conseiller2_${c.toLowerCase()}_${d.id}_`));
 }
@@ -244,7 +258,10 @@ function resoudrePays(e: EtatV2, cible: unknown, beneficiaire: Camp): string[] {
   if (Array.isArray(cible)) return cible.filter(i => e.pays[i]);
   if (typeof cible === "string" && e.pays[cible]) return [cible];
   // « $pays » : le pays le plus lourd parmi ceux où le camp bénéficiaire a encore de la marge (tirage parmi les 5 premiers).
-  const l = Object.values(e.pays).filter(p => Math.abs(p.att[beneficiaire]) < 45 && p.iso !== LEADER.OCC && p.iso !== LEADER.CHN).sort((a, b) => b.poids - a.poids).slice(0, 5);
+  const hors = Object.values(e.pays).filter(p => p.iso !== LEADER.OCC && p.iso !== LEADER.CHN);
+  let l = hors.filter(p => Math.abs(p.att[beneficiaire]) < 45);
+  if (!l.length) l = hors; // plus aucun pays avec de la marge (partie longue) : on reprend tous les pays
+  l = l.sort((a, b) => b.poids - a.poids).slice(0, 5);
   return [l[Math.floor(tirer(e) * l.length)].iso];
 }
 export function appliquerEffets(e: EtatV2, effets: any[], campJ: Camp, source: string): Ligne[] {
@@ -441,6 +458,7 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
     res.push({ op: o, lignes, demasquee, risque });
   }
   appliquerEconomie(e);
+  e.resolues = (e.resolues ?? 0) + 1;
   return res;
 }
 // Fonctionnement économique : effet sur le PIB, dépendance estimée à 50 % du commerce du pays avec chaque camp.
@@ -484,7 +502,15 @@ export function resoudreTraque(e: EtatV2, t: Traque, choix: string[]): { elimine
 }
 
 // ---------- Décompte (projection affichée en permanence ; réel tous les 5 ans) ----------
-export const partPays = (p: PaysV2, c: Camp) => (p.iso === LEADER[c] ? 1 : PART_DECOMPTE[niveau((p.att[c] + p.eco[c]) / 2)]);
+// Part continue (décision du 2026-11-02 : le décompte mesure la progression) : elle passe par les repères des niveaux
+// (début de Coopération 40 %, d'Amitié 70 %, d'Alliance 100 %) et bouge dès le premier degré gagné.
+const REPERES_PART: [number, number][] = [[0, 0], [-100 + 12 * PAS_DEGRE, 0.4], [-100 + 15 * PAS_DEGRE, 0.7], [-100 + 18 * PAS_DEGRE, 1]];
+export function partContinue(x: number) {
+  if (x <= 0) return 0;
+  for (let i = 1; i < REPERES_PART.length; i++) { const [x1, y1] = REPERES_PART[i], [x0, y0] = REPERES_PART[i - 1]; if (x <= x1) return y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
+  return 1;
+}
+export const partPays = (p: PaysV2, c: Camp) => (p.iso === LEADER[c] ? 1 : partContinue((p.att[c] + p.eco[c]) / 2));
 export function decompte(e: EtatV2) {
   const zones = ZONES.map(z => {
     const l = z.pays.map(i => e.pays[i]);
@@ -492,8 +518,19 @@ export function decompte(e: EtatV2) {
   });
   return { zones, OCC: zones.reduce((s, z) => s + z.OCC, 0), CHN: zones.reduce((s, z) => s + z.CHN, 0) };
 }
-// La jauge (−100 BRICS … +100 Occident) bougera de l'écart à chaque décompte ; ±60 = victoire anticipée (seuils à calibrer).
-export const JAUGE = { victoire: 60, nul: 10, facteur: 0.5 };
+// Progression (décision du 2026-11-02) : chaque camp marque la part du terrain disponible qu'il a conquis depuis 2000
+// (gain ÷ marge restante au départ ; une perte se mesure sur ce qu'il détenait). La jauge = écart de progression en points,
+// plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
+// Calibrage (estimation, 200 parties IA contre IA sur 35 ans avec les règles de la maquette) : sans komi, médiane −10,1
+// (le camp parti de plus bas a plus de marge), écart-type 4,6 ; komi 10,1 et nul à ±0,9 donnent 45 / 10 / 45.
+export const JAUGE = { komi: 10.1, nul: 0.9, annees: 35 };
+const progres = (d: number, d0: number) => (d >= d0 ? (d - d0) / Math.max(1e-9, 100 - d0) : (d - d0) / Math.max(1e-9, d0));
+export function progression(e: EtatV2) {
+  const d = decompte(e), d0 = e.decompteDepart ?? { OCC: d.OCC, CHN: d.CHN };
+  const OCC = 100 * progres(d.OCC, d0.OCC), CHN = 100 * progres(d.CHN, d0.CHN);
+  const komi = JAUGE.komi * (e.resolues ?? 0) / JAUGE.annees, jauge = OCC - CHN + komi;
+  return { OCC, CHN, komi, jauge, tete: Math.abs(jauge) < JAUGE.nul ? null : (jauge > 0 ? "OCC" : "CHN") as Camp | null };
+}
 
 // Récap de l'année : changements de niveau d'attitude ou d'économie envers chaque camp.
 export function changementsNiveau(e: EtatV2) {

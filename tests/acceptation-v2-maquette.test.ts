@@ -144,3 +144,56 @@ describe("Décompte", () => {
     expect(d.zones).toHaveLength(12);
   });
 });
+
+describe("Portraits des dirigeants (lot ob_11)", () => {
+  it("chaque dirigeant reçoit un portrait de son camp et de son genre, jamais le même deux fois", async () => {
+    const chefs = (await import("../src/v2/chefs.json")).default as Record<string, boolean>;
+    const { femme } = await import("../src/moteur/pouvoir");
+    M.enregistrerChefs(Object.entries(chefs).map(([nom, f]) => ({ nom, femme: f })));
+    for (let g = 1; g <= 40; g++) {
+      const e = M.creerPartieV2(g, "OCC");
+      const o = e.dirigeants.OCC.illustre!, c = e.dirigeants.CHN.illustre!;
+      expect(o.startsWith("chef_occ_") && c.startsWith("chef_chn_")).toBe(true);
+      expect(chefs[o]).toBe(femme("OCC", e.dirigeants.OCC.nom));
+      expect(chefs[c]).toBe(femme("CHN", e.dirigeants.CHN.nom));
+      expect(new Set(e.imagesPrises).size).toBe(e.imagesPrises.length);
+    }
+  });
+  it("les images retenues existent et le choix ne consomme pas l'aléa", async () => {
+    const { existsSync } = await import("node:fs");
+    const chefs = (await import("../src/v2/chefs.json")).default as Record<string, boolean>;
+    for (const n of Object.keys(chefs)) expect(existsSync(`src/v2/images/${n}.webp`), n).toBe(true);
+    const a = M.creerPartieV2(3, "OCC"), b = M.creerPartieV2(3, "OCC");
+    expect(a.alea).toBe(b.alea); expect(a.dirigeants.OCC.illustre).toBe(b.dirigeants.OCC.illustre);
+  });
+});
+
+describe("Décompte en progression (décision du 2026-11-02)", () => {
+  it("la part d'un pays est continue et passe par les repères 40 / 70 / 100 %", () => {
+    expect(M.partContinue(0)).toBe(0); expect(M.partContinue(-50)).toBe(0);
+    expect(M.partContinue(-100 + 12 * M.PAS_DEGRE)).toBeCloseTo(0.4); expect(M.partContinue(-100 + 15 * M.PAS_DEGRE)).toBeCloseTo(0.7);
+    expect(M.partContinue(-100 + 18 * M.PAS_DEGRE)).toBeCloseTo(1); expect(M.partContinue(100)).toBe(1);
+    for (let x = 0; x < 100; x += 0.5) expect(M.partContinue(x + 0.5)).toBeGreaterThanOrEqual(M.partContinue(x));
+  });
+  it("au départ la jauge est à 0 ; après une année, elle bouge et le komi vaut komi/35", () => {
+    const e = nouvelle(5), g0 = M.progression(e);
+    expect(g0.OCC).toBe(0); expect(g0.CHN).toBe(0); expect(g0.jauge).toBe(0);
+    M.jouerEvenements(e); M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e);
+    const g = M.progression(e);
+    expect(g.komi).toBeCloseTo(M.JAUGE.komi / M.JAUGE.annees);
+    expect(Math.abs(g.OCC) + Math.abs(g.CHN)).toBeGreaterThan(0.1);
+    expect(g.jauge).toBeCloseTo(g.OCC - g.CHN + g.komi);
+  });
+  it("IA contre IA sur 35 ans (40 parties) : chaque camp gagne entre 25 et 65 %, nul au plus 25 %", () => {
+    const r = { OCC: 0, CHN: 0, nul: 0 };
+    for (let s = 301; s <= 340; s++) {
+      const e = nouvelle(s);
+      for (let a = 0; a < 35; a++) { M.jouerEvenements(e); M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e); e.annee++; }
+      const t = M.progression(e).tete; r[t ?? "nul"]++;
+    }
+    expect(r.OCC / 40).toBeGreaterThanOrEqual(0.25); expect(r.OCC / 40).toBeLessThanOrEqual(0.65);
+    expect(r.CHN / 40).toBeGreaterThanOrEqual(0.25); expect(r.CHN / 40).toBeLessThanOrEqual(0.65);
+    expect(r.nul / 40).toBeLessThanOrEqual(0.25);
+    console.log("IA contre IA 35 ans :", JSON.stringify(r));
+  }, 120_000);
+});
