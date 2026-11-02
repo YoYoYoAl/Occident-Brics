@@ -35,7 +35,7 @@ describe("Retours de test du 2 novembre 2026 (acceptation)", () => {
     const e = base(43);
     while (e.annee < 2036) jouerAnnee(e);
     for (let a = 2036; a <= 2042; a++) {
-      M.jouerEvenements(e);
+      M.jouerEvenements(e); M.evenementsAnnee(e);
       const l = e.evenements.filter(x => !x.id.startsWith("chantage") && x.id !== "decouverte");
       expect(l.length, `${a}`).toBeGreaterThanOrEqual(10); expect(l.length).toBeLessThanOrEqual(16);
       const gen = l.filter(x => x.id.startsWith("gen_")).map(x => x.pays[0]); expect(new Set(gen).size).toBe(gen.length);

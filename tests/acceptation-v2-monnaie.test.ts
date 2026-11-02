@@ -56,9 +56,9 @@ describe("Événements reliés aux mécanismes (acceptation)", () => {
     expect(effetsEco(h("h_ever_given")).some(f => f.type === "blocage" && f.route === "suez")).toBe(true);
   });
   it("3. en jeu : l'année 2008 fait monter la dette de l'Occident ; 2010 coupe les terres rares chinoises", () => {
-    const e = partie(27, 2007), d = e.monnaie!.dette.OCC; M.jouerEvenements(e);
+    const e = partie(27, 2007), d = e.monnaie!.dette.OCC; M.evenementsAnnee(e);
     expect(e.monnaie!.dette.OCC).toBeGreaterThan(d + 9);
-    const f = partie(28, 2009); M.jouerEvenements(f);
+    const f = partie(28, 2009); M.evenementsAnnee(f);
     expect(f.res!.coupures.some(c => c.fournisseur === "CHN" && c.bien === "terres" && c.camp === "OCC")).toBe(true);
   });
   it("4. une route bloquée fait perdre du PIB à tous et supprime le péage", async () => {

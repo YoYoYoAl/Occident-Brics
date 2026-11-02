@@ -98,7 +98,7 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; evenementsJoues?: number; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -343,9 +343,17 @@ export function conditionV2(e: EtatV2, c: Condition): boolean {
   return true;
 }
 const possibleV2 = (e: EtatV2, h: { id: string; probabilite?: number; conditions?: Condition[] }) => h.probabilite === undefined || ([...(h.conditions ?? []), ...(CONDITIONS_V2[h.id] ?? [])].every(c => conditionV2(e, c)) && tirer(e) < h.probabilite);
+// Décision du 2 novembre 2026 : les événements automatiques tombent en FIN d'année, après les opérations, et sont montrés avec le bilan.
+// En début d'année, seul le briefing de crise (et les appels aux armes en attente) demande une réaction.
 export function jouerEvenements(e: EtatV2) {
+  e.evenements = []; e.evenementsJoues = undefined;
+  CR.tirerCrise(e); // crise de tension de l'année (briefing à choix), plus probable quand la tension est haute
+}
+export function evenementsAnnee(e: EtatV2) {
+  if (e.evenementsJoues === e.annee) return; // une seule fois par année
+  e.evenementsJoues = e.annee;
   const annee = HISTORIQUES_V2.filter(h => h.annee === e.annee).sort((a, b) => a.trimestre - b.trimestre);
-  const ecrits = annee.filter(h => possibleV2(e, h)); // conditions lues sur le monde au début de l'année
+  const ecrits = annee.filter(h => possibleV2(e, h)); // conditions lues sur le monde de la fin d'année, après les opérations
   const retenus = [...ecrits, ...GV.generiquesAnnee(e, ecrits.length)].sort((a, b) => a.trimestre - b.trimestre); // après 2035 : complément générique jusqu'à 10-12 par an
   (e.faits ??= []).push(...retenus.map(h => h.id));
   e.evenements = retenus.map(h => {
@@ -357,7 +365,6 @@ export function jouerEvenements(e: EtatV2) {
   for (const x of RS.evenementsChantage(e)) e.evenements.push({ ...x, pays: [x.pays] });
   e.evenements.push(...CR.incidentsAnnee(e), ...CR.guerresSpontanees(e)); // envenimement : incidents armés de l'an dernier, guerres qui en sortent
   e.evenements.sort((a, b) => a.trimestre - b.trimestre);
-  CR.tirerCrise(e); // crise de tension de l'année (briefing à choix), plus probable quand la tension est haute
 }
 
 // ---------- Étape 2 : la main de 6 cartes (2 de ton camp, 2 adverses, 2 neutres) ----------
@@ -541,6 +548,7 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
       soldes: Object.fromEntries(RS.BIENS.map(b => [b.id, apres.soldes[b.id] - avant.soldes[b.id]]).filter(([, v]) => Math.abs(v as number) >= 0.05)) };
     res.push({ op: o, lignes, demasquee, risque, mesure, age, part, cumul: ETALEMENT.slice(0, age + 1).reduce((s, x) => s + x, 0) });
   }
+  evenementsAnnee(e); // les événements automatiques tombent en fin d'année, après les opérations
   CR.coutsGarants(e);
   e.conflits = CR.guerresAnnee(e); // guerres en cours : score, coûts, paix ou victoire
   EV.croissanceAnnee(e); // économie, ressources, routes, tendance de fond, stabilité et tension
@@ -612,7 +620,7 @@ export function decompte(e: EtatV2) {
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
 // médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: -10.8, nul: 0.78, annees: 51 }; // recalibré le 2 novembre 2026 après les crises de tension, guerres, alliances, réserves et accords commerciaux : 200 parties IA, médiane +10,8 pour l'Occident, résultat 45 % / 10 % / 45 % (estimation)
+export const JAUGE = { komi: -11.22, nul: 0.66, annees: 51 }; // recalibré le 2 novembre 2026 après le passage des événements automatiques en fin d'année : 200 parties IA, médiane +11,22 pour l'Occident, résultat 45 % / 10 % / 45 % (estimation)
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;
