@@ -32,12 +32,13 @@ describe("Crises de tension et guerres (acceptation)", () => {
     const g = CR.guerresEnCours(e).find(x => x.a !== x.b) ?? CR.ouvrirGuerre(e, "IND", "PAK", "test")!; expect(CR.ouvrirGuerre(e, "PAK", "IND", "doublon")).toBeUndefined();
     for (let i = 0; i < 30 && !g.fin; i++) { CR.guerresAnnee(e); e.annee++; } expect(g.fin).toBeDefined();
   });
-  it("6. sur 40 parties IA (2000-2050) : environ 0,4 crise par an, guerres rares (1 à 4,5 par partie), guerre entre les deux camps très rare", { timeout: 400000 }, () => {
-    let crises = 0, ans = 0, guerres = 0, directes = 0;
+  it("6. sur 40 parties IA (2000-2050) : environ 0,4 crise par an, guerres rares hors histoire (1 à 4,5 par partie), 5 à 9 guerres historiques, guerre entre les deux camps très rare", { timeout: 400000 }, () => {
+    let crises = 0, ans = 0, guerres = 0, directes = 0, historiques = 0;
     for (let g = 501; g <= 540; g++) { const e = base(g); while (!e.fin) { M.jouerEvenements(e); if (e.crise) crises++; M.distribuerMains(e); M.mainIA(e, "OCC"); M.mainIA(e, "CHN"); M.repartitionIA(e, "OCC"); M.repartitionIA(e, "CHN"); M.resoudreAnnee(e); ans++; M.anneeSuivante(e); }
-      guerres += (e.guerres ?? []).length; directes += (e.guerres ?? []).filter(x => x.directe).length; }
+      guerres += (e.guerres ?? []).filter(x => !x.historique).length; historiques += (e.guerres ?? []).filter(x => x.historique).length; directes += (e.guerres ?? []).filter(x => x.directe).length; }
     expect(crises / ans).toBeGreaterThan(0.25); expect(crises / ans).toBeLessThan(0.55);
     expect(guerres / 40).toBeGreaterThan(1); expect(guerres / 40).toBeLessThan(4.5); expect(directes / 40).toBeLessThan(0.1);
+    console.log(`guerres hors histoire ${guerres / 40}, guerres historiques ${historiques / 40} par partie`); expect(historiques / 40).toBeGreaterThan(5); expect(historiques / 40).toBeLessThanOrEqual(9); // 9 guerres historiques au plus (retour du 3 novembre 2026)
   });
   it("7. guerres hors des deux camps (Israël-Iran, Rwanda-Congo, Azerbaïdjan-Géorgie) et zones séparatistes avec soutien de l'État ou des rebelles", () => {
     const paires = CR.CONFLITS_LOCAUX.map(c => [c.a, c.b].sort().join("-"));

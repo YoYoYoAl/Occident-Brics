@@ -330,6 +330,7 @@ button:disabled { cursor: not-allowed; }
 .v2-bilan-conflits ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .v2-bilan-conflits li { background: #fff4f1; border: 1px solid #f0c4b8; border-radius: 12px; padding: 9px 12px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
 .v2-bilan-conflits li span { color: var(--encre2); }
+.v2-bilan-conflits li.v2-guerre-neuve { background: #ffe3dc; border-color: #e0806a; }
 @media (max-width: 720px) { .v2-crise-choix { grid-template-columns: 1fr; } }
 .v2-crise-choix.deux { grid-template-columns: repeat(2, 1fr); } .v2-appel { border-color: #b33a2b; background: linear-gradient(180deg, #fff1ee, #fff); }
 

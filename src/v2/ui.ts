@@ -16,6 +16,7 @@ import * as IN from "./institutions";
 import * as B from "./bataille";
 import { phaseGuerre } from "./ui-guerre";
 import * as SON from "../interface/sons";
+import * as IE from "./images-ev";
 // Morceaux ajoutés le 2 novembre 2026 : intégrés au HTML (pas de fichier publié en plus, limite de 511 fichiers).
 SON.integrerMusiques(Object.fromEntries(Object.entries(import.meta.glob("./musiques/*.mp3", { eager: true, query: "?url", import: "default" }) as Record<string, string>).map(([k, v]) => [`musiques/${k.slice(11)}`, v])));
 import { dessinerCarteV2, type CarteV2 } from "./carte";
@@ -30,7 +31,10 @@ const IMG: Record<string, string> = Object.fromEntries(Object.entries(FICHIERS).
 const EXCLUES = new Set(["famille_crise_change", "famille_nationalisation", "famille_crise_bancaire", "carte_banque_ndb", "carte_bulle_internet", "carte_metaux_critiques", "famille_choc_petrolier", "famille_guerre_commerciale", "famille_mega_incendie", "famille_panne_infrastructure", "famille_proliferation_nucleaire", "famille_cyclone", "famille_flambee_alimentaire", "famille_assassinat_dirigeant"]);
 const img = (n?: string) => (n && !EXCLUES.has(n) ? IMG[n] : undefined);
 const IMAGES_EVENEMENTS: Record<string, string> = { h_bulle_internet: "carte_bulle_internet" };
-const imageEvenement = (id: string) => (IMG[`ev_${id}`] ? `ev_${id}` : IMAGES_EVENEMENTS[id]);
+// Retour du 3 novembre 2026 (« la plupart des cartes n'ont pas d'image ») : scène dédiée (ev_<id>, lots ob_10/13/14), sinon image de la
+// famille de l'événement, sinon image par type pour les événements calculés (élections, coups d'État, guerres…). Une scène dédiée ne sert
+// qu'une fois par partie ; une image de famille peut revenir d'une année à l'autre, jamais deux fois la même année. Aucun tirage aléatoire.
+const imagesCandidates = (id: string) => IE.imagesCandidates(id, n => !!img(n), IMAGES_EVENEMENTS);
 M.enregistrerChefs(Object.entries(chefs as Record<string, boolean>).map(([nom, femme]) => ({ nom, femme })));
 M.enregistrerPortraits(Object.keys(IMG).filter(n => n.startsWith("conseiller2_")).map(nom => ({ nom, femme: !!(genres as Record<string, boolean>)[nom] })));
 
@@ -484,7 +488,9 @@ function evenementsBilan() {
   return `<section class="v2-bilan-ev"><h3>Les événements de l'année <small>${e.evenements.length} événement${e.evenements.length > 1 ? "s" : ""} automatique${e.evenements.length > 1 ? "s" : ""}, tombés après tes opérations ; ils touchent les pays un par un</small></h3>
     <div class="v2-trimestres">${parT.map((l, i) => `<div class="v2-trim"><div class="v2-trim-nom">${["Janvier – mars", "Avril – juin", "Juillet – septembre", "Octobre – décembre"][i]}</div>
       ${l.map(x => { const cle = `${e.annee}:${x.id}`;
-        if (!IMG_EV.has(cle)) { const n = imageEvenement(x.id); IMG_EV.set(cle, n && !pris.has(n) ? n : undefined); if (n) { pris.add(n); e.imagesPrises.push(n); } }
+        if (!IMG_EV.has(cle)) { const c = imagesCandidates(x.id), cetteAnnee = new Set([...IMG_EV].filter(([k]) => k.startsWith(`${e.annee}:`)).map(([, v]) => v));
+          const n = IE.choisirImage(c, pris, cetteAnnee);
+          IMG_EV.set(cle, n); if (n?.startsWith("ev_") && !pris.has(n)) { pris.add(n); e.imagesPrises.push(n); } }
         const n = IMG_EV.get(cle), u = n ? img(n) : undefined; // l'image choisie reste la même si le bilan est rouvert
         return `<article class="v2-ev">${u ? `<img src="${u}" alt="">` : `<div class="v2-ev-sans">📰</div>`}<div><h3>${esc(x.titre)}</h3><p>${esc(x.texte)}</p>${x.resume ? `<div class="v2-effets">${x.resume.split(" · ").map(r => `<span>${esc(r)}</span>`).join("")}</div>` : ""}</div></article>`; }).join("") || `<p class="v2-vide">Trimestre calme.</p>`}</div>`).join("")}</div></section>`;
 }
@@ -546,7 +552,7 @@ function decrireEffets(c: M.CarteMain): string[] {
 // 3. Cartes : 6 en main, en écarter 2.
 function cartes() {
   ecartees.clear();
-  const j = joueur(), m = e.main[j], pris = new Set(e.imagesPrises);
+  const j = joueur(), m = e.main[j], pris = new Set<string>(); // une carte revient chaque année avec son image : seule règle, pas deux fois la même image dans la main (retour du 3 novembre 2026)
   const images = m.map(c => { const n = IMG[`cartej_${c.carte.id}`] ? `cartej_${c.carte.id}` : CARTES[c.carte.id]; if (n && !pris.has(n) && img(n)) { pris.add(n); return n; } return undefined; });
   const SRC = { propre: { nom: "Ton camp", c: COUL[j] }, neutre: { nom: "Neutre", c: "#b08a2e" }, adverse: { nom: "Adverse", c: COUL[adv()] } };
   const f = fenetre(`<h1>Ta main : écarte 2 cartes</h1><p class="v2-intro">Les 4 cartes gardées sont jouées tout de suite : leur événement s'applique et elles te donnent leurs <b>points d'opérations</b>. Plus une carte t'est favorable, moins elle rapporte.</p>
@@ -676,6 +682,7 @@ function revelation() {
     compteurs(); rafraichirCarte();
   };
   // Phase de guerre jouée : seulement les guerres où ton camp participe, avant la résolution de fin d'année.
+  M.ouvrirGuerresDeclarees(e); // une guerre déclarée cette année se joue tout de suite
   const guerres = B.guerresDuJoueur(e).filter(g => g.batailleJouee?.annee !== e.annee);
   const prochaine = () => { const g = guerres.shift(); if (!g) { fermerFenetre(); SON.musique(ambiance()); return traque ? lancerTraque(traque, suite) : suite(); } SON.musique("guerre"); phaseGuerre(e, g, B.coteJoueur(e, g, j)!, prochaine, { fenetre, img, esc }); };
   prochaine();
@@ -742,9 +749,9 @@ function opsBilan(j: Camp) {
     <ul class="v2-opb-liste">${[...miennes, ...visibles].map(r => ligneOp(r, j)).join("") || `<li class="v2-vide">Aucune opération cette année.</li>`}</ul></section>`;
 }
 function conflitsBilan() {
-  const l = e.conflits ?? []; if (!l.length) return "";
-  return `<section class="v2-bilan-conflits"><h3>Conflits armés <small>${l.length} en cours ou terminé${l.length > 1 ? "s" : ""} cette année · opération « Soutien dans un conflit » pour peser</small></h3>
-    <ul>${l.map(x => `<li><b>⚔ ${esc(x.titre)}</b><span>${esc(x.texte)}</span><div class="v2-effets">${x.resume.split(" · ").map(r => `<span>${esc(r)}</span>`).join("")}</div></li>`).join("")}</ul></section>`;
+  const l = e.conflits ?? [], nouvelles = (e.guerres ?? []).filter(g => !g.fin && g.debut > e.annee); if (!l.length && !nouvelles.length) return "";
+  return `<section class="v2-bilan-conflits"><h3>Conflits armés <small>${l.length} en cours ou terminé${l.length > 1 ? "s" : ""} cette année${nouvelles.length ? `, ${nouvelles.length} qui commence${nouvelles.length > 1 ? "nt" : ""} l'an prochain` : ""} · opération « Soutien dans un conflit » pour peser</small></h3>
+    <ul>${nouvelles.map(g => `<li class="v2-guerre-neuve"><b>⚔ Nouvelle guerre : ${esc(e.pays[g.a].nom)} contre ${esc(e.pays[g.b].nom)}</b><span>Premiers combats en ${g.debut}${B.coteJoueur(e, g, joueur()) ? " : ton camp y participe, la bataille se jouera sur le plateau." : "."}</span></li>`).join("")}${l.map(x => `<li><b>⚔ ${esc(x.titre)}</b><span>${esc(x.texte)}</span><div class="v2-effets">${x.resume.split(" · ").map(r => `<span>${esc(r)}</span>`).join("")}</div></li>`).join("")}</ul></section>`;
 }
 // 6. Bilan de l'année.
 function bilan() {
@@ -757,7 +764,7 @@ function bilan() {
   for (const c of ch) { let g = groupes.find(x => x.camp === c.camp && x.echelle === c.echelle && x.avant === c.avant && x.apres === c.apres); if (!g) groupes.push(g = { camp: c.camp, echelle: c.echelle, avant: c.avant, apres: c.apres, pays: [], poids: 0 }); g.pays.push(c.iso); g.poids += e.pays[c.iso].poids; }
   groupes.sort((a, b) => (b.camp === j ? 1.5 : 1) * b.poids - (a.camp === j ? 1.5 : 1) * a.poids);
   const f = fenetre(`<h1>Bilan de l'année ${e.annee}</h1>
-    <div class="v2-bilan">${evenementsBilan()}${opsBilan(j)}${conflitsBilan()}
+    <div class="v2-bilan">${conflitsBilan()}${evenementsBilan()}${opsBilan(j)}
       <section><h3>Ce qui a changé <small>${ch.length} changement${ch.length > 1 ? "s" : ""} de niveau, regroupés</small></h3><ul class="v2-changements">${groupes.slice(0, 9).map(g => { const monte = g.apres > g.avant; const bon = (g.camp === j) === monte; return `<li><span class="v2-camp-chip" style="background:${COUL[g.camp]}">${g.camp === "OCC" ? "Occident" : "BRICS"}</span><span>${g.echelle === "att" ? "attitude" : "économie"}</span><span class="v2-chip" style="background:${pal(g.echelle)[g.avant]}">${nom(g.echelle, g.avant)}</span><i class="${bon ? "plus" : "moins"}" title="${bon ? "Bon pour toi" : "Mauvais pour toi"}">${monte ? "➜" : "➘"}</i><span class="v2-chip" style="background:${pal(g.echelle)[g.apres]}">${nom(g.echelle, g.apres)}</span><b class="v2-ch-pays">${g.pays.slice(0, 4).map(i => esc(e.pays[i].nom)).join(", ")}${g.pays.length > 4 ? ` <small>et ${g.pays.length - 4} autre${g.pays.length > 5 ? "s" : ""}</small>` : ""}</b></li>`; }).join("") || `<li class="v2-vide">Aucun pays n'a changé de niveau : les effets s'étalent sur 3 ans (50 %, 30 %, 20 %).</li>`}${groupes.length > 9 ? `<li class="v2-vide">… et ${groupes.length - 9} autres mouvements plus petits.</li>` : ""}</ul></section>
       <section><h3>Décompte <small>progression depuis 2000, puis poids par zone</small></h3><div class="v2-progres"><h4>Progression depuis 2000</h4>
           <div><span style="color:${COUL.OCC}">Occident</span><b>${sg(g.OCC)} %</b><small>du terrain disponible</small></div>

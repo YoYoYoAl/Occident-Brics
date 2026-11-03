@@ -379,6 +379,8 @@ export function evenementsAnnee(e: EtatV2) {
     const campDe = (iso: string): Camp => (e.pays[iso] && partPays(e.pays[iso], "CHN") > partPays(e.pays[iso], "OCC") ? "CHN" : "OCC");
     const eco = effetsEco(h).map(f => (f.camp === "$camp" ? { ...f, camp: campDe(h.pays[0]) } : f));
     const lignes = appliquerEffets(e, [...(h.effets as any[]), ...eco], "OCC", h.id);
+    const gh = CR.guerreHistorique(e, h.id); // Irak 2003, Afghanistan 2001, Ukraine 2022… : une vraie guerre s'ouvre (retour du 3 novembre 2026)
+    if (gh) lignes.unshift({ texte: `⚔ Guerre ouverte : ${e.pays[gh.a].nom} contre ${e.pays[gh.b].nom}, premiers combats en ${gh.debut}`, signe: -1 });
     return { id: h.id, trimestre: h.trimestre, titre: h.titre, texte: h.texte, pays: h.pays, resume: lignes.map(l => l.texte).join(" · ") };
   });
   for (const x of RS.evenementsChantage(e)) e.evenements.push({ ...x, pays: [x.pays] });
@@ -519,10 +521,16 @@ function photo(e: EtatV2, l: string[], c: Camp) {
     attAdv: ps.reduce((s, p) => s + p.att[autre(c)] + p.eco[autre(c)], 0), mil: ps.reduce((s, p) => s + p.militaire, 0) + e.militaire[c],
     soldes: Object.fromEntries(RS.BIENS.map(b => [b.id, ps.reduce((s, p) => s + RS.solde(e, p.iso, b.id), 0)])) as Record<RS.Bien, number>, tension: e.tension };
 }
+// Retour du 3 novembre 2026 (« j'ai déclaré la guerre à la Chine, il ne s'est rien passé ») : une déclaration de guerre ouvre
+// la guerre AVANT la phase de guerre de l'année, pour que la première bataille se joue tout de suite (et non l'an suivant).
+export function ouvrirGuerresDeclarees(e: EtatV2) {
+  for (const o of e.ops) if (o.type === "guerre" && o.annee === e.annee && o.pays) CR.ouvrirGuerre(e, LEADER[o.camp], o.pays, "declaration", o.pays === LEADER[autre(o.camp)]);
+}
 export function resoudreAnnee(e: EtatV2): Revelation[] {
   const res: Revelation[] = [];
   CR.resoudreCrise(e); // l'IA répond pour le camp qui n'a pas répondu
   CR.appelsEnAttente(e); // appels aux armes sans réponse du joueur : l'IA décide
+  ouvrirGuerresDeclarees(e); // déjà fait par l'écran avant la phase de guerre ; sans effet la seconde fois
   for (const o of opsActives(e)) {
     const age = ageOp(e, o), part = ETALEMENT[age], d = op(o.type), adv = autre(o.camp);
     const boost = 1 + BOOST.parUnite * o.boost;
@@ -559,7 +567,7 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
       if (HOSTILES.includes(o.type)) e.tension = borne(e.tension + (p.iso === LEADER[adv] ? EFFET.hostileLeader : partPays(p, adv) >= 0.4 ? EFFET.hostileProche : 0) * m, 0, 10);
       if (o.type === "reduire") { p.att[adv] = borne(p.att[adv] - EFFET.reduireAtt * m); p.eco[adv] = borne(p.eco[adv] - EFFET.reduireEco * m); }
       if (o.type === "casusbelli" && age === 0) { p.casusBelli[o.camp] = e.annee + 1; e.tension = borne(e.tension + EFFET.casusTension, 0, 10); }
-      if (o.type === "guerre" && age === 0) CR.ouvrirGuerre(e, LEADER[o.camp], p.iso, "declaration", p.iso === LEADER[adv]);
+      // « guerre » : ouverte par ouvrirGuerresDeclarees, au début de la résolution (ou avant la phase de guerre à l'écran)
       if (o.type === "soutien") CR.soutenir(e, o.camp, p.iso, m);
       if (o.type === "armes") { p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.armesAtt * m)); p.militaire += m; if (age === 0) e.budget[o.camp] += Math.round(EFFET.armesBudget * o.points); }
       lignes.push({ texte: `${op(o.type).nom} : ${p.nom}`, camp: o.camp, pays: p.iso, zone: o.zone, signe: 1 });
@@ -656,7 +664,7 @@ export function decompte(e: EtatV2) {
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
 // médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: 5.09, nul: 0.6, annees: 51 }; // recalibré le 3 novembre 2026 (élections, société, climat, migrations, institutions, devises, décompte toutes familles) : 200 parties IA (graines 5000-5199), médiane brute −5,09 ; nul ±0,6 → 45,5 / 10 / 44,5 %
+export const JAUGE = { komi: 8.54, nul: 1.0, annees: 51 }; // recalibré le 3 novembre 2026 (guerres déclarées jouées la même année, guerres des événements historiques) : 200 parties IA (graines 5000-5199), médiane brute −8,65 (−5,09 avant) ; nul ±1,0 → 45 / 10 / 45 %
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;

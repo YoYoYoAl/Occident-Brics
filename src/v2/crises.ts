@@ -132,7 +132,7 @@ const fr = (v: number) => String(Math.round(v * 10) / 10).replace(".", ",");
 // est extrême, le leader adverse peut s'engager directement (guerre entre les deux camps, très rare) ; l'opération
 // « Déclarer la guerre » (casus belli requis). Chaque année : score de guerre (armées, soutiens, hasard), coûts pour
 // les belligérants, puis paix blanche possible ou victoire à ±60. Estimation.
-export interface Guerre { id: string; titre: string; a: string; b: string; debut: number; fin?: number; score: number; soutien: Record<string, number>; directe?: boolean; issue?: string;
+export interface Guerre { id: string; titre: string; a: string; b: string; debut: number; fin?: number; score: number; soutien: Record<string, number>; directe?: boolean; historique?: boolean; issue?: string;
   rebelles?: { region: string; force: number; parrain?: string };
   allies?: Record<string, string[]>; garants?: Partial<Record<Camp, string>>;
   occ?: { a: number; b: number }; batailles?: number; objectif?: number; lassitude?: { a: number; b: number }; region?: string; // score de guerre (EU4) : occupation, batailles, objectif
@@ -163,6 +163,21 @@ export function ouvrirGuerre(e: EtatV2, a: string, b: string, cause: string, dir
     occ: { a: 0, b: 0 }, batailles: 0, objectif: 0, lassitude: { a: 0, b: 0 }, region: regionDisputee(b) };
   (e.guerres ??= []).push(g); e.tension = M.borne(e.tension + (directe ? 2 : 0.8), 0, 10); if (!directe) appelsAuxArmes(e, g); return g;
 }
+// Guerres des événements historiques (retour du 3 novembre 2026 : « événement guerre en Irak, pas de guerre ») : l'événement ouvre
+// une vraie guerre du moteur. Elle s'ouvre en fin d'année ; la première année de combats est l'année suivante (debut = année + 1),
+// jouée sur le plateau si le camp du joueur y participe. Tout évolue : pas de guerre si la cible est devenue proche de l'agresseur.
+export const GUERRES_HISTORIQUES: Record<string, [string, string]> = {
+  h_afghanistan: ["USA", "AFG"], h_irak: ["USA", "IRQ"], h_liban: ["ISR", "LBN"], h_georgie: ["RUS", "GEO"], h_intervention_libye: ["USA", "LBY"],
+  h_crimee: ["RUS", "UKR"], h_ukraine: ["RUS", "UKR"], h_guerre_douze_jours: ["ISR", "IRN"], h_guerre_iran: ["USA", "IRN"],
+};
+export function guerreHistorique(e: EtatV2, id: string): Guerre | undefined {
+  const x = GUERRES_HISTORIQUES[id]; if (!x) return undefined;
+  const [a, b] = x; if (!e.pays[a] || !e.pays[b]) return undefined;
+  const c = campDe(e, a); if (campDe(e, b) === c && M.partPays(e.pays[b], c) >= 0.8) return undefined; // cible devenue alliée de l'agresseur (estimation)
+  const g = ouvrirGuerre(e, a, b, "historique", [a, b].includes(M.LEADER.OCC) && [a, b].includes(M.LEADER.CHN));
+  if (g) { g.debut = e.annee + 1; g.historique = true; }
+  return g;
+}
 // Après un incident armé : guerre possible (rare), entre les deux camps seulement si la tension est extrême.
 export function guerreDepuisIncident(e: EtatV2, i: Incident): Guerre | undefined {
   const p = GUERRE.depuisIncident * (M.cranV2(e) >= GUERRE.cranFort ? 1 : GUERRE.facteurCranFaible);
@@ -190,6 +205,7 @@ export function guerresAnnee(e: EtatV2) {
   verserReparations(e); missionsAnnee(e);
   const ev: { id: string; trimestre: number; titre: string; texte: string; pays: string[]; resume: string }[] = [];
   for (const g of guerresEnCours(e)) {
+    if (g.debut > e.annee) continue; // guerre ouverte en fin d'année par un événement : combats l'an prochain
     const A = e.pays[g.a], P = e.pays[g.b], ans = e.annee - g.debut + 1;
     if (g.rebelles) { ev.push(anneeSeparatiste(e, g, A, ans)); continue; }
     const d = g.batailleJouee?.annee === e.annee ? g.batailleJouee.d // bataille jouée par le joueur sur le plateau
