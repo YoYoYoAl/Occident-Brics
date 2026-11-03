@@ -10,6 +10,9 @@ import * as RS from "./ressources";
 import * as EV from "./evolution";
 import * as MN from "./monnaie";
 import * as CR from "./crises";
+import * as PV from "./pouvoir";
+import * as SO from "./societe";
+import * as IN from "./institutions";
 import * as B from "./bataille";
 import { phaseGuerre } from "./ui-guerre";
 import * as SON from "../interface/sons";
@@ -49,11 +52,36 @@ const NOMS_RES: Record<RS.Lecture, string> = { fournisseur_ami: "exportateur de 
 const ETAPES = ["Cabinet", "Briefing", "Cartes", "Opérations", "Révélation", "Bilan"];
 // Infobulles (demande du 2 novembre 2026) : une phrase par étape et par mode de carte.
 const AIDE_ETAPES = ["Ton dirigeant nomme 5 conseillers : chacun apporte un bonus et un malus.", "Les événements de l'année : historiques, projetés, ruptures. Clique un pays cité pour le voir.", "Écarte 2 cartes sur 6 ; les 4 autres sont jouées et donnent tes points d'opérations.", "Pose tes points dans les zones et les pays, renforce-les avec le budget (◆).", "Les plans des deux camps apparaissent ; une opération secrète peut être démasquée.", "Ce qui a changé, tes opérations et leurs effets, le décompte par zone."];
-const AIDE_MODES: Record<string, string> = { zones: "Les 12 zones et leur poids au décompte.", att: "Attitude de chaque pays envers toi (de Haine à Alliance). Clique un pays pour voir ses relations.", eco: "Relations économiques de chaque pays avec toi (de Sanctions à Entraide).", res: "Qui exporte et qui importe chaque ressource ; ton camp en manque-t-il ?", ops: "Les opérations posées cette année, par zone.", routes: "Les 36 routes commerciales (mer, terre, air) et le contrôle de chaque camp.", mil: "Puissance militaire de chaque pays.", pib: "PIB de chaque pays.", pop: "Population de chaque pays." };
+const AIDE_MODES: Record<string, string> = { zones: "Les 12 zones et leur poids au décompte.", att: "Attitude de chaque pays envers toi (de Haine à Alliance). Clique un pays pour voir ses relations.", eco: "Relations économiques de chaque pays avec toi (de Sanctions à Entraide).", res: "Qui exporte et qui importe chaque ressource ; ton camp en manque-t-il ?", ops: "Les opérations posées cette année, par zone.", routes: "Les 36 routes commerciales (mer, terre, air) et le contrôle de chaque camp.", mil: "Puissance militaire de chaque pays.", pib: "PIB de chaque pays.", pop: "Population de chaque pays.", autres: "Conflits en cours, élections à venir, stabilité, régimes politiques." };
+// Sous-filtres du mode « Autres » (demande du 2 novembre 2026).
+const AUTRES = { conflits: "Conflits en cours", elections: "Élections à venir", stabilite: "Stabilité", regimes: "Régimes", pollution: "Pollution et climat", societe: "Société", migrations: "Migrations", institutions: "Institutions" } as const;
+const PALETTE_Q = ["#6b2a17", "#b5562e", "#e3b062", "#c9dd9c", "#4f9e62"]; // qualité 0-100 en 5 crans (mauvaise → bonne)
+const cran = (v: number) => Math.max(0, Math.min(4, Math.floor(v / 20)));
+const qualiteEnv = (iso: string) => { const c = SO.carac(e, iso); return Math.min(c.air, c.eau, c.terre); };
+const niveauSoc = (iso: string) => { const c = SO.carac(e, iso); return (c.educ + c.sante + c.tech + c.infra) / 4; };
+const PALETTE_INST = ["#ece6d8", "#f2c4b8", "#e07a65", "#b3322b"];
+const instChine = (iso: string) => (["NDB", "AIIB", "OCS"] as IN.IdInst[]).filter(i => IN.membre(e, i, iso)).length;
+function soldeMigr(iso: string) { // part de la population gagnée (+) ou perdue (−) cette année par les migrations, en %
+  let n = 0; for (const f of e.migrations ?? []) { const o = e.pays[f.de]; if (!o) continue; const v = f.part * o.population; if (f.vers === iso) n += v; if (f.de === iso) n -= v; }
+  return 100 * n / Math.max(1, e.pays[iso].population);
+}
+const couleurMigr = (iso: string) => { const x = soldeMigr(iso); return x <= -0.3 ? "#9b2c2c" : x < -0.02 ? "#e39a6b" : x > 0.15 ? "#2f7d4f" : x > 0.02 ? "#9fd1a8" : "#ece6d8"; };
+type Autre = keyof typeof AUTRES;
+let autreVu: Autre = "conflits";
+const PALETTE_STAB = ["#7a1f1f", "#d0573a", "#f0b45a", "#b9d58c", "#3f9a5b"];
+const PALETTE_REGIME: Record<PV.Regime, string> = { presidentiel: "#3b6fb6", parlementaire: "#6fa8dc", hybride: "#c9a227", parti: "#b3322b", monarchie: "#8e5ac8", junte: "#5b5b5b" };
+const CONFLITS = { guerre: { nom: "Guerre entre États", c: "#b3261e" }, civile: { nom: "Guerre civile ou séparatiste", c: "#e07b39" }, allie: { nom: "Allié engagé", c: "#f2b36b" }, incident: { nom: "Incident armé, crise", c: "#f1dc7a" }, paix: { nom: "En paix", c: "#ece6d8" } };
+function conflitDe(iso: string): keyof typeof CONFLITS {
+  for (const g of CR.guerresEnCours(e)) { if (g.a === iso || g.b === iso) return g.rebelles ? "civile" : "guerre"; if (Object.values(g.allies ?? {}).some(l => l.includes(iso))) return "allie"; }
+  if ((e.incidents ?? []).some(i => i.annee >= e.annee - 1 && i.pays.includes(iso)) || e.crise?.pays.includes(iso)) return "incident";
+  return "paix";
+}
+function couleurElection(iso: string) { const g = e.gouv?.[iso]; if (!g || !g.prochaine || g.regime === "parti" && iso !== "CHN") return "#d9d4c7"; const d = g.prochaine - e.annee; return d <= 0 ? "#6a2c91" : d === 1 ? "#9b6fc0" : d === 2 ? "#c7aee0" : "#ece6f4"; }
 const MODES = [
   { id: "zones", nom: "Zones", icone: "◱" }, { id: "att", nom: "Attitude", icone: "☺" }, { id: "eco", nom: "Économie", icone: "⇄" }, { id: "res", nom: "Ressources", icone: "⛏" },
   { id: "ops", nom: "Opérations", icone: "●" }, { id: "routes", nom: "Routes", icone: "⛴" },
   { id: "mil", nom: "Militaire", icone: "🛡" }, { id: "pib", nom: "PIB", icone: "$" }, { id: "pop", nom: "Population", icone: "👥" },
+  { id: "autres", nom: "Autres", icone: "⋯" },
 ] as const;
 type Mode = typeof MODES[number]["id"];
 
@@ -163,6 +191,9 @@ function couleurPays(iso: string): string {
     const t = Math.min(1, (a + b) / 8), part = a / (a + b);
     return melange(melange("#ece6d8", "#8e5ac8", t * 0.25), melange(COUL[adv()], COUL[j], part), 0.35 + 0.55 * t);
   }
+  if (mode === "autres") { const g = e.gouv?.[iso]; return autreVu === "conflits" ? CONFLITS[conflitDe(iso)].c : autreVu === "elections" ? couleurElection(iso) : autreVu === "stabilite" ? PALETTE_STAB[PV.palier(p.stabilite)]
+    : autreVu === "pollution" ? PALETTE_Q[cran(qualiteEnv(iso))] : autreVu === "societe" ? PALETTE_Q[cran(niveauSoc(iso))] : autreVu === "migrations" ? couleurMigr(iso) : autreVu === "institutions" ? PALETTE_INST[instChine(iso)]
+    : g ? PALETTE_REGIME[g.regime] : "#ece6d8"; }
   if (mode === "routes") { const r = ROUTES.filter(x => x.pays.includes(iso)); if (!r.length) return "#ece6d8"; const c = M.controleRoute(e, r[0].id); return c ? melange("#ffffff", COUL[c], 0.75) : "#c9c3b4"; }
   const v = mode === "mil" ? p.militaire / 100 : mode === "pib" ? Math.log10(p.pib / 1e8) / Math.log10(1.3e13 / 1e8) : Math.log10(p.population / 5e4) / Math.log10(1.3e9 / 5e4);
   const t = Math.max(0, Math.min(1, v));
@@ -186,10 +217,20 @@ function legende() {
         <p class="v2-note">Données réelles 2000 ; seuils et bilan : estimation.</p>`; })()
     : mode === "ops" ? `<b>Opérations actives</b><div class="v2-ech"><span><i style="background:${COUL[joueur()]}"></i>tes points</span><span><i style="background:${COUL[adv()]}"></i>points adverses connus</span></div><p class="v2-note">Plus la teinte est forte, plus il y a de points.</p>`
     : mode === "routes" ? `<b>${ROUTES.length} routes commerciales</b><div class="v2-biens">${(["toutes", "mer", "terre", "air"] as const).map(t => `<button data-rtype="${t}" class="${t === routesVues ? "actif" : ""}">${{ toutes: "Toutes", mer: "Maritimes", terre: "Terrestres", air: "Aériennes" }[t]} <small>${t === "toutes" ? ROUTES.length : ROUTES.filter(r => (r.mode ?? "mer") === t).length}</small></button>`).join("")}</div><p class="v2-note">Sous chaque nom : contrôle <b style="color:${COUL.OCC}">Occident</b> · <b style="color:${COUL.CHN}">BRICS</b> (part du commerce des pays de la route). Ton PIB gagne quand ton camp tient les routes, il perd sinon (jusqu'à ±0,15 % par route et par an, estimation).</p><div class="v2-ech"><span><i style="background:${COUL.OCC}"></i>tenue par l'Occident</span><span><i style="background:${COUL.CHN}"></i>tenue par les BRICS</span><span><i style="background:#c9c3b4"></i>disputée</span></div><div class="v2-ech"><span><i class="ech-trait ech-mer"></i>maritime</span><span><i class="ech-trait ech-terre"></i>terrestre (rail, route, oléoduc)</span><span><i class="ech-trait ech-air"></i>aérienne</span></div><p class="v2-note">Une route est tenue quand tous ses pays sont au moins en accords commerciaux avec un camp.</p>`
+    : mode === "autres" ? `<div class="v2-biens">${(Object.keys(AUTRES) as Autre[]).map(k => `<button data-autre="${k}" class="${k === autreVu ? "actif" : ""}">${AUTRES[k]}</button>`).join("")}</div>${
+        autreVu === "conflits" ? `<div class="v2-ech">${Object.values(CONFLITS).map(x => `<span><i style="background:${x.c}"></i>${x.nom}</span>`).join("")}</div><p class="v2-note">${CR.guerresEnCours(e).length} guerre${CR.guerresEnCours(e).length > 1 ? "s" : ""} en cours.</p>`
+        : autreVu === "elections" ? `<div class="v2-ech"><span><i style="background:#6a2c91"></i>cette année</span><span><i style="background:#9b6fc0"></i>l'an prochain</span><span><i style="background:#c7aee0"></i>dans 2 ans</span><span><i style="background:#ece6f4"></i>plus tard</span><span><i style="background:#d9d4c7"></i>pas d'élection</span></div><p class="v2-note">Une opération « Influencer le gouvernement » pèse sur un scrutin qui tombe dans ses 3 ans d'effet.</p>`
+        : autreVu === "stabilite" ? `<div class="v2-ech">${PV.PALIERS.map((x, i) => `<span title="${esc(x.aide)}"><i style="background:${PALETTE_STAB[i]}"></i>${x.nom}${i ? ` (${x.min}+)` : ""}</span>`).join("")}</div><p class="v2-note">Survole un palier pour ses effets. Départ 2000 : estimation.</p>`
+        : autreVu === "pollution" ? `<div class="v2-ech">${["très polluée", "polluée", "moyenne", "assez saine", "saine"].map((x, i) => `<span><i style="background:${PALETTE_Q[i]}"></i>${x}</span>`).join("")}</div><p class="v2-note">Couleur : la pire des trois qualités (air, eau, terre). Climat mondial : <b>+${fr(e.climat?.ecart ?? 0.8, 2)} °C</b>, émissions ${fr((e.climat?.emissions ?? 0) / 1000, 1)} Gt de CO2 par an. Au-delà de +3 °C, tout le monde perd. Données 2000 réelles, évolution : estimation.</p>`
+        : autreVu === "societe" ? `<div class="v2-ech">${["très faible", "faible", "moyen", "bon", "très bon"].map((x, i) => `<span><i style="background:${PALETTE_Q[i]}"></i>${x}</span>`).join("")}</div><p class="v2-note">Moyenne de l'éducation, de la santé, de la technologie et des infrastructures (sur 100). Elles comptent dans le décompte.</p>`
+        : autreVu === "migrations" ? `<div class="v2-ech"><span><i style="background:#9b2c2c"></i>exode</span><span><i style="background:#e39a6b"></i>départs</span><span><i style="background:#ece6d8"></i>équilibre</span><span><i style="background:#9fd1a8"></i>arrivées</span><span><i style="background:#2f7d4f"></i>fortes arrivées</span></div><p class="v2-note">Flux de l'année en plus des migrations habituelles : guerres, crises, sécheresses. Les arrivées apportent de la main-d'œuvre, mais aussi des besoins et des tensions.</p>`
+        : autreVu === "institutions" ? `<div class="v2-ech">${["aucune", "1", "2", "3"].map((x, i) => `<span><i style="background:${PALETTE_INST[i]}"></i>${x}</span>`).join("")}</div><p class="v2-note">Nombre d'institutions menées par la Chine (banque des BRICS, AIIB, OCS) dont le pays est membre.</p><div class="v2-inst">${IN.INSTITUTIONS.filter(x => e.annee >= x.creation).map(x => { const c = IN.controle(e, x.id); return `<span title="${esc(x.role)}">${x.id} <b style="color:${COUL.OCC}">${Math.round(c.OCC * 100)}</b>·<b style="color:${COUL.CHN}">${Math.round(c.CHN * 100)}</b> <small>${e.inst?.membres[x.id].length ?? 0} m.</small></span>`; }).join("")}</div><p class="v2-note">Contrôle Occident · BRICS (en %) : voix des membres pondérées par leur alignement. Survole un sigle pour son rôle.</p>`
+        : `<div class="v2-ech">${PV.LISTE_REGIMES.map(r => `<span title="${esc(PV.REGIMES[r].aide)}"><i style="background:${PALETTE_REGIME[r]}"></i>${PV.REGIMES[r].nom}</span>`).join("")}</div><p class="v2-note">Les régimes évoluent : coups d'État, révolutions, transitions. Départ 2000 : estimation.</p>`}`
     : mode === "mil" ? `<b>Puissance militaire</b><div class="v2-grad" style="background:linear-gradient(90deg,#efe8f6,#4b2a86)"></div><div class="v2-bornes"><span>faible</span><span>forte</span></div>`
     : mode === "pib" ? `<b>PIB 2000</b><div class="v2-grad" style="background:linear-gradient(90deg,#fbf3d6,#a8770a)"></div><div class="v2-bornes"><span>100 M$</span><span>13 000 Md$</span></div>`
     : `<b>Population 2000</b><div class="v2-grad" style="background:linear-gradient(90deg,#f7ecef,#8c2d59)"></div><div class="v2-bornes"><span>50 000</span><span>1,3 milliard</span></div>`;
   l.querySelectorAll<HTMLButtonElement>("[data-rtype]").forEach(x => x.addEventListener("click", () => { routesVues = x.dataset.rtype as typeof routesVues; rafraichirCarte(); }));
+  l.querySelectorAll<HTMLButtonElement>("[data-autre]").forEach(x => x.addEventListener("click", () => { autreVu = x.dataset.autre as Autre; rafraichirCarte(); }));
   l.querySelectorAll<HTMLButtonElement>("[data-bien]").forEach(x => x.addEventListener("click", () => { bienVu = x.dataset.bien as RS.Bien; rafraichirCarte(); }));
   l.querySelector("[data-att-toi]")?.addEventListener("click", () => { paysRelation = null; rafraichirCarte(); });
 }
@@ -220,10 +261,21 @@ function survol(iso: string | null, ev: MouseEvent) {
     <table><tr><th></th><th style="color:${COUL.OCC}">Occident</th><th style="color:${COUL.CHN}">BRICS</th></tr>
     <tr><td>Attitude</td><td>${chipNiveau(p.att.OCC)}</td><td>${chipNiveau(p.att.CHN)}</td></tr>
     <tr><td>Économie</td><td>${chipNiveau(p.eco.OCC, true)}</td><td>${chipNiveau(p.eco.CHN, true)}</td></tr></table>
-    <div class="v2-bulle-pied"><span>Poids <b>${fr(p.poids, 2)}</b> / 100</span><span>Stabilité <b>${Math.round(p.stabilite)}</b></span>${mode === "res" ? `<span>${RS.BIENS.find(x => x.id === bienVu)!.nom} : <b>${NOMS_RES[RS.lecture(e, joueur(), iso, bienVu)]}</b> (solde ${Math.round(RS.solde(e, iso, bienVu))} sur ±100, en 2000 : ${Math.round(RS.soldeInitial(iso)[bienVu])})</span><span>Effet des ressources sur son PIB : <b>${(x => (x > 0 ? "+" : "") + fr(x, 2))(RS.effetPib(e, iso))} %/an</b></span>` : ""}${mode === "routes" ? `<span>Effet des routes sur son PIB : <b>${(x => (x > 0 ? "+" : "") + fr(x, 2))(EV.effetRoutes(e, iso))} %/an</b></span>` : ""}${mode === "att" && paysRelation && paysRelation !== iso ? `<span>Attitude de ${esc(NOMS_PAYS[paysRelation])} : ${chipNiveau(M.relation(e, paysRelation, iso))}</span>` : ""}</div>`;
+    <div class="v2-bulle-pied"><span>Poids <b>${fr(p.poids, 2)}</b> / 100</span><span>Stabilité <b>${Math.round(p.stabilite)}</b> (${PV.PALIERS[PV.palier(p.stabilite)].nom.toLowerCase()})</span>${infoPouvoir(iso)}${mode === "res" ? `<span>${RS.BIENS.find(x => x.id === bienVu)!.nom} : <b>${NOMS_RES[RS.lecture(e, joueur(), iso, bienVu)]}</b> (solde ${Math.round(RS.solde(e, iso, bienVu))} sur ±100, en 2000 : ${Math.round(RS.soldeInitial(iso)[bienVu])})</span><span>Effet des ressources sur son PIB : <b>${(x => (x > 0 ? "+" : "") + fr(x, 2))(RS.effetPib(e, iso))} %/an</b></span>` : ""}${mode === "routes" ? `<span>Effet des routes sur son PIB : <b>${(x => (x > 0 ? "+" : "") + fr(x, 2))(EV.effetRoutes(e, iso))} %/an</b></span>` : ""}${mode === "att" && paysRelation && paysRelation !== iso ? `<span>Attitude de ${esc(NOMS_PAYS[paysRelation])} : ${chipNiveau(M.relation(e, paysRelation, iso))}</span>` : ""}</div>`;
   b.hidden = false;
   const x = Math.min(window.innerWidth - b.offsetWidth - 12, ev.clientX + 16), y = Math.min(window.innerHeight - b.offsetHeight - 12, ev.clientY + 16);
   b.style.transform = `translate(${x}px, ${y}px)`;
+}
+function infoPouvoir(iso: string) {
+  const g = e.gouv?.[iso]; if (!g) return "";
+  const el = g.prochaine && g.prochaine >= e.annee ? (g.regime === "parti" ? `congrès en ${g.prochaine}` : `élection en ${g.prochaine}`) : "pas d'élection prévue";
+  const k = mode === "autres" && autreVu === "conflits" && conflitDe(iso) !== "paix" ? `<span>${CONFLITS[conflitDe(iso)].nom}</span>` : "";
+  const c = mode === "autres" ? SO.carac(e, iso) : null;
+  const x = !c ? "" : autreVu === "pollution" ? `<span>Air ${Math.round(c.air)} · eau ${Math.round(c.eau)} · terre ${Math.round(c.terre)} · bas-carbone ${Math.round(c.propre)} %</span>`
+    : autreVu === "societe" ? `<span>Éducation ${Math.round(c.educ)} · santé ${Math.round(c.sante)} · technologie ${Math.round(c.tech)} · infrastructures ${Math.round(c.infra)}</span>`
+    : autreVu === "migrations" ? `<span>Migrations : ${(v => (v > 0 ? "+" : "") + fr(v, 2))(soldeMigr(iso))} % de la population cette année</span>`
+    : autreVu === "institutions" ? `<span>${IN.institutionsDe(e, iso).join(", ") || "aucune institution"}</span>` : "";
+  return `<span>${PV.REGIMES[g.regime].nom} · ${el}</span>${k}${x}`;
 }
 function clicPays(iso: string) {
   if (mode === "att" && etape !== 3) { paysRelation = paysRelation === iso ? null : iso; rafraichirCarte(); return; }
@@ -385,12 +437,44 @@ function cabinet() {
 }
 // 2. Briefing de début d'année : crise de tension et appels aux armes. Les événements automatiques tombent en fin d'année (bilan).
 function evenements() {
-  const rien = !e.crise && !(e.appels ?? []).some(a => a.camp === joueur() && !a.reponse);
-  const f = fenetre(`<h1>${e.annee} : le briefing de janvier</h1><p class="v2-intro">L'année commence. Les événements automatiques tomberont au fil des mois : tu les découvriras <b>en fin d'année, avec le bilan</b>, après avoir joué tes cartes et tes opérations.</p>${blocCrise()}${blocAppels()}${rien ? `<p class="v2-vide">Aucune crise à trancher ce mois-ci.</p>` : ""}
+  const rien = !e.crise && !(e.appels ?? []).some(a => a.camp === joueur() && !a.reponse) && !PV.anneeElectionCamp(e, joueur());
+  const f = fenetre(`<h1>${e.annee} : le briefing de janvier</h1><p class="v2-intro">L'année commence. Les événements automatiques tomberont au fil des mois : tu les découvriras <b>en fin d'année, avec le bilan</b>, après avoir joué tes cartes et tes opérations.</p>${blocCampagne()}${blocCrise()}${blocAppels()}${rien ? `<p class="v2-vide">Aucune crise à trancher ce mois-ci.</p>` : ""}${blocPolitique()}
     <div class="v2-pied"><span class="v2-etat"></span><button class="v2-ok v2-prim">Voir ma main de cartes →</button></div>`, true);
   $(".v2-ok", f).onclick = () => { M.distribuerMains(e); aller(2); };
-  brancherCrise(f);
+  brancherCrise(f); brancherCampagne(f);
   conseil("interieur", "Personne ne sait ce que l'année nous réserve. Joue tes cartes et tes opérations : on fera les comptes en décembre.");
+}
+// Ta campagne (présidentielle ou congrès du Parti) : 3 thèmes, chance de maintien affichée (choix de l'utilisateur, 2 novembre 2026).
+function blocCampagne() {
+  const j = joueur(); if (!PV.anneeElectionCamp(e, j)) return "";
+  const lim = PV.limiteAtteinte(e, j), choisi = e.campagne?.[j]?.theme, pct = (t?: string) => Math.round(PV.chanceMaintien(e, j, t) * 100);
+  const titre = j === "OCC" ? `Présidentielle de novembre ${e.annee}` : `Congrès du Parti, automne ${e.annee}`;
+  const enjeu = j === "OCC" ? (lim ? `${esc(e.dirigeants[j].nom)} a fait ses deux mandats : un successeur de son camp se présente. Perdre, c'est l'alternance.` : `${esc(e.dirigeants[j].nom)} se représente. Perdre, c'est l'alternance : nouveau dirigeant, nouveau cabinet, alliés qui doutent.`)
+    : (lim ? `${esc(e.dirigeants[j].nom)} achève ses deux mandats : le congrès désigne un successeur. Une autre faction peut l'emporter.` : `Le congrès doit reconduire ${esc(e.dirigeants[j].nom)}. Une faction rivale peut prendre la tête du Parti.`);
+  return `<section class="v2-crise v2-campagne"><div class="v2-crise-tete"><span class="v2-crise-badge">Carte de campagne</span><small>chance de garder le pouvoir sans thème : ${pct()} % (stabilité, croissance${j === "OCC" ? ", prime au sortant" : ""})</small></div>
+    <h2>${titre}</h2><p>${enjeu} Choisis le thème de campagne : il décale la chance selon la situation du moment.</p>
+    <div class="v2-crise-choix">${PV.THEMES[j].map(t => `<button class="v2-crise-btn apaiser ${choisi === t.id ? "choisi" : ""}" data-theme="${t.id}" title="${esc(t.aide)}"><b>${esc(t.nom)} · ${pct(t.id)} %</b><small>${esc(t.aide)}</small></button>`).join("")}</div>
+    <p class="v2-crise-regle">Le résultat tombe en fin d'année, avec le bilan.</p></section>`;
+}
+function brancherCampagne(f: HTMLElement) {
+  const j = joueur(); if (!PV.anneeElectionCamp(e, j)) return;
+  f.querySelectorAll<HTMLButtonElement>("[data-theme]").forEach(b => b.onclick = () => { PV.choisirCampagne(e, j, b.dataset.theme!); f.querySelectorAll("[data-theme]").forEach(x => x.classList.toggle("choisi", x === b)); SON.jouer("clic", 0.3); });
+  const ok = $(".v2-ok", f) as HTMLButtonElement, suite = ok.onclick;
+  ok.onclick = ev => { if (!e.campagne?.[j]) { $(".v2-etat", f).textContent = "Choisis d'abord ton thème de campagne."; return; } suite?.call(ok, ev); };
+}
+// Calendrier politique de l'année : scrutins des pays qui comptent, pays au bord du gouffre.
+function blocPolitique() {
+  const j = joueur(), l = Object.values(e.pays), g = (iso: string) => e.gouv?.[iso];
+  const lourds = new Set(l.slice().sort((a, b) => b.poids - a.poids).slice(0, 30).map(p => p.iso));
+  const scrutins = l.filter(p => g(p.iso)?.prochaine === e.annee && p.iso !== M.LEADER.OCC && p.iso !== M.LEADER.CHN && (lourds.has(p.iso) || e.ops.some(o => o.camp === j && o.pays === p.iso)) && g(p.iso)!.regime !== "parti")
+    .sort((a, b) => b.poids - a.poids).slice(0, 8);
+  const fragiles = l.filter(p => p.stabilite < 20 && g(p.iso) && g(p.iso)!.regime !== "parlementaire").sort((a, b) => a.stabilite - b.stabilite).slice(0, 6);
+  const moi = g(M.LEADER[j]), prochaine = moi?.prochaine && moi.prochaine > e.annee ? `Ton prochain ${j === "OCC" ? "scrutin" : "congrès"} : ${moi.prochaine}.` : "";
+  if (!scrutins.length && !fragiles.length && !prochaine) return "";
+  return `<section class="v2-politique"><h3>Calendrier politique ${e.annee}</h3>
+    ${scrutins.length ? `<p><b>Élections cette année :</b> ${scrutins.map(p => `${esc(p.nom)} <small>(${Math.round(PV.sondage(e, p.iso, j) * 100)} % pour toi)</small>`).join(", ")}. Une opération « Influencer le gouvernement » peut encore peser.</p>` : ""}
+    ${fragiles.length ? `<p><b>Au bord du gouffre :</b> ${fragiles.map(p => `${esc(p.nom)} <small>(stabilité ${Math.round(p.stabilite)})</small>`).join(", ")} : coup d'État ou révolution possibles.</p>` : ""}
+    ${prochaine ? `<p class="v2-note">${prochaine}</p>` : ""}</section>`;
 }
 // Événements de l'année, trimestre par trimestre, montrés au bilan.
 const IMG_EV = new Map<string, string | undefined>();
@@ -503,6 +587,11 @@ function operations() {
   panneauOperations();
   conseil("international", "Glisse un jeton sur une zone, ou clique-la, pour voir les opérations utiles. Si tu veux, je te propose une répartition toute faite.");
 }
+// « Influencer le gouvernement » : campagne s'il y a un scrutin dans les 3 ans (sondage), sinon voie du coup d'État.
+function aideGouvernement(iso: string) {
+  const v = PV.voieGouvernement(e, iso);
+  return v.voie === "election" ? `${v.texte} Sondage : ${Math.round(PV.sondage(e, iso, joueur()) * 100)} % de chances qu'il en sorte un gouvernement proche de toi.` : v.texte;
+}
 function panneauOperations() {
   const p = $(".v2-panneau"), j = joueur(), libres = M.pointsLibres(e, j), budget = e.budget[j] - e.boostsUtilises[j];
   const plan = e.ops.filter(o => o.camp === j && o.annee === e.annee);
@@ -521,7 +610,7 @@ function panneauOperations() {
         const cible = o.cible === "pays" || o.id === "armee" ? paysChoisi ?? undefined : undefined;
         const r = M.raisonBlocage(e, j, o.id, z, cible);
         const risque = o.cat === "secret" && cible ? M.risqueDemasque(e, { id: 0, camp: j, type: o.id, zone: z, pays: cible, points: 1, boost: 0, annee: e.annee }) : 0;
-        return `<button class="v2-op" data-op="${o.id}" ${r ? "disabled" : ""} title="${esc(o.aide)}"><span class="v2-op-ic">${o.icone}</span><span><b>${o.nom}</b><small>${r ? esc(r) : o.id === "armee" ? esc(aideArmee(j)) : esc(o.aide)}</small></span><span class="v2-op-cout">${risque ? `<i title="Risque d'être démasqué chaque année">${risque} %</i>` : ""}+${o.min ?? 1}</span></button>`;
+        return `<button class="v2-op" data-op="${o.id}" ${r ? "disabled" : ""} title="${esc(o.aide)}"><span class="v2-op-ic">${o.icone}</span><span><b>${o.nom}</b><small>${r ? esc(r) : o.id === "armee" ? esc(aideArmee(j)) : o.id === "gouvernement" && cible ? esc(aideGouvernement(cible)) : esc(o.aide)}</small></span><span class="v2-op-cout">${risque ? `<i title="Risque d'être démasqué chaque année">${risque} %</i>` : ""}+${o.min ?? 1}</span></button>`;
       }).join("")}</div>`).join("")}
     </div>`;
   })() : `<div class="v2-astuce"><b>Choisis une zone</b><p>Glisse un jeton sur la carte, ou clique une zone ou un pays. Les zones les plus lourdes pèsent le plus au décompte.</p></div>`;
@@ -736,8 +825,21 @@ function debutAnnee() {
 function anneeNouvelle() {
   const d = M.anneeSuivante(e);
   if (e.fin) return finPartie();
-  const suite = () => debutAnnee();
+  const alt = PV.alternanceJoueur(e);
+  const suite = () => (alt ? ecranAlternance(alt) : debutAnnee());
   if (d) ecranDecompte(d, suite); else suite();
+}
+// Changement de dirigeant de ton camp : on présente le nouveau dirigeant, puis il forme son cabinet (étape 0) avant le briefing.
+function ecranAlternance(a: PV.Alternance) {
+  a.vue = true;
+  const d = e.dirigeants[joueur()], titre = { alternance: "Alternance", succession: "Succession", coup: "Changement de direction" }[a.type];
+  const f = fenetre(`<h1>${titre} : ${esc(a.nouveau)} remplace ${esc(a.ancien)}</h1><p class="v2-intro">${esc(a.texte)}</p>
+    <div class="v2-camps"><div class="v2-camp seul" style="--c:${COUL[joueur()]}">${portraitHtml(d.illustre, "geant", d.nom)}<span class="v2-camp-nom">${esc(d.nom)}</span>
+      <span class="v2-traits">${d.traits.map(t => `<i title="${esc(TRAITS_DIRIGEANT[t].aide)}">${TRAITS_DIRIGEANT[t].nom}</i>`).join("")}</span>
+      <span class="v2-apts">${LISTE_APTITUDES.map(k => `<span><small>${APTITUDES[k].nom}</small><b>${d.aptitudes[k]}</b></span>`).join("")}</span></div></div>
+    <p class="v2-note">${a.type === "succession" ? "Même ligne politique : les alliés ne s'inquiètent pas." : `Les alliés doutent (attitude −${PV.POUVOIR.allies}) ; en échange, début de mandat : stabilité +${PV.POUVOIR.leaderStab} et +${PV.POUVOIR.grace} point d'opération cette année.`} Le nouveau dirigeant nomme son cabinet.</p>
+    <div class="v2-pied"><span></span><button class="v2-ok v2-prim">Former le nouveau cabinet →</button></div>`, true);
+  $(".v2-ok", f).onclick = () => aller(0);
 }
 const nomCamp = (c: Camp | null) => (c === "OCC" ? "l'Occident" : c === "CHN" ? "les BRICS" : "personne");
 function ecranDecompte(d: M.Decompte, suite: () => void) {
@@ -754,9 +856,9 @@ const histoDecomptes = () => (e.decomptes?.length ? `<table class="v2-histo"><tr
 function finPartie() {
   oublierPartie();
   const j = joueur(), g = M.progression(e), def = e.defaite;
-  const gagnant: Camp | null = def ? M.autre(def.camp) : g.tete, issue = gagnant === j ? "victoire" : gagnant ? "defaite" : "nul";
+  const tous = def?.camp === "tous", gagnant: Camp | null = def ? (tous ? null : M.autre(def.camp as Camp)) : g.tete, issue = tous ? "defaite" : gagnant === j ? "victoire" : gagnant ? "defaite" : "nul";
   const titre = issue === "victoire" ? "Victoire" : issue === "defaite" ? "Défaite" : "Match nul";
-  const f = fenetre(`<h1>${titre} · ${e.annee}</h1><p class="v2-intro">${def ? `Défaite ${nomCamp(def.camp) === "l'Occident" ? "de l'Occident" : "des BRICS"} : ${esc(def.raison)}.` : `Après ${e.annee - 1999} ans, ${gagnant ? `${nomCamp(gagnant)} l'emporte` : "aucun camp ne se détache"} : jauge finale ${sg(g.jauge)} (Occident ${sg(g.OCC)} %, BRICS ${sg(g.CHN)} %, handicap ${sg(g.komi)}).`}</p>
+  const f = fenetre(`<h1>${titre} · ${e.annee}</h1><p class="v2-intro">${def ? `Défaite ${tous ? "des deux camps" : nomCamp(def.camp as Camp) === "l'Occident" ? "de l'Occident" : "des BRICS"} : ${esc(def.raison)}.` : `Après ${e.annee - 1999} ans, ${gagnant ? `${nomCamp(gagnant)} l'emporte` : "aucun camp ne se détache"} : jauge finale ${sg(g.jauge)} (Occident ${sg(g.OCC)} %, BRICS ${sg(g.CHN)} %, handicap ${sg(g.komi)}).`}</p>
     ${histoDecomptes()}
     <div class="v2-pied"><span class="v2-etat">Graine de la partie : ${e.graine} (à rejouer avec ?graine=${e.graine}).</span><button class="v2-sec v2-carte-voir">Voir la carte</button><button class="v2-ok v2-prim">Nouvelle partie</button></div>`, true);
   SON.musique(issue === "defaite" ? "defaite" : "victoire"); if (issue !== "nul") SON.jouerJingle(issue === "victoire");

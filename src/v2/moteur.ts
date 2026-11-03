@@ -2,7 +2,7 @@
 // Tous les coefficients sont des estimations à calibrer par simulation (cible IA contre IA : 45 % Chine, 10 % nul, 45 % USA).
 import donnees from "../data/pays2000.json";
 import scores from "../data/scores2000.json";
-import { ALLIES_2000, SANCTIONNES_2000 } from "../data/geographie";
+import { ALLIES_2000, SANCTIONNES_2000, EXPOSITION } from "../data/geographie";
 import { creerPartie } from "../moteur/partie";
 import { femme } from "../moteur/pouvoir";
 import { CARTES_ERE1 } from "../contenu/cartes";
@@ -25,6 +25,9 @@ import * as RS from "./ressources";
 import * as EV from "./evolution";
 import * as MN from "./monnaie";
 import { effetsEco } from "./evenements-eco";
+import * as PV from "./pouvoir";
+import * as IN from "./institutions";
+import * as SO from "./societe";
 
 export type Camp = "OCC" | "CHN";
 export const autre = (c: Camp): Camp => (c === "OCC" ? "CHN" : "OCC");
@@ -47,12 +50,13 @@ export const PIB_NIVEAU = [-1.5, -1, -0.4, 0, 0.3, 0.6, 0.8];
 export const PART_DECOMPTE = [0, 0, 0, 0, 0.4, 0.7, 1];
 
 // ---------- Opérations ----------
-export type TypeOp = "influence" | "partenariat" | "developpement" | "infiltrer" | "gouvernement" | "saboter" | "reduire" | "eliminer" | "casusbelli" | "armee" | "exercice" | "armes" | "soutien" | "guerre";
+export type TypeOp = "influence" | "partenariat" | "developpement" | "transition" | "infiltrer" | "gouvernement" | "saboter" | "reduire" | "eliminer" | "casusbelli" | "armee" | "exercice" | "armes" | "soutien" | "guerre";
 export interface DefOp { id: TypeOp; nom: string; cat: "dev" | "secret" | "mil"; cible: "zone" | "pays" | "soi"; risque: number; icone: string; aide: string; min?: number }
 export const OPERATIONS: DefOp[] = [
   { id: "influence", nom: "Développer l'influence", cat: "dev", cible: "zone", risque: 0, icone: "📣", aide: "Fait monter l'attitude des pays de la zone envers ton camp (poids : population et stabilité)." },
   { id: "partenariat", nom: "Partenariat économique", cat: "dev", cible: "zone", risque: 0, icone: "🤝", aide: "Fait monter le fonctionnement économique avec ton camp (poids : PIB et ressources ; priorité aux pays qui ont ce qui manque à ton camp). Améliore ton contrôle des routes et ton accès aux ressources." },
   { id: "developpement", nom: "Développement du pays", cat: "dev", cible: "zone", risque: 0, icone: "🏗", aide: "1/3 économie (PIB), 1/3 militaire, 1/3 ressources (industrie et production). Chez un autre pays, il gagne aussi de l'attitude envers toi." },
+  { id: "transition", nom: "Transition climatique", cat: "dev", cible: "zone", risque: 0, icone: "🌱", aide: "Finance l'énergie bas-carbone et la dépollution dans la zone : moins d'émissions, air plus sain, attitude en hausse chez les pays exposés aux sécheresses et aux cyclones. Coûte un peu de croissance la première année." },
   { id: "infiltrer", nom: "Infiltrer le gouvernement", cat: "secret", cible: "pays", risque: 15, icone: "🕵", aide: "Bonus d'influence politique dans le pays ; révèle les points adverses de la zone." },
   { id: "gouvernement", nom: "Influencer le gouvernement", cat: "secret", cible: "pays", risque: 20, icone: "🗳", aide: "Pousse le gouvernement vers ton camp, jusqu'au coup d'État." },
   { id: "saboter", nom: "Saboter", cat: "secret", cible: "pays", risque: 25, icone: "💣", aide: "Réduit le PIB et la stabilité du pays, et abîme sa principale production (énergie, métaux…). Contre le leader adverse, c'est une attaque directe : la tension mondiale monte chaque année, et beaucoup plus si l'opération est démasquée." },
@@ -98,7 +102,10 @@ export interface EtatV2 {
   main: Record<Camp, CarteMain[]>; points: Record<Camp, number>; budget: Record<Camp, number>; boostsUtilises: Record<Camp, number>;
   militaire: Record<Camp, number>; tension: number; jauge: number;
   dirigeants: Record<Camp, Dirigeant>; candidats: Record<Camp, Record<Domaine, Conseiller[]>>; cabinet: Record<Camp, Partial<Record<Domaine, Conseiller>>>;
-  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; evenementsJoues?: number; nucleaire?: { hiver: number; frappes: Partial<Record<Camp, number>>; points?: Partial<Record<Camp, number>>; crise?: boolean; bio?: number }; defaite?: { camp: Camp; raison: string }; reparations?: { de: string; a: string; fin: number }[]; missions?: { a: string; b: string; fin: number }[]; griefs?: Record<string, number>; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  evenements: EvenementAnnee[]; journal: Ligne[]; imagesPrises: string[]; resolues?: number; decomptes?: Decompte[]; fin?: boolean; decompteDepart?: { OCC: number; CHN: number }; res?: RS.EtatRessources; crise?: CR.Crise; incidents?: CR.Incident[]; guerres?: CR.Guerre[]; appels?: CR.Appel[]; conflits?: EvenementAnnee[]; evenementsJoues?: number; nucleaire?: { hiver: number; frappes: Partial<Record<Camp, number>>; points?: Partial<Record<Camp, number>>; crise?: boolean; bio?: number }; defaite?: { camp: Camp | "tous"; raison: string }; reparations?: { de: string; a: string; fin: number }[]; missions?: { a: string; b: string; fin: number }[]; griefs?: Record<string, number>; pibDebutAnnee?: Record<string, number>; stabiliteDepart?: Record<string, number>; ressourcesDepart?: Record<string, number>; partEcoDepart?: Record<Camp, number>; revenu?: Record<Camp, number>; monnaie?: MN.EtatMonnaie; blocages?: { route: string; annee: number }[]; relationsDepart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>; faits?: string[]; zonesDepart?: Record<string, PartsZone>; zonesAnnee?: Record<string, PartsZone>; depart?: Record<string, { att: Record<Camp, number>; eco: Record<Camp, number> }>;
+  inst?: IN.EtatInst; soc?: Record<string, SO.Carac>; socDepart?: Record<string, SO.Carac>; socPrec?: Record<string, SO.Carac>; co2Annee?: Record<string, number>; climat?: SO.EtatClimat; migrations?: SO.Flux[]; transitions?: Record<string, number>; pression0?: Record<string, ReturnType<typeof SO.pressions>>;
+  pibDepart?: Record<string, number>; popDepart?: Record<string, number>; popDebutAnnee?: Record<string, number>; milDebutAnnee?: Record<string, number>;
+  gouv?: Record<string, PV.Gouv>; changements?: PV.Changement[]; campagne?: Partial<Record<Camp, PV.Campagne>>; alternances?: PV.Alternance[]; grace?: Partial<Record<Camp, number>>; nomsPris?: string[];
 }
 
 // Générateur pseudo-aléatoire de la partie (mulberry32) ; le code cosmétique de l'interface ne l'utilise jamais.
@@ -131,7 +138,7 @@ export function creerPartieV2(graine: number, joueur: Camp): EtatV2 {
       militaire: militaireDe(p.iso3), ressources: ressourcesDe(p.iso3), route: SUR_ROUTE.has(p.iso3), poids: 0,
       att: { OCC: attitudeDepart(a.influence.OCC), CHN: attitudeDepart(a.influence.CHN) },
       eco: { OCC: economieDepart(a.influence.OCC), CHN: economieDepart(a.influence.CHN) },
-      stabilite: a.stabilite, infiltre: { OCC: false, CHN: false }, casusBelli: { OCC: 0, CHN: 0 },
+      stabilite: PV.stabiliteDepart({ iso: p.iso3 }), infiltre: { OCC: false, CHN: false }, casusBelli: { OCC: 0, CHN: 0 },
     };
   }
   for (const c of ["OCC", "CHN"] as Camp[]) for (const iso of ALLIES_2000[c]) if (pays[iso]) { pays[iso].att[c] = Math.max(pays[iso].att[c], 75); pays[iso].eco[c] = Math.max(pays[iso].eco[c], 30); }
@@ -150,6 +157,8 @@ export function creerPartieV2(graine: number, joueur: Camp): EtatV2 {
   for (const d of Object.values(e.dirigeants)) if (d.illustre) e.imagesPrises.push(d.illustre);
   for (const c of ["OCC", "CHN"] as Camp[]) e.candidats[c] = tirerCandidats(e, c);
   RS.initialiser(e);
+  PV.initialiser(e);
+  SO.initialiser(e); IN.initialiser(e);
   e.relationsDepart = Object.fromEntries(Object.values(pays).map(p => [p.iso, { att: { ...p.att }, eco: { ...p.eco } }]));
   e.stabiliteDepart = Object.fromEntries(Object.values(pays).map(p => [p.iso, p.stabilite]));
   e.ressourcesDepart = Object.fromEntries(Object.values(pays).map(p => [p.iso, p.ressources]));
@@ -162,10 +171,18 @@ export function creerPartieV2(graine: number, joueur: Camp): EtatV2 {
 }
 
 // Poids d'un pays (total mondial = 100) : 40 % PIB, 20 % population, 15 % militaire, 15 % ressources, 10 % position sur une route.
-export function calculerPoids(pays: Record<string, PaysV2>) {
-  const l = Object.values(pays), s = (f: (p: PaysV2) => number) => l.reduce((a, p) => a + f(p), 0);
-  const tP = s(p => p.pib), tPop = s(p => p.population), tM = s(p => p.militaire), tR = s(p => p.ressources), tRoute = s(p => (p.route ? 1 : 0));
-  for (const p of l) p.poids = 100 * (0.4 * p.pib / tP + 0.2 * p.population / tPop + 0.15 * p.militaire / tM + 0.15 * p.ressources / tR + 0.1 * (p.route ? 1 : 0) / tRoute);
+// Poids d'un pays dans le décompte : toutes les familles de qualificatifs (règle du 25 octobre 2026, reprise le 3 novembre) :
+// économie 30 %, population 15 %, armée 12 %, ressources 12 %, routes 8 %, société (éducation, santé, technologie, infrastructures,
+// × √(population × PIB)) 15 %, environnement (qualité de l'air, de l'eau et de la terre × √(population × PIB)) 8 %. Répartition : estimation.
+export const POIDS_FAMILLES = { pib: 0.3, pop: 0.15, mil: 0.12, res: 0.12, route: 0.08, societe: 0.15, environnement: 0.08 };
+export function calculerPoids(pays: Record<string, PaysV2>, soc?: Record<string, SO.Carac>) {
+  const l = Object.values(pays), s = (f: (p: PaysV2) => number) => l.reduce((a, p) => a + f(p), 0), k = POIDS_FAMILLES;
+  const c = (p: PaysV2) => soc?.[p.iso] ?? SO.caracDepart(p.iso);
+  const masse = (p: PaysV2) => Math.sqrt(p.population * p.pib); // taille d'un pays : moyenne géométrique de sa population et de son économie
+  const socP = (p: PaysV2) => masse(p) * (c(p).educ + c(p).sante + c(p).tech + c(p).infra) / 400, envP = (p: PaysV2) => masse(p) * (c(p).air + c(p).eau + c(p).terre) / 300;
+  const tP = s(p => p.pib), tPop = s(p => p.population), tM = s(p => p.militaire), tR = s(p => p.ressources), tRoute = s(p => (p.route ? 1 : 0)), tS = s(socP), tE = s(envP);
+  for (const p of l) p.poids = 100 * (k.pib * p.pib / tP + k.pop * p.population / tPop + k.mil * p.militaire / tM + k.res * p.ressources / tR + k.route * (p.route ? 1 : 0) / tRoute
+    + k.societe * socP(p) / tS + k.environnement * envP(p) / tE);
 }
 
 // ---------- Conseillers (5 domaines, 3 candidats chacun) ----------
@@ -186,14 +203,14 @@ const PROFILS: Record<Domaine, [Modificateur, Modificateur][]> = {
   ],
   interieur: [
     [{ texte: "+5 % d'effet en développement", effet: { dev: 0.05 } }, { texte: "−5 % d'effet en influence", effet: { influence: -0.05 } }],
-    [{ texte: "+2 de stabilité chez toi", stabilite: 2 }, { texte: "−5 % d'effet en développement", effet: { dev: -0.05 } }],
-    [{ texte: "+1 point d'opération par an", points: 1 }, { texte: "−2 de stabilité chez toi", stabilite: -2 }],
+    [{ texte: "+2 de stabilité par an chez toi (au plus +10)", stabilite: 2 }, { texte: "−5 % d'effet en développement", effet: { dev: -0.05 } }],
+    [{ texte: "+1 point d'opération par an", points: 1 }, { texte: "−2 de stabilité par an chez toi (au plus −10)", stabilite: -2 }],
     [{ texte: "+5 % d'effet en développement", effet: { dev: 0.05 } }, { texte: "−1 unité de budget par an", budget: -1 }],
   ],
   economie: [
     [{ texte: "+1 unité de budget par an", budget: 1 }, { texte: "−5 % d'effet en influence", effet: { influence: -0.05 } }],
     [{ texte: "+5 % d'effet en partenariat", effet: { partenariat: 0.05 } }, { texte: "−5 % d'effet en développement", effet: { dev: -0.05 } }],
-    [{ texte: "+1 unité de budget par an", budget: 1 }, { texte: "−2 de stabilité chez toi", stabilite: -2 }],
+    [{ texte: "+1 unité de budget par an", budget: 1 }, { texte: "−2 de stabilité par an chez toi (au plus −10)", stabilite: -2 }],
     [{ texte: "+5 % d'effet en partenariat", effet: { partenariat: 0.05 } }, { texte: "+5 de risque d'être démasqué", risque: 5 }],
   ],
   defense: [
@@ -245,7 +262,7 @@ export function nomUniqueV2(e: EtatV2, camp: Camp, femme: boolean, pris: Set<str
   }
   throw new Error("plus de noms disponibles");
 }
-function tirerCandidats(e: EtatV2, camp: Camp): Record<Domaine, Conseiller[]> {
+export function tirerCandidats(e: EtatV2, camp: Camp): Record<Domaine, Conseiller[]> {
   const pris = new Set<string>([e.dirigeants.OCC.nom, e.dirigeants.CHN.nom]);
   const r = {} as Record<Domaine, Conseiller[]>;
   for (const d of DOMAINES) {
@@ -275,7 +292,7 @@ export function multEffet(e: EtatV2, camp: Camp, cle: "dev" | "secret" | "mil" |
 }
 export function bonusPoints(e: EtatV2, camp: Camp) {
   const d = e.dirigeants[camp], dip = d?.aptitudes?.diplomatie ?? 6;
-  return borne(mods(e, camp).reduce((s, m) => s + (m.points ?? 0), 0) + (dip >= 8 ? 1 : dip <= 3 ? -1 : 0), -1, 2);
+  return borne(mods(e, camp).reduce((s, m) => s + (m.points ?? 0), 0) + (dip >= 8 ? 1 : dip <= 3 ? -1 : 0) + PV.bonusGrace(e, camp), -1, 2);
 }
 export const bonusRisque = (e: EtatV2, camp: Camp) => mods(e, camp).reduce((s, m) => s + (m.risque ?? 0), 0) - 2 * ((e.dirigeants[camp]?.aptitudes?.intrigue ?? 6) - 6);
 export const bonusBudget = (e: EtatV2, camp: Camp) => mods(e, camp).reduce((s, m) => s + (m.budget ?? 0), 0);
@@ -314,6 +331,8 @@ export function appliquerEffets(e: EtatV2, effets: any[], campJ: Camp, source: s
       const v = f.valeur / 4; // échelle v2 : tension 0-10, qui retombe de 40 % par an (évolution.ts)
       e.tension = borne(e.tension + v, 0, 10);
       lignes.push({ texte: `Tension mondiale ${v > 0 ? "+" : ""}${v.toFixed(1)}`, signe: v > 0 ? -1 : 1 });
+    } else if (f.type === "co2") {
+      lignes.push(...SO.effetCo2(e, resoudrePays(e, f.pays, campJ), f.pourcent, f.duree ?? 8));
     } else if (f.type === "coupure") {
       lignes.push(...(f.fournisseur ? RS.couperPar(e, f.fournisseur, f.bien, f.camp) : RS.chantageCarte(e, campJ, f.bien)));
     } else if (["dette", "inflation", "reserves", "prime", "mondiales", "solde", "blocage"].includes(f.type)) {
@@ -454,6 +473,12 @@ export function propositionConseillers(e: EtatV2, camp: Camp): { type: TypeOp; z
   // Infiltration : le pays lourd où l'adversaire devance le plus ton camp.
   const cible = Object.values(e.pays).filter(p => p.iso !== LEADER.OCC && p.iso !== LEADER.CHN && p.att[adv] > p.att[camp] && p.att[camp] > -60).sort((a, b) => b.poids * (b.att[adv] - b.att[camp]) - a.poids * (a.att[adv] - a.att[camp]))[0];
   if (cible) ajouter("infiltrer", cible.zone, 2, `${cible.nom} penche vers ${NOM_CAMP[adv] === "BRICS" ? "les BRICS" : "l'Occident"} : l'infiltrer révèle aussi les points adverses de sa zone.`, cible.iso);
+  // Climat : au-delà de +1,6 °C, une part du budget va à la transition, dans la zone qui émet le plus.
+  const ecart = e.climat?.ecart ?? 0.8;
+  if (SO.SYSTEMES.climat && ecart >= 1.6) {
+    const z = ZONES.map(z => ({ z, em: z.pays.reduce((s, i) => s + SO.emissionsPays(e, e.pays[i]), 0) })).sort((a, b) => b.em - a.em)[0].z;
+    ajouter("transition", z.id, Math.max(1, Math.round(total * (ecart >= 2.2 ? 0.25 : 0.15))), `Réchauffement à +${ecart.toFixed(1).replace(".", ",")} °C : ${z.nom} émet le plus, chaque point y évite le plus de CO2.`);
+  }
   if (reste > 0) ajouter("developpement", ZONE_DE[LEADER[camp]], reste, "Le reste au développement chez toi : croissance et armée.");
   return plan;
 }
@@ -479,6 +504,7 @@ export function poidsDansZone(e: EtatV2, zone: string, type: TypeOp, camp?: Camp
   const f = (p: PaysV2) => type === "influence" ? Math.sqrt(p.population) * (0.5 + p.stabilite / 100)
     : type === "partenariat" ? (p.pib + 2e10 * p.ressources) * (camp && RS.BIENS.some(b => RS.role(e, p.iso, b.id) === "offre" && RS.bilan(e, camp, b.id).manque) ? EFFET.partenariatManque : 1)
     : type === "developpement" ? p.population / Math.max(1, p.pib / p.population) // besoins : PIB par habitant faible = poids fort
+    : type === "transition" ? p.pib * (1 - SO.carac(e, p.iso).propre / 100) + 1e9 // gros émetteurs : là où un euro évite le plus de CO2
     : p.militaire + 5;
   const t = l.reduce((s, p) => s + f(p), 0);
   return l.map(p => [p.iso, f(p) / t]);
@@ -505,12 +531,14 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
     const lignes: Ligne[] = [];
     const cibles = ciblesOp(o), avant = photo(e, cibles, o.camp);
     const eff = (iso: string) => 1 / COUT_NIVEAU[niveau(e.pays[iso].att[o.camp])]; // coût des opérations selon l'attitude (réduction plafonnée à −30 %)
-    if (o.type === "influence" || o.type === "partenariat" || o.type === "developpement" || o.type === "exercice") {
+    if (o.type === "influence" || o.type === "partenariat" || o.type === "developpement" || o.type === "exercice" || o.type === "transition") {
       for (const [iso, w] of poidsDansZone(e, o.zone, o.type, o.camp)) {
         const p = e.pays[iso];
-        if (o.type === "influence") p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.influence * m * w * eff(iso)));
-        if (o.type === "partenariat") p.eco[o.camp] = borne(p.eco[o.camp] + rendement(p.eco[o.camp], EFFET.partenariat * m * w * eff(iso)));
-        if (o.type === "developpement") { p.pib *= 1 + EFFET.devPib * m * w / 100 * 3; p.militaire = Math.min(100, p.militaire + EFFET.devMil * m * w); RS.ajusterSolde(e, iso, "industrie", EFFET.devRes * m * w); RS.ajusterSolde(e, iso, "alimentation", EFFET.devRes * m * w / 2); if (iso !== LEADER[o.camp]) p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.devAttitude * m * w * eff(iso) * 3)); }
+        if (o.type === "influence") p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.influence * m * w * eff(iso) * SO.multCulture(e, o.camp) * SO.multReligion(e, o.camp, iso)));
+        if (o.type === "transition") { const t = SO.CLIMAT.transition; (e.transitions ??= {})[iso] = (e.transitions[iso] ?? 0) + t.propre * m * w * 3; if (age === 0) p.pib *= 1 - t.coutPib * m * w * 3 / 100;
+          if (iso !== LEADER[o.camp] && (EXPOSITION.secheresse.includes(iso) || EXPOSITION.cyclone.includes(iso))) p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], t.attitude * m * w * 3 * eff(iso))); }
+        if (o.type === "partenariat") p.eco[o.camp] = borne(p.eco[o.camp] + rendement(p.eco[o.camp], EFFET.partenariat * m * w * eff(iso) * PV.efficaciteStab(p) * IN.multCommerce(e, o.camp, iso) * MN.multCommerce(e, o.camp))); // pays en crise : partenariats moins efficaces
+        if (o.type === "developpement") { p.pib *= 1 + EFFET.devPib * m * w * PV.efficaciteStab(p) / 100 * 3; p.militaire = Math.min(100, p.militaire + EFFET.devMil * m * w); RS.ajusterSolde(e, iso, "industrie", EFFET.devRes * m * w); RS.ajusterSolde(e, iso, "alimentation", EFFET.devRes * m * w / 2); if (iso !== LEADER[o.camp]) p.att[o.camp] = borne(p.att[o.camp] + rendement(p.att[o.camp], EFFET.devAttitude * m * w * eff(iso) * 3)); }
         if (o.type === "exercice" && niveau(p.att[o.camp]) <= 2) e.tension = borne(e.tension + EFFET.exerciceTension * m * w, 0, 10);
         if (o.type === "exercice") { if (niveau(p.att[o.camp]) >= 5) p.att[o.camp] = borne(p.att[o.camp] + EFFET.exercice * m / 2); else if (niveau(p.att[o.camp]) <= 2) p.att[o.camp] = borne(p.att[o.camp] - EFFET.exerciceHostile * m / 2); }
       }
@@ -556,6 +584,10 @@ export function resoudreAnnee(e: EtatV2): Revelation[] {
   CR.coutsGarants(e);
   e.conflits = CR.guerresAnnee(e); // guerres en cours : score, coûts, paix ou victoire
   EV.croissanceAnnee(e); // économie, ressources, routes, tendance de fond, stabilité et tension
+  e.evenements.push(...PV.politiqueAnnee(e)); // élections, congrès, coups d'État, révolutions (règles selon le régime)
+  e.evenements.push(...SO.evoluer(e)); // caractéristiques, pollution, climat, migrations (societe.ts)
+  e.evenements.push(...IN.institutionsAnnee(e)); // ONU, FMI, Banque mondiale, OMC, OMS, CPI, NDB, AIIB, OCS (institutions.ts)
+  e.evenements.sort((a, b) => a.trimestre - b.trimestre);
   e.resolues = (e.resolues ?? 0) + 1;
   return res;
 }
@@ -624,7 +656,7 @@ export function decompte(e: EtatV2) {
 // plus un handicap (komi) qui grandit avec les années jouées, pour qu'aucun camp ne soit favorisé par sa position de départ.
 // Calibrage (estimation, 200 parties IA contre IA sur 51 ans, 2000-2050, événements historiques, projetés et ruptures) : sans komi,
 // médiane +7,9 pour l'Occident, demi-largeur des 10 % centraux 0,76 ; komi −7,9 et nul à ±0,8 visent 45 / 10 / 45 (Occident / nul / BRICS).
-export const JAUGE = { komi: -11.08, nul: 0.6, annees: 51 }; // recalibré le 2 novembre 2026 après le champ de bataille en hexagones (guerres simulées sur le même moteur) : 200 parties IA, médiane +11,1 pour l'Occident, résultat 44,5 % / 10 % / 45,5 % (estimation)
+export const JAUGE = { komi: 5.09, nul: 0.6, annees: 51 }; // recalibré le 3 novembre 2026 (élections, société, climat, migrations, institutions, devises, décompte toutes familles) : 200 parties IA (graines 5000-5199), médiane brute −5,09 ; nul ±0,6 → 45,5 / 10 / 44,5 %
 // ---------- Enchaînement des années ----------
 // Décompte en fin d'année tous les 5 ans (2004, 2009 … 2049) et décompte final fin 2050.
 export const ANNEE_DEBUT = 2000, ANNEE_FIN = 2050;
@@ -637,8 +669,12 @@ export function revenuAnnee(e: EtatV2, c: Camp) {
 }
 // Conseillers : leur bonus ou malus de stabilité s'applique chaque année au pays leader.
 export function appliquerStabiliteCabinet(e: EtatV2) {
-  for (const c of ["OCC", "CHN"] as Camp[]) { const v = mods(e, c).reduce((s, m) => s + (m.stabilite ?? 0), 0); const p = e.pays[LEADER[c]]; p.stabilite = borne(p.stabilite + v, 0, 100); }
-} // budget versé chaque année (estimation) ; report plafonné à 2 ans
+  // Corrigé le 2 novembre 2026 : l'effet s'appliquait chaque année sans limite (−2/an faisait chuter la Chine de 62 à 3 en 2050).
+  // Il reste annuel mais plafonné à ±CABINET_STAB autour de la stabilité de départ du leader.
+  for (const c of ["OCC", "CHN"] as Camp[]) { const v = mods(e, c).reduce((s, m) => s + (m.stabilite ?? 0), 0); const p = e.pays[LEADER[c]], b = e.stabiliteDepart?.[p.iso] ?? 50;
+    if (v > 0 && p.stabilite < b + CABINET_STAB) p.stabilite = Math.min(p.stabilite + v, b + CABINET_STAB); else if (v < 0 && p.stabilite > b - CABINET_STAB) p.stabilite = Math.max(p.stabilite + v, b - CABINET_STAB); }
+}
+export const CABINET_STAB = 10; // budget versé chaque année (estimation) ; report plafonné à 2 ans
 export interface Decompte { annee: number; OCC: number; CHN: number; jauge: number; tete: Camp | null; final: boolean }
 export const estAnneeDecompte = (a: number) => a === ANNEE_FIN || (a - ANNEE_DEBUT) % 5 === 4;
 export function anneeSuivante(e: EtatV2): Decompte | null {

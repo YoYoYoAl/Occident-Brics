@@ -6,8 +6,11 @@ import voisins from "../data/voisins.json";
 import { CROISSANCE_PROJETEE } from "../data/croissance-projetee";
 import { type EtatV2, type Camp, type PaysV2, partPays, partContinue, tirer, borne, autre, LEADER, calculerPoids, appliquerEconomie, rivalite } from "./moteur";
 import { ROUTES } from "./zones";
+import * as PV from "./pouvoir";
 import * as RS from "./ressources";
 import * as MN from "./monnaie";
+import * as SO from "./societe";
+import * as IN from "./institutions";
 
 const TRAJ = (trajectoires as any).pays as Record<string, { pib: number[]; population: number[] }>;
 const VOISINS = voisins as Record<string, string[]>;
@@ -39,7 +42,7 @@ export function tendancePop(iso: string, annee: number): number {
 
 // ---------- Coefficients (estimation) ----------
 export const EVO = {
-  stabPib: 0.02, tensionPib: 0.05,            // PIB : (stabilité − 50) × 0,02 % ; −0,05 % par point de tension mondiale
+  stabPib: 0.02, tensionPib: 0.05,            // PIB : (stabilité − stabilité de 2000) × 0,02 %, plus le palier (pouvoir.ts) ; −0,05 % par point de tension mondiale
   emigration: 0.02,                           // population : −0,02 % par point de stabilité sous 30
   milPib: 0.4, milTension: 0.05,              // armée : suit l'économie relative ; course aux armements avec la tension
   stabCroissance: 0.3, stabRetour: 0.08, stabDerive: 1, // stabilité : récession = troubles ; retour lent vers son niveau de départ
@@ -87,7 +90,7 @@ export function croissanceAnnee(e: EtatV2) {
   const rt = effetsRoutes(e);
   for (const p of Object.values(e.pays)) {
     const inf = CAMPS.reduce((s, c) => s + partPays(p, c) * MN.effetInflationPib(e, c) * (p.iso === LEADER[c] ? 1 : 0.5), 0); // l'inflation d'un camp freine ses pays
-    const g = tendancePib(p.iso, e.annee) + rt[p.iso] + inf + EVO.stabPib * (p.stabilite - 50) - EVO.tensionPib * e.tension;
+    const g = tendancePib(p.iso, e.annee) + rt[p.iso] + inf + EVO.stabPib * (p.stabilite - (e.stabiliteDepart?.[p.iso] ?? 50)) + PV.pibPalier(p.stabilite) - PV.pibPalier(e.stabiliteDepart?.[p.iso] ?? 50) - EVO.tensionPib * e.tension + SO.bonusPib(e, p.iso) + IN.bonusPib(e, p.iso);
     p.pib *= 1 + g / 100;
   }
 }
@@ -116,7 +119,7 @@ export function evoluerFinAnnee(e: EtatV2) {
   // 2. Population, armée, stabilité.
   for (const p of l) {
     const g = crois(p), rel = Math.max(-10, Math.min(10, g - moy));
-    p.population *= 1 + (tendancePop(p.iso, e.annee) - (p.stabilite < 30 ? EVO.emigration * (30 - p.stabilite) : 0)) / 100;
+    p.population *= 1 + (tendancePop(p.iso, e.annee) + SO.bonusPop(e, p.iso) - (!SO.SYSTEMES.migrations && p.stabilite < 30 ? EVO.emigration * (30 - p.stabilite) : 0)) / 100; // émigration : flux d'origine vers destination dans societe.ts
     p.militaire = Math.max(0, Math.min(100, p.militaire + EVO.milPib * rel + EVO.milTension * e.tension));
     const base = e.stabiliteDepart?.[p.iso] ?? 50;
     p.stabilite = borne(p.stabilite + EVO.stabCroissance * Math.max(-3, Math.min(3, g - 2)) + EVO.stabRetour * (base - p.stabilite) + EVO.stabDerive * (tirer(e) * 2 - 1), 0, 100);
@@ -129,6 +132,6 @@ export function evoluerFinAnnee(e: EtatV2) {
   for (const p of l) p.ressources = (e.ressourcesDepart?.[p.iso] ?? p.ressources) * RS.facteurRessources(e, p.iso);
   e.tension = borne(e.tension * (1 - EVO.detente), 0, 10);
   e.blocages = (e.blocages ?? []).filter(b => b.annee > e.annee);
-  calculerPoids(e.pays);
+  calculerPoids(e.pays, e.soc);
   e.pibDebutAnnee = Object.fromEntries(l.map(p => [p.iso, p.pib]));
 }

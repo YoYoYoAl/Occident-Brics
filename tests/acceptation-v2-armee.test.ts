@@ -19,7 +19,7 @@ describe("Améliorer l'armée : pays du jeton", () => {
     const o = M.engager(e, "OCC", "armee", zoneDe(e, "POL"), 4, "POL"); expect(o.pays).toBe("POL");
     M.resoudreAnnee(e);
     expect(e.pays.POL.militaire).toBeGreaterThan(pol);
-    expect(e.militaire.OCC).toBe(camp); expect(e.pays.USA.militaire).toBe(usa);
+    expect(e.militaire.OCC).toBe(camp); expect(e.pays.USA.militaire).toBeCloseTo(usa, 0); // seul le lien infrastructures → armée (societe.ts) la fait bouger, de quelques millièmes
     expect(e.monnaie!.dette.OCC).toBeGreaterThan(d);
   });
   it("3. interdit sur le leader adverse, et le pays doit être dans la zone", () => {

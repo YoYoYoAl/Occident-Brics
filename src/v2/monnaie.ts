@@ -51,7 +51,7 @@ function normaliser(w: EtatMonnaie["mondiales"]) {
 }
 const MN = (e: EtatV2) => { if (!e.monnaie) initialiser(e); return e.monnaie!; };
 export const partOccidentale = (e: EtatV2) => { const m = MN(e).mondiales; return m.dollar + m.euro + m.autresOcc; };
-const partMonnaie = (e: EtatV2, c: Camp) => (c === "OCC" ? partOccidentale(e) : MN(e).mondiales.brics);
+export const partMonnaie = (e: EtatV2, c: Camp) => (c === "OCC" ? partOccidentale(e) : MN(e).mondiales.brics);
 export function taux(e: EtatV2, c: Camp) {
   const m = MN(e);
   return Math.max(0.5, MON.tauxBase + MON.tauxDette * Math.max(0, m.dette[c] - 60) + 0.5 * Math.max(0, m.inflation[c] - 2) + m.prime[c] - MON.privilege * Math.max(0, partMonnaie(e, c) - 0.25));
@@ -99,6 +99,12 @@ export function monnaieIA(e: EtatV2, c: Camp) {
 export const amortisseur = (e: EtatV2, c: Camp) => Math.min(0.5, MN(e).reserves[c].stock / MON.amortisseur);
 // Effet de l'inflation sur le PIB (en %, négatif) : appliqué à tous les pays du camp selon leur alignement.
 export const effetInflationPib = (e: EtatV2, c: Camp) => -MON.inflationPib * Math.max(0, MN(e).inflation[c] - 4);
+
+// Devises et commerce (demande du 3 novembre 2026) : plus la monnaie d'un camp sert aux règlements et aux réserves mondiales,
+// moins ses échanges coûtent (pas de change, pas de risque de sanction sur le règlement). Compté depuis 2000 : multiplicateur des
+// partenariats = 1 + 0,5 × (part actuelle − part de 2000), entre 0,85 et 1,15 (estimation).
+export const PART_2000 = { OCC: 0.86, CHN: 0.01 };
+export const multCommerce = (e: EtatV2, c: Camp) => (e.monnaie ? Math.max(0.85, Math.min(1.15, 1 + 0.5 * (partMonnaie(e, c) - PART_2000[c]))) : 1);
 
 // ---------- Fin d'année ----------
 export function finAnnee(e: EtatV2, croissance: Record<Camp, number>): { titre: string; texte: string; pays: string }[] {

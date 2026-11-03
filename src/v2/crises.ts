@@ -74,7 +74,7 @@ function choisir(e: EtatV2, p: Record<Reponse, number>): Reponse { const x = M.t
 
 // Tirage de la crise de l'année (au plus une), dans un foyer ouvert à ce cran de tension. force : maquette d'une année.
 export function tirerCrise(e: EtatV2, force = false): Crise | undefined {
-  e.crise = undefined;
+  delete e.crise; // delete plutôt que undefined : même ordre des clés après une sauvegarde JSON (test de reprise)
   if (!force && M.tirer(e) >= probaCrise(e.tension)) return undefined;
   const cran = M.cranV2(e), ouverts = FOYERS.filter(f => f.cranMin <= cran && (f.de ?? 0) <= e.annee && f.pays.every(i => e.pays[i]));
   if (!ouverts.length) return undefined;

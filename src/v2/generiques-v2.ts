@@ -9,6 +9,9 @@ import { CONTEXTES, VILLES, enPays, duPays, lePays } from "../contenu/contextes"
 import { EXPOSITION, NON_DEMOCRATIES_2000 } from "../data/geographie";
 import { type EtatV2, tirer, LEADER, partPays } from "./moteur";
 import * as RS from "./ressources";
+import * as SO from "./societe";
+// Familles climatiques : leur fréquence croît avec le réchauffement (× 1 + 0,5 par degré au-dessus de +1 °C).
+const CLIMATIQUES = new Set(["cyclone", "inondation", "tempete", "mega_incendie", "secheresse", "canicule", "record_climatique", "famine"]);
 
 export const GEN = { debut: 2036, cibleMin: 10, cibleMax: 12, amortiTension: 0.3, amortiStab: 0.4 };
 const GRAVITES: [number, number, string][] = [[0.5, 0.35, "mineur"], [1, 0.35, "modéré"], [1.5, 0.15, "sérieux"], [2, 0.1, "grave"], [3, 0.05, "majeur"]];
@@ -35,7 +38,7 @@ export function generiquesAnnee(e: EtatV2, dejaPris: number): EvenementHistoriqu
   const cible = GEN.cibleMin + Math.floor(tirer(e) * (GEN.cibleMax - GEN.cibleMin + 1)), n = Math.max(0, cible - dejaPris);
   const out: EvenementHistorique[] = [], touches = new Set<string>(), isos = Object.keys(e.pays);
   for (let k = 0; k < n; k++) {
-    const f = choisir(e, FAMILLES.filter(x => !x.monde), x => x.taux), m = MODELES_LOT1.find(x => x.famille === f.id);
+    const f = choisir(e, FAMILLES.filter(x => !x.monde), x => x.taux * (CLIMATIQUES.has(x.id) ? SO.multiplicateurClimat(e) : 1)), m = MODELES_LOT1.find(x => x.famille === f.id);
     if (!m) continue;
     const libres = isos.filter(i => !touches.has(i)), iso = choisir(e, libres, i => poids(e, m.risque as string[], i)); touches.add(iso);
     const [g, , nomG] = choisir(e, GRAVITES, x => x[1]), nom = e.pays[iso].nom, villes = VILLES[iso] ?? [nom], ville = villes[Math.floor(tirer(e) * villes.length)];
