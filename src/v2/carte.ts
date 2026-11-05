@@ -24,6 +24,7 @@ export interface CarteV2 {
   etiquettes(f: (zone: string) => string): void; // HTML de chaque étiquette de zone
   routes(f: ((id: string) => { couleur: string | null; occ: number; chn: number; info: string } | null) | null): void; // contrôle de chaque route (0-100), ou null pour les cacher
   zoneSous(x: number, y: number): string | null;
+  paysSous(x: number, y: number): string | null; // pays du jeu sous le pointeur (dépôt d'un jeton)
   centrerSur(zone: string | null): void;
   marges(m: { g: number; d: number; h: number; b: number }): void; // place prise par les panneaux, en pixels
 }
@@ -135,6 +136,10 @@ export function dessinerCarteV2(conteneur: HTMLElement, idsJeu: Map<string, stri
         const titre = el("title"); titre.textContent = `${r.nom} : ${x.info}`;
         g.append(t, k, titre); gRoutes.appendChild(g);
       }
+    },
+    paysSous(x, y) {
+      const n = document.elementsFromPoint(x, y).find(e => (e as HTMLElement).dataset?.iso) as HTMLElement | undefined;
+      return n?.dataset.iso && ZONE_DE[n.dataset.iso] ? n.dataset.iso : null;
     },
     zoneSous(x, y) {
       const n = document.elementsFromPoint(x, y).find(e => (e as HTMLElement).dataset?.iso || (e as HTMLElement).dataset?.zone) as HTMLElement | undefined;

@@ -17,7 +17,7 @@ describe("Images des événements", () => {
     expect(ev.filter(i => !ids.has(i))).toEqual([]);
     expect(ev.length).toBeGreaterThanOrEqual(450);
   });
-  it("2. sur une partie complète, au moins 70 % des événements ont une image, jamais deux fois la même la même année", () => {
+  it("2. sur une partie complète, au moins 85 % des événements ont une image, jamais deux fois la même la même année", () => {
     const e = M.creerPartieV2(3, null as any), pris = new Set<string>(); let total = 0, avec = 0;
     for (let k = 0; k < 51 && !e.defaite; k++) {
       anneeIA(e); const cetteAnnee = new Set<string | undefined>();
@@ -26,7 +26,7 @@ describe("Images des événements", () => {
     }
     if (process.env.DBG) console.log(Object.entries((globalThis as any).m).sort((a: any, b: any) => b[1] - a[1]).slice(0, 30));
     console.log(`événements : ${total}, avec image : ${avec} (${Math.round(avec / total * 100)} %)`);
-    expect(avec / total).toBeGreaterThan(0.7); // 75 % : élections et coups de force (environ 8 par an) manquent encore d'images variées (lot ob_18)
+    expect(avec / total).toBeGreaterThan(0.85); // 89 % avec le lot ob_18 (6 scènes d'élection, 4 de coup de force, 2 de révolution)
   }, 60_000);
   it("3. une scène dédiée ne sert qu'une fois par partie", () => {
     const c = IE.imagesCandidates("h_afghanistan", dispo); expect(c[0]).toBe("ev_h_afghanistan");

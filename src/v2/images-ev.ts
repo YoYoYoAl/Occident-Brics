@@ -4,12 +4,12 @@ import * as M from "./moteur";
 export const FAMILLE_EV: Record<string, string> = Object.fromEntries(M.HISTORIQUES_V2.map(h => [h.id, (h as { famille?: string }).famille ?? ""]));
 // Plusieurs images proches par type : il y a environ 5 élections et 3 coups de force par an dans le monde.
 export const PAR_TYPE: [RegExp, string[]][] = [
-  [/^pol_(reelection|alternance|camp|transition|succession)/, ["election_rupture", "poussee_ideologique", "manifestations", "reconciliation", "sommet_reconciliation"]],
-  [/^pol_coup/, ["coup_etat", "repression", "guerre_civile", "assassinat_dirigeant"]], [/^pol_revolution/, ["revolution", "manifestations", "repression"]], [/^pol_recul/, ["repression", "scandale_dirigeant"]],
+  [/^pol_(reelection|alternance|camp|transition|succession)/, ["pol_election_1", "pol_election_2", "pol_election_3", "pol_election_4", "pol_election_5", "pol_election_6", "election_rupture", "poussee_ideologique"]],
+  [/^pol_coup/, ["pol_coup_1", "pol_coup_2", "pol_coup_3", "pol_coup_4", "coup_etat", "repression"]], [/^pol_revolution/, ["pol_revolution_1", "pol_revolution_2", "revolution", "manifestations_2"]], [/^pol_recul/, ["repression", "scandale_dirigeant"]],
   [/^sauvetage/, ["defaut_souverain", "hyperinflation", "recession_mondiale", "krach_boursier", "bulle_immobiliere"]], [/^decouverte/, ["gisement_geant"]], [/^exode/, ["crise_migratoire", "secheresse"]],
   [/^chantage_alimentation/, ["famine", "secheresse"]], [/^chantage/, ["sanctions_embargo", "blocage_detroit", "guerre_commerciale"]],
   [/^(omc|ndb|aiib|ocs)/, ["accord_commercial", "traite_majeur", "sommet_reconciliation"]], [/^cpi/, ["traite_majeur", "massacre_memorial"]], [/^climat/, ["record_climatique", "alerte_environnementale", "canicule"]],
-  [/^incident/, ["incident_militaire", "conflit_frontalier"]], [/^gen_(.+)$/, ["$1"]]];
+  [/^incident/, ["incident_militaire", "conflit_frontalier"]], [/^gen_manifestations/, ["manifestations", "manifestations_2"]], [/^gen_(.+)$/, ["$1"]]];
 const hache = (t: string) => [...t].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 export function imagesCandidates(id: string, dispo: (n: string) => boolean, propres: Record<string, string> = {}): string[] {
   const l: string[] = [`ev_${id}`]; if (propres[id]) l.push(propres[id]);

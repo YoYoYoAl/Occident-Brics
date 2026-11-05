@@ -160,8 +160,10 @@ function squelette() {
   zc.addEventListener("drop", ev => {
     ev.preventDefault(); const z = carte.zoneSous(ev.clientX, ev.clientY);
     if (!z || etape !== 3) return;
-    if (!M.raisonBlocage(e, joueur(), "influence", z)) M.engager(e, joueur(), "influence", z, 1);
+    const iso = carte.paysSous(ev.clientX, ev.clientY);
+    if (iso) { paysChoisi = iso; carte.choisirPays(iso); }
     choisirZone(z);
+    menuDepot(ev.clientX, ev.clientY, z, iso); // retour du 5 novembre 2026 : les actions possibles s'affichent à côté du jeton posé
   });
 }
 
@@ -585,6 +587,36 @@ function cartes() {
   };
   maj();
   conseil("economie", "Les cartes adverses rapportent 3 ou 4 points, mais leur événement aide l'autre camp. À toi de peser : un bon événement, ou beaucoup de points.");
+}
+// Menu de dépôt (retour du 5 novembre 2026) : le jeton reste à l'endroit du dépôt et les actions possibles s'affichent juste à côté.
+// Un clic sur une action l'engage (son minimum de points, ciblée sur le pays visé) ; Échap ou un clic ailleurs annule.
+function menuDepot(x: number, y: number, z: string, iso: string | null) {
+  document.querySelector(".v2-depot")?.remove();
+  const j = joueur(), libres = M.pointsLibres(e, j);
+  const ops = M.OPERATIONS.map(o => { const cible = o.cible === "pays" || o.id === "armee" ? iso ?? undefined : undefined; return { o, cible, r: M.raisonBlocage(e, j, o.id, z, cible) }; })
+    .filter(x => x.o.cible !== "pays" || iso); // une opération qui vise un pays n'apparaît que si le jeton est posé sur un pays
+  const ok = ops.filter(x => !x.r), bloquees = ops.filter(x => x.r);
+  const m = document.createElement("div"); m.className = "v2-depot";
+  m.innerHTML = `<span class="v2-jeton v2-depot-jeton" style="--c:${COUL[j]}"></span><div class="v2-depot-menu" style="--z:${zone(z).couleur}">
+    <div class="v2-depot-tete"><b>${iso ? esc(e.pays[iso].nom) : zone(z).nom}</b><small>${iso ? zone(z).nom + " · " : ""}${libres} point${libres > 1 ? "s" : ""} libre${libres > 1 ? "s" : ""}</small></div>
+    ${([["dev", "Développement"], ["secret", "Secret"], ["mil", "Militaire"]] as const).map(([c, nom]) => { const l = ok.filter(x => x.o.cat === c); return l.length ? `<h5>${nom}</h5>${l.map(x => `<button data-op="${x.o.id}" title="${esc(x.o.aide)}"><span class="v2-op-ic">${x.o.icone}</span><span>${x.o.nom}${(x.o.min ?? 1) > 1 ? ` <small>${x.o.min} pts</small>` : ""}</span></button>`).join("")}` : ""; }).join("") || `<p class="v2-vide">Aucune action possible ici.</p>`}
+    ${bloquees.length ? `<details><summary>${bloquees.length} action${bloquees.length > 1 ? "s" : ""} impossible${bloquees.length > 1 ? "s" : ""}</summary>${bloquees.map(x => `<p><span class="v2-op-ic">${x.o.icone}</span><b>${x.o.nom}</b> : ${esc(x.r!)}</p>`).join("")}</details>` : ""}
+    <button class="v2-depot-annuler">Annuler</button></div>`;
+  document.body.appendChild(m);
+  const menu = m.querySelector<HTMLElement>(".v2-depot-menu")!, r = menu.getBoundingClientRect();
+  const gauche = x + 24 + r.width > innerWidth - 8 ? x - 24 - r.width : x + 24, haut = Math.max(8, Math.min(y - 30, innerHeight - r.height - 8));
+  m.style.left = `${x}px`; m.style.top = `${y}px`; menu.style.left = `${gauche - x}px`; menu.style.top = `${haut - y}px`;
+  const fermer = () => { m.remove(); document.removeEventListener("keydown", touche); document.removeEventListener("pointerdown", dehors, true); };
+  const touche = (ev: KeyboardEvent) => { if (ev.key === "Escape") fermer(); };
+  const dehors = (ev: PointerEvent) => { if (!m.contains(ev.target as Node)) fermer(); };
+  document.addEventListener("keydown", touche); setTimeout(() => document.addEventListener("pointerdown", dehors, true));
+  m.querySelector<HTMLButtonElement>(".v2-depot-annuler")!.onclick = fermer;
+  m.querySelectorAll<HTMLButtonElement>("[data-op]").forEach(b => b.onclick = () => {
+    const x = ok.find(k => k.o.id === b.dataset.op)!, t = x.o.id;
+    const existe = e.ops.find(o => o.camp === j && o.annee === e.annee && o.type === t && o.zone === z && (x.o.cible !== "pays" && t !== "armee" || o.pays === (t === "armee" ? x.cible ?? M.LEADER[j] : x.cible)));
+    if (existe) existe.points++; else M.engager(e, j, t, z, x.o.min ?? 1, x.cible);
+    fermer(); SON.jouer("action"); panneauOperations(); compteurs(); rafraichirCarte();
+  });
 }
 // 4. Opérations : poser ses points sur les zones (glisser un jeton ou cliquer une zone).
 function operations() {
