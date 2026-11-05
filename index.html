@@ -8,30 +8,47 @@
 </head>
 <body>
   <header class="barre">
-    <div class="titre">Occident vs BRICS <span class="version">v0.1</span></div>
-    <div class="date"><strong id="date">2000 T1</strong> <span id="ere"></span></div>
+    <div class="titre">Occident <span>vs</span> BRICS <span class="version" hidden><span id="format"></span> · <span id="periode"></span></span></div>
+    <div class="date"><strong id="date">2000 T1</strong> <span id="camp"></span></div>
+    <div class="jauges" id="jauges"></div>
     <div class="controles">
-      <button id="btnLecture" title="Lecture / pause (espace)">▶</button>
-      <button id="btnPas" title="Avancer d'un trimestre">+1 trimestre</button>
-      <select id="vitesse" title="Vitesse">
-        <option value="1500">Vitesse 1</option><option value="700">Vitesse 2</option><option value="250">Vitesse 3</option>
-      </select>
-      <select id="indicateur" title="Couleur de la carte">
-        <option value="population">Carte : population</option>
-        <option value="pib">Carte : PIB 2000</option>
-        <option value="co2ParHab">Carte : CO2 par habitant 2000</option>
-      </select>
-      <button id="btnSauver">Sauver</button>
-      <button id="btnCharger">Charger</button>
-      <button id="btnExporter" title="Télécharger la sauvegarde">Exporter</button>
-      <label class="bouton" title="Charger un fichier de sauvegarde">Importer<input id="fichier" type="file" accept=".json" hidden></label>
-      <button id="btnNouvelle">Nouvelle partie</button>
+      <button id="btnFin" class="principal" title="Terminer le trimestre (Entrée)">Fin du trimestre</button>
+      <details class="menu" id="menu"><summary>☰ Menu</summary>
+        <div class="menu-liste">
+          <h4>Consulter</h4>
+          <div class="menu-ligne"><button data-onglet="score">Score</button><button data-onglet="journal">Journal</button><button id="btnAide" title="Règles du jeu (touche ?)">Règles</button></div>
+          <h4>Carte</h4>
+          <select id="vue" title="Couleur de la carte">
+            <option value="alignement">Couleur : alignement</option>
+            <option value="militaire">Couleur : présence militaire</option>
+            <option value="population">Couleur : population</option>
+            <option value="pib">Couleur : PIB</option>
+            <option value="stabilite">Couleur : stabilité</option>
+            <option value="environnement">Couleur : environnement local</option>
+            <option value="commerce">Couleur : complémentarité commerciale</option>
+          </select>
+          <div class="menu-ligne couches">
+            <button data-option="noms">Noms</button><button data-option="influence">Influence</button><button data-option="categories">Catégories</button><button data-option="sigles">Sigles</button>
+            <button data-option="maritime">⚓ Maritime</button><button data-option="terrestre">🛤 Terrestre</button><button data-option="aerien">✈ Aérien</button><button data-option="legende">Légende</button>
+          </div>
+          <h4>Partie</h4>
+          <div class="menu-ligne"><button id="btnSauver">Sauver</button><button id="btnCharger">Charger</button><button id="btnExporter">Exporter</button><label class="bouton">Importer<input id="fichier" type="file" accept=".json" hidden></label><button id="btnNouvelle">Nouvelle partie</button></div>
+          <h4>Affichage et son</h4>
+          <div class="menu-ligne"><button id="btnSon">🔊 Son</button><button id="btnMusique">♪ Musique</button><button id="btnPanneau">◧ Panneau</button><button id="btnPleinEcran">⛶ Plein écran</button></div>
+        </div>
+      </details>
     </div>
   </header>
   <main>
-    <div id="carte" class="carte" aria-label="Carte du monde"></div>
-    <aside id="fiche" class="fiche"><p class="aide">Clique sur un pays en couleur pour ouvrir sa fiche. Les 50 pays de la v0.1 sont colorés ; les autres sont en gris.</p></aside>
+    <div class="zone-carte">
+      <div id="carte" class="carte" aria-label="Carte du monde"></div>
+    </div>
+    <aside class="panneau">
+      <nav class="phases" id="phases" aria-label="Déroulé du trimestre"></nav>
+      <section id="contenu" class="contenu"></section>
+    </aside>
   </main>
+  <div id="fenetre" class="fenetre" hidden><div class="boite" id="boite" role="dialog" aria-modal="true"></div></div>
   <div id="message" class="message" role="status"></div>
   <script type="module" src="/src/interface/main.ts"></script>
 </body>

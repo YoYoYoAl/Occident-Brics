@@ -10,17 +10,17 @@ import { FAMILLES } from "../src/data/attributs";
 const jouer = (e: EtatJeu, n: number) => { for (let i = 0; i < n; i++) e = avancer(e); return e; };
 
 describe("M1 Données de départ", () => {
-  it("contient 50 pays distincts, tous présents sur la carte", () => {
-    expect(donnees.pays).toHaveLength(50);
-    expect(new Set(donnees.pays.map(p => p.iso3)).size).toBe(50);
+  it("contient 194 pays distincts (les 50 du jeu, puis les autres membres de l'ONU), tous présents sur la carte sauf Tuvalu", () => {
+    expect(donnees.pays).toHaveLength(194);
+    expect(new Set(donnees.pays.map(p => p.iso3)).size).toBe(194);
     const ids = new Set((monde as any).objects.countries.geometries.map((g: any) => g.id));
-    expect(donnees.pays.filter(p => !ids.has(p.idCarte)).map(p => p.iso3)).toEqual([]);
+    expect(donnees.pays.filter(p => !ids.has(p.idCarte)).map(p => p.iso3)).toEqual(["TUV"]); // absent de la carte 1:50m
   });
   it("n'invente aucune valeur : chaque indicateur est un nombre positif ou nul issu des sources, ou null", () => {
     for (const p of donnees.pays) for (const [k, v] of Object.entries(p.indicateurs)) {
       if (v !== null) expect(v, `${p.iso3}.${k}`).toBeGreaterThanOrEqual(0);
     }
-    expect(Object.keys(donnees.sources)).toEqual(["owid_co2", "owid_energie"]);
+    expect(Object.keys(donnees.sources)).toEqual(["owid_co2", "owid_energie", "estimation"]); // estimation : PIB de 32 petits pays, listés dans trajectoires.json
   });
   it("donne des valeurs 2000 cohérentes avec les ordres de grandeur connus", () => {
     const pop = (iso: string) => donnees.pays.find(p => p.iso3 === iso)!.indicateurs.population! / 1e6;

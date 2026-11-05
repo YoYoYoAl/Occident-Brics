@@ -1,7 +1,7 @@
 """Calcule les scores 0-100 des 30 attributs pour les 50 pays en 2000 (v0.2).
 
-Usage : python3 -I outils/scores_attributs.py > src/data/scores2000.json
-Entrée : src/data/attributs2000.json (données réelles et estimations sourcées).
+Usage : python3 -I outils/scores_attributs.py [attributs2000.json] > src/data/scores2000.json
+Entrée : src/data/attributs2000.json par défaut (données réelles et estimations sourcées) ; 194 pays : donnees/monde/attributs2000.json.
 
 Principe demandé par l'utilisateur (25/10/2026) : « le but est d'être réaliste, pas forcément factuel ».
 Chaque score part d'une formule sur les données de 2000 (normalisation sur les 50 pays), puis les cas où la
@@ -11,8 +11,12 @@ avec leur raison. Tous les scores sont des estimations : 100 = le plus fort des 
 import json, math, os, sys
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-D = json.load(open(os.path.join(RACINE, "src", "data", "attributs2000.json"), encoding="utf-8"))
+ENTREE = next((a for a in sys.argv[1:] if a.endswith(".json")), os.path.join(RACINE, "src", "data", "attributs2000.json"))
+D = json.load(open(ENTREE, encoding="utf-8"))
 PAYS = list(D["pays"])
+# Extension (25/10/2026) : 144 autres membres de l'ONU. Les bornes des normalisations restent celles des 50 pays de la v0.2
+# (scores inchangés pour eux) ; les autres pays sont placés sur la même échelle, ramenés dans [0, 100].
+REFERENCE = PAYS[:50]
 
 
 def val(iso, cle):
@@ -21,12 +25,13 @@ def val(iso, cle):
 
 
 def norme(cle_ou_serie, log=False, inverse=False, bornes=None):
-    """Série normalisée 0-1 sur les 50 pays (min-max), en log si demandé ; pays sans valeur absents."""
+    """Série normalisée 0-1 sur les 50 pays de référence (min-max), en log si demandé ; pays sans valeur absents."""
     s = cle_ou_serie if isinstance(cle_ou_serie, dict) else {i: val(i, cle_ou_serie) for i in PAYS}
     s = {i: x for i, x in s.items() if x is not None and (not log or x > 0)}
     if log:
         s = {i: math.log10(x) for i, x in s.items()}
-    lo, hi = bornes if bornes else (min(s.values()), max(s.values()))
+    ref = [x for i, x in s.items() if i in REFERENCE]
+    lo, hi = bornes if bornes else (min(ref), max(ref))
     r = {i: min(1.0, max(0.0, (x - lo) / (hi - lo))) for i, x in s.items()}
     return {i: 1 - x for i, x in r.items()} if inverse else r
 
@@ -54,8 +59,8 @@ wgi = {i: sum(val(i, k) for k in ("efficaciteGouv", "qualiteRegl", "controleCorr
 energie = {i: sum(val(i, k) or 0 for k in ("prodPetrole", "prodGaz", "prodCharbon")) for i in PAYS}
 terres_rares = {i: 100 * math.sqrt(val(i, "terresRares") / 73000) for i in PAYS if val(i, "terresRares") is not None}
 
-# Les 17 pays mégadivers (PNUE-WCMC), réduits aux 50 pays du jeu.
-MEGADIVERS = {"AUS", "BRA", "CHN", "COL", "COD", "IND", "IDN", "MYS", "MEX", "PHL", "ZAF", "USA", "VEN"}
+# Les 17 pays mégadivers (PNUE-WCMC).
+MEGADIVERS = {"AUS", "BRA", "CHN", "COL", "COD", "IND", "IDN", "MYS", "MEX", "PHL", "ZAF", "USA", "VEN", "PER", "ECU", "MDG", "PNG"}
 
 FORMULES = {  # attribut -> (famille, définition affichée, scores bruts)
     "Énergie": ("ressources", "Production de pétrole, gaz et charbon (log)", melange((1, norme(energie, log=True, bornes=(1, 4.1))))),
@@ -176,19 +181,86 @@ AJUSTEMENTS = {
 }
 
 
+# Extension : valeur par défaut quand la donnée manque (pays absent de la source = pas de production, pas d'armée, etc.).
+ABSENT_MONDE = {"Énergie": (0, "pas de production fossile publiée"), "Métaux": (0, "pas de rente minière publiée"),
+                "Autres": (5, M), "Chimique": (0, "pas de stock connu"), "Terrestre": (0, "pas d'armée ou force symbolique")}
+# Inégalités : indice de Gini estimé par le projet (circa 2000) quand la Banque mondiale n'en publie pas ; score par la même formule.
+GINI_ESTIME = {"AND": 30, "CYP": 31, "LIE": 30, "MLT": 29, "MCO": 35, "MNE": 30, "SMR": 30, "SVK": 26, "AFG": 30, "BRN": 45,
+               "KHM": 40, "MMR": 38, "BHR": 45, "KWT": 45, "LBN": 40, "OMN": 45, "CAF": 61, "COM": 60, "COG": 47, "GNQ": 55,
+               "ERI": 45, "GAB": 42, "LBR": 38, "LBY": 40, "MUS": 37, "NER": 50, "SOM": 40, "SSD": 46, "SDN": 35, "TGO": 42,
+               "ZWE": 50, "ATG": 45, "BHS": 50, "BRB": 45, "DMA": 45, "GRD": 45, "KNA": 45, "LCA": 50, "VCT": 45, "TTO": 40,
+               "KIR": 37, "MHL": 40, "FSM": 40, "NRU": 35, "NZL": 33, "PLW": 40, "PNG": 50, "SLB": 37, "TUV": 39, "VUT": 38}
+MG = "Gini estimé à {} (circa 2000), estimation"
+AJUSTEMENTS_MONDE = {
+    "Énergie": {"SWE": (30, "nucléaire et hydroélectricité non comptés"), "CHE": (20, "nucléaire et hydroélectricité non comptés"),
+                "FIN": (20, "nucléaire et hydroélectricité non comptés"), "PRY": (20, "barrage d'Itaipu, grand exportateur d'électricité"),
+                "ISL": (10, "géothermie et hydroélectricité"), "EST": (15, "schistes bitumineux"), "ARM": (8, "centrale nucléaire de Metsamor"),
+                "PRT": (5, "hydroélectricité"), "CRI": (5, "hydroélectricité et géothermie"), "URY": (5, "hydroélectricité"),
+                "LKA": (3, "hydroélectricité"), "LSO": (3, "hydroélectricité"), "UGA": (3, "hydroélectricité"),
+                "BEL": (15, "nucléaire non compté"), "SVK": (12, "nucléaire non compté"), "LTU": (10, "centrale nucléaire d'Ignalina"),
+                "TJK": (10, "hydroélectricité"), "KGZ": (8, "hydroélectricité"), "BTN": (8, "hydroélectricité exportée vers l'Inde"),
+                "MOZ": (8, "barrage de Cahora Bassa"), "GEO": (5, "hydroélectricité"), "LAO": (5, "hydroélectricité"),
+                "ZMB": (5, "barrage de Kariba"), "GHA": (5, "barrage d'Akosombo")},
+    "Métaux": {"MRT": (25, "minerai de fer"), "AGO": (20, "diamants"), "BLR": (20, "potasse"), "JOR": (15, "potasse et phosphates"),
+               "SLE": (15, "diamants et rutile"), "TGO": (10, "phosphates"), "SRB": (10, "cuivre de Bor"), "ALB": (10, "chrome"),
+               "SYR": (8, "phosphates"), "LBR": (5, "fer, mines fermées par la guerre"), "LAO": (5, "or et cuivre"), "CZE": (5, "quelques mines"),
+               "KHM": (2, "quelques mines"), "AFG": (2, "gisements inexploités")},
+    "Terres rares": {"KGZ": (3, "part de l'ex-URSS"), "MOZ": (2, "production probable selon l'USGS")},
+    "Autres": {"ISL": (40, "pêche non comptée"), "MHL": (15, "pêche (licences thonières)"), "KIR": (15, "pêche (licences thonières)"),
+               "SDN": (30, M + " (bois, gomme arabique)"), "SSD": (25, M + " (bois)"), "SRB": (20, M), "MNE": (15, M), "SOM": (15, M + " (bois de feu, pêche)"),
+               "TJK": (5, M)},
+    "Agriculture": {"SRB": (50, M + " (plaine de Voïvodine)"), "MNE": (12, M), "SSD": (25, M), "MCO": (0, "pas de terres agricoles"),
+                    "NRU": (0, "pas de terres agricoles"), "TUV": (0, "pas de terres agricoles")},
+    "Éducation": {"GRD": (65, "taux de scolarisation bruts surestimés pour un micro-État"), "DMA": (65, "taux bruts surestimés pour un micro-État"),
+                  "KNA": (68, "taux bruts surestimés pour un micro-État"), "MCO": (80, "taux bruts surestimés pour un micro-État"), "MDA": (60, M), "AZE": (58, M), "TKM": (50, M), "SOM": (2, M + " (État effondré)"), "SSD": (2, M + " (guerre civile)")},
+    "Culture": {"SSD": (2, M)},
+    "Commerce": {"AND": (10, M), "LIE": (22, M + " (industrie exportatrice)"), "MCO": (10, M), "SMR": (8, M), "AFG": (2, M), "MDV": (8, M),
+                 "MMR": (15, M), "BDI": (1, M), "DJI": (6, M + " (port)"), "GNQ": (15, M + " (pétrole)"), "SWZ": (10, M), "LSO": (5, M),
+                 "LBR": (3, M), "MWI": (6, M), "STP": (1, M), "SOM": (2, M), "SSD": (2, M), "ATG": (5, M), "BRB": (10, M), "DMA": (2, M),
+                 "GRD": (2, M), "JAM": (18, M), "KNA": (2, M), "LCA": (4, M), "VCT": (2, M), "SUR": (8, M), "TTO": (25, M + " (gaz et pétrole)"),
+                 "NRU": (0, M), "PLW": (1, M), "TUV": (0, M)},
+    "Gestion": {"MCO": (80, M), "SMR": (75, M), "KNA": (58, M), "LCA": (60, M), "VCT": (58, M), "KIR": (42, M), "MHL": (38, M),
+                "FSM": (38, M), "NRU": (32, M), "PLW": (45, M), "SLB": (25, M + " (crise de 2000)"), "TON": (38, M), "TUV": (42, M),
+                "VUT": (38, M), "MNE": (40, M + " (Yougoslavie)"), "SSD": (3, M + " (guerre civile)")},
+    "Puissance financière": {"SSD": (3, M)},
+    "Infrastructure": {"SSD": (2, M)},
+    "Terrestre": {"SYR": (50, "grande armée, matériel soviétique vieilli"), "AFG": (30, "milices talibanes, pas d'armée régulière"),
+                  "ERI": (35, "armée de masse mal équipée"), "YEM": (30, "armée tribale peu équipée"), "SDN": (38, "armée en guerre civile"),
+                  "MCO": (1, "garde symbolique"), "MNE": (10, "armée yougoslave"), "SSD": (20, "armée rebelle du SPLM"), "TLS": (2, "force naissante"),
+                  "COM": (2, "petite armée"), "TON": (3, "petite armée"), "VUT": (2, "force paramilitaire"), "GRD": (1, "police"), "KNA": (1, "petite force")},
+    "Chimique": {"SYR": (55, "non partie, stock important présumé"), "LBY": (35, "non partie, stock de gaz moutarde (déclaré en 2004)"),
+                 "MMR": (5, "soupçons")},
+    "Terre": {"SRB": (45, M), "MNE": (12, M), "SSD": (55, M), "SDN": (70, M + " (avant la partition)"), "MCO": (0, "cité-État")},
+    "Eau": {"MNE": (75, M), "SSD": (40, M), "LIE": (80, M + " (comme la Suisse)"), "MCO": (60, M), "SMR": (70, M), "KWT": (5, "aucune eau douce renouvelable, dessalement"),
+            "SYC": (50, M), "MHL": (35, M + " (atolls)"), "KIR": (30, M + " (atolls)"), "TUV": (25, M + " (atolls, citernes)"), "TON": (45, M),
+            "FSM": (70, M), "PLW": (70, M), "WSM": (70, M), "SRB": (60, M + " (Danube, eaux transfrontalières)")},
+    "Forêt": {"SRB": (38, M), "MNE": (55, M), "SSD": (45, M), "SDN": (40, M + " (avant la partition)")},
+    "Air": {"LIE": (75, M + " (comme la Suisse)")},
+    "Climat": {"MCO": (30, "émissions comptées avec la France, estimation"), "SMR": (27, "émissions comptées avec l'Italie, estimation")},
+}
+
+
 def main():
     attributs, pays = {}, {i: {"nom": D["pays"][i]["nom"], "scores": {}} for i in PAYS}
     for attribut, (famille, definition, bruts) in FORMULES.items():
         ajust = AJUSTEMENTS.get(attribut, {})
         attributs[attribut] = {"famille": famille, "definition": definition,
                                "ajustements": {i: r for i, (_, r) in ajust.items()}}
+        monde = AJUSTEMENTS_MONDE.get(attribut, {})
+        if attribut == "Inégalités":
+            monde = {**{i: (100 * (60 - g) / 35, MG.format(g)) for i, g in GINI_ESTIME.items()}, **monde}
+        for i in PAYS:
+            if i not in REFERENCE and bruts.get(i) is None and i not in monde and attribut in ABSENT_MONDE:
+                monde[i] = ABSENT_MONDE[attribut]
+        ajust = {**ajust, **{i: v for i, v in monde.items() if i not in REFERENCE and (bruts.get(i) is None or i in AJUSTEMENTS_MONDE.get(attribut, {}))}}
+        attributs[attribut]["ajustements"] = {i: r for i, (_, r) in ajust.items()}
         for i in PAYS:
             s = ajust[i][0] if i in ajust else bruts.get(i)
             if s is None:
                 raise SystemExit(f"{attribut} : aucun score pour {i}, ajouter un ajustement")
             pays[i]["scores"][attribut] = round(min(100.0, max(0.0, s)))
-    json.dump({"annee": 2000, "principe": "Estimations réalistes 0-100 (100 = le plus fort des 50 pays), "
-               "formule sur les données 2000 puis corrections de réalisme documentées",
+    json.dump({"annee": 2000, "principe": "Estimations réalistes 0-100 (100 = le plus fort des 50 pays de la v0.2 ; les 144 autres "
+               "membres de l'ONU sont placés sur la même échelle), formule sur les données 2000 puis corrections de réalisme documentées",
                "attributs": attributs, "pays": pays}, sys.stdout, ensure_ascii=False, indent=1)
 
 

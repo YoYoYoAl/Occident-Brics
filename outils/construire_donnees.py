@@ -4,7 +4,7 @@ Usage : python3 -I outils/construire_donnees.py <owid-co2-data.csv> <owid-energy
 Sources (téléchargées depuis GitHub, dépôts owid/co2-data et owid/energy-data) :
 voir SOURCES ci-dessous. Aucune valeur n'est inventée : un indicateur absent reste null.
 """
-import csv, json, sys
+import csv, json, os, sys
 
 PAYS = {  # ISO3 -> nom français
     "USA": "États-Unis", "CHN": "Chine", "RUS": "Russie", "IND": "Inde", "BRA": "Brésil",
@@ -18,6 +18,9 @@ PAYS = {  # ISO3 -> nom français
     "NGA": "Nigeria", "ETH": "Éthiopie", "KEN": "Kenya", "DZA": "Algérie", "COD": "RD Congo",
     "VEN": "Venezuela", "COL": "Colombie", "CHL": "Chili", "CUB": "Cuba", "PAN": "Panama",
 }
+# Extension (25/10/2026) : les 144 autres membres de l'ONU (outils/pays_monde.json), après les 50 pays de la v0.2.
+PAYS.update({iso: p["nom"] for iso, p in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "pays_monde.json"),
+                                                       encoding="utf-8")).items()})
 
 SOURCES = {
     "owid_co2": "Our World in Data, co2-data (github.com/owid/co2-data) : population (UN WPP et autres, 2024), PIB (Maddison Project Database 2023, $ internationaux 2011), CO2 (Global Carbon Budget 2025)",

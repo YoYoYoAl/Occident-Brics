@@ -1,4 +1,4 @@
-"""Collecte les données réelles de l'an 2000 pour les 30 attributs des 50 pays (v0.2).
+"""Collecte les données réelles de l'an 2000 pour les 30 attributs des 194 pays (v0.2 : 50 pays ; extension : 143 autres membres de l'ONU).
 
 Usage : python3 -I outils/collecter_attributs.py <dossier_cache> > src/data/attributs2000.json
 Dépendances : openpyxl (lecture du fichier SIPRI), pdftotext de poppler-utils (lecture du PDF de l'USGS). Les téléchargements sont gardés dans <dossier_cache>.
@@ -36,6 +36,11 @@ PAYS = {  # ISO3 -> (nom français, nom anglais utilisé par Wikipedia)
     "COD": ("RD Congo", "Congo, Democratic Republic of the"), "VEN": ("Venezuela", "Venezuela"),
     "COL": ("Colombie", "Colombia"), "CHL": ("Chili", "Chile"), "CUB": ("Cuba", "Cuba"), "PAN": ("Panama", "Panama"),
 }
+# Les 50 pays de la v0.2 servent de référence aux normalisations : leurs valeurs ne changent pas avec l'extension.
+REFERENCE = list(PAYS)
+# Extension (25/10/2026) : les autres membres de l'ONU, dans outils/pays_monde.json (ISO3 -> nom, nom anglais, code numérique).
+MONDE = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "pays_monde.json"), encoding="utf-8"))
+PAYS.update({iso: (p["nom"], p["en"]) for iso, p in MONDE.items()})
 
 SOURCES = {
     "bm_wdi": {"nom": "Banque mondiale, World Development Indicators", "url": "https://api.worldbank.org/v2/ (source 2)"},
@@ -68,8 +73,8 @@ ind("agriPib", "Agriculture, sylviculture et pêche", "% du PIB", "ressources", 
 ind("rentesMinerales", "Rentes minérales (métaux et minerais)", "% du PIB", "ressources", "Métaux", "bm_wdi", "NY.GDP.MINR.RT.ZS")
 ind("exportsMetaux", "Exportations de minerais et métaux", "% des exportations de marchandises", "ressources", "Métaux", "bm_wdi", "TX.VAL.MMTL.ZS.UN")
 ind("terresRares", "Production minière de terres rares", "t d'oxydes (REO)", "ressources", "Terres rares", "usgs", "Minerals Yearbook 2000, Rare earths, table 6",
-    "Valeurs 2000 estimées par l'USGS ; 0 = pays absent de la liste des producteurs ; null : ex-URSS (2 000 t non réparties entre Russie, Kazakhstan, Ukraine) "
-    "et pays dont l'USGS juge la production probable mais inconnue (Indonésie, Corée du Nord, Viêt Nam)")
+    "Valeurs 2000 estimées par l'USGS ; 0 = pays absent de la liste des producteurs ; null : ex-URSS (2 000 t non réparties entre Russie, Kazakhstan, Ukraine, Kirghizistan) "
+    "et pays dont l'USGS juge la production probable mais inconnue (Indonésie, Corée du Nord, Viêt Nam, Mozambique)")
 ind("rentesNaturelles", "Rentes totales des ressources naturelles", "% du PIB", "ressources", "Autres", "bm_wdi", "NY.GDP.TOTL.RT.ZS")
 ind("rentesForestieres", "Rentes forestières", "% du PIB", "ressources", "Autres", "bm_wdi", "NY.GDP.FRST.RT.ZS")
 # Population
@@ -130,8 +135,8 @@ ind("indiceAerien", "Puissance aérienne estimée", "0 à 100 (États-Unis = 100
     "entraînement, soutien), pas une mesure ; à ajuster au jeu")
 ind("indiceCyber", "Indice cyber estimé", "0 à 100", "militaire", "Cyber", "calcul", "50 % rang + 25 % internautes + 25 % dépenses militaires",
     "ESTIMATION : 50 % rang étatique fixé par le projet (1 : États-Unis ; 2 : Russie, Chine, Royaume-Uni, Israël, France ; "
-    "3 : Allemagne, Canada, Australie, Japon, Corée du Sud, Inde, Taïwan, Pays-Bas, Corée du Nord), 25 % nombre d'internautes "
-    "et 25 % dépenses militaires (échelles logarithmiques, normalisées sur les 50 pays)")
+    "3 : Allemagne, Canada, Australie, Japon, Corée du Sud, Inde, Taïwan, Pays-Bas, Corée du Nord, Suède), 25 % nombre d'internautes "
+    "et 25 % dépenses militaires (échelles logarithmiques, normalisées sur les 50 pays de la v0.2)")
 ind("objetsSpatiaux", "Objets lancés dans l'espace (cumul)", "objets", "militaire", "Spatial", "owid_grapher", "cumulative-number-of-objects-launched-into-outer-space", "Registre de l'ONU (UNOOSA) via Our World in Data ; 0 si le pays n'apparaît pas")
 ind("lanceurOrbital", "Lancement orbital autonome réussi avant 2001", "1 = oui, 0 = non", "militaire", "Spatial", "wikipedia", "Timeline_of_first_orbital_launches_by_country@1380598983", "Russie : premier lancement de l'Union soviétique (1957), dont elle a repris le programme ; Ukraine : 1991 selon la page")
 ind("partieCiac", "Partie à la Convention sur les armes chimiques fin 2000", "1 = oui, 0 = non", "militaire", "Chimique", "wikipedia", "List_of_parties_to_the_Chemical_Weapons_Convention@1357135945", "Date d'entrée en vigueur pour l'État ; Taïwan non éligible (null)")
@@ -215,6 +220,16 @@ def owid_csv(chemin, colonne, cle_iso="iso_code", cle_annee="year"):
     return series
 
 
+# Noms des pays de l'extension dans les fichiers du SIPRI, quand ils diffèrent du nom anglais de outils/pays_monde.json.
+ALIAS_SIPRI = {"Congo, Republic": "COG", "Cote d'Ivoire": "CIV", "Gambia, The": "GMB", "Timor Leste": "TLS", "Kyrgyz Republic": "KGZ",
+               "Czechia": "CZE", "Cabo Verde": "CPV", "Congo": "COG", "Gambia": "GMB", "Timor-Leste": "TLS", "Kyrgyzstan": "KGZ",
+               "Bahamas": "BHS", "Micronesia": "FSM", "Brunei Darussalam": "BRN", "Lao PDR": "LAO", "Sao Tome and Principe": "STP",
+               "Saint Vincent": "VCT", "Saint Kitts and Nevis": "KNA", "Eswatini": "SWZ", "Swaziland": "SWZ", "Macedonia (FYROM)": "MKD",
+               "North Macedonia": "MKD", "Bosnia-Herzegovina": "BIH", "Yemen": "YEM", "Myanmar": "MMR", "Syria": "SYR", "Moldova": "MDA"}
+# Registre des transferts : États prédécesseurs rattachés au successeur principal (Tchécoslovaquie, Yougoslavie, deux Yémen).
+PREDECESSEURS_SIPRI = {"Czechoslovakia": "CZE", "Yugoslavia": "SRB", "Serbia and Montenegro": "SRB", "North Yemen": "YEM", "South Yemen": "YEM"}
+
+
 def sipri(cache, feuille):
     import openpyxl
     wb = openpyxl.load_workbook(telecharger(SOURCES["sipri"]["url"], cache, "sipri.xlsx"), read_only=True, data_only=True)
@@ -230,14 +245,15 @@ def sipri(cache, feuille):
             "Viet Nam": "VNM", "Thailand": "THA", "Malaysia": "MYS", "Singapore": "SGP", "Philippines": "PHL",
             "Korea, North": "PRK", "Taiwan": "TWN", "Kazakhstan": "KAZ", "Bangladesh": "BGD", "Nigeria": "NGA",
             "Ethiopia": "ETH", "Kenya": "KEN", "Algeria": "DZA", "Congo, DR": "COD", "Venezuela": "VEN",
-            "Colombia": "COL", "Chile": "CHL", "Cuba": "CUB", "Panama": "PAN"}
+            "Colombia": "COL", "Chile": "CHL", "Cuba": "CUB", "Panama": "PAN",
+            **{en: iso for iso, (_, en) in PAYS.items() if iso not in REFERENCE}, **ALIAS_SIPRI}
     series = {}
     for l in lignes[entete + 1:]:
         if l and isinstance(l[0], str) and l[0].strip() in noms:
             iso = noms[l[0].strip()]
             series[iso] = {a: (float(l[j]) if isinstance(l[j], (int, float)) else None)
                            for a, j in cols.items() if abs(a - ANNEE) <= FENETRE}
-    manquants = sorted(set(noms.values()) - set(series))
+    manquants = sorted(set(REFERENCE) - set(series))
     if manquants:
         raise SystemExit(f"SIPRI {feuille} : pays introuvables {manquants}")
     return {iso: choisir(series.get(iso, {})) for iso in PAYS}
@@ -247,6 +263,21 @@ def wikitexte(code, cache):
     titre, rev = code.split("@")
     url = f"https://en.wikipedia.org/w/index.php?oldid={rev}&action=raw"
     return open(telecharger(url, cache, f"wp_{rev}.txt"), encoding="utf-8").read()
+
+
+# Autres graphies des noms anglais de outils/pays_monde.json dans les pages Wikipedia.
+AUTRES_NOMS = {"The Gambia": ["Gambia"], "The Bahamas": ["Bahamas"], "Ivory Coast": ["Côte d'Ivoire", "Cote d'Ivoire"],
+               "East Timor": ["Timor-Leste"], "Czech Republic": ["Czechia"], "Republic of the Congo": ["Congo", "Congo, Republic of the"],
+               "Federated States of Micronesia": ["Micronesia"], "São Tomé and Príncipe": ["Sao Tome and Principe"],
+               "Eswatini": ["Swaziland"], "North Macedonia": ["Macedonia", "Republic of Macedonia"], "Cape Verde": ["Cabo Verde"],
+               "Myanmar": ["Burma"], "Brunei": ["Brunei Darussalam"], "Laos": ["Lao PDR"], "Georgia": ["Georgia (country)"],
+               "Bosnia and Herzegovina": ["Bosnia-Herzegovina"], "Saint Lucia": ["St. Lucia"],
+               "Saint Vincent and the Grenadines": ["St. Vincent and the Grenadines"]}
+
+
+def nom_wp(en, table):
+    """Nom sous lequel le pays apparaît dans la table lue sur Wikipedia (le nom anglais par défaut)."""
+    return next((n for n in [en] + AUTRES_NOMS.get(en, []) if n in table), en)
 
 
 MOIS = {m: i for i, m in enumerate(["January", "February", "March", "April", "May", "June", "July", "August",
@@ -270,6 +301,7 @@ def ciac(cache):
         if iso == "TWN":
             sortie[iso] = None
         else:
+            en = nom_wp(en, parties)
             sortie[iso] = {"v": 1 if en in parties and parties[en] <= (ANNEE, 12, 31) else 0, "a": ANNEE}
     return sortie
 
@@ -293,8 +325,17 @@ def stock_chimique(cache, partie):
         if p is None or p["v"] == 0:
             sortie[iso] = None
         else:
-            sortie[iso] = {"v": stocks.get(en, 0.0), "a": ANNEE}
+            sortie[iso] = {"v": stocks.get(nom_wp(en, stocks), 0.0), "a": ANNEE}
     return sortie, stocks
+
+
+# Micro-États absents du tableau Pew : composition estimée par le projet (même ordre que RELIGIONS :
+# chrétiens, musulmans, sans religion, hindous, bouddhistes, autres, juifs), en %.
+RELIGIONS_HORS_PEW = {
+    "AND": (90, 1, 9, 0, 0, 0, 0), "LIE": (88, 6, 5, 0, 0, 1, 0), "MCO": (86, 1, 11, 0, 0, 0, 2), "SMR": (92, 0, 7, 0, 0, 1, 0),
+    "ATG": (93, 0, 4, 0, 0, 3, 0), "DMA": (95, 0, 4, 0, 0, 1, 0), "KNA": (94, 0, 3, 1, 0, 2, 0), "MHL": (97, 0, 2, 0, 0, 1, 0),
+    "NRU": (90, 0, 5, 0, 2, 3, 0), "PLW": (88, 0, 2, 0, 1, 9, 0), "TUV": (97, 0, 1, 0, 0, 2, 0),
+}
 
 
 def religions(cache):
@@ -314,11 +355,18 @@ def religions(cache):
              "Congo, Democratic Republic of the": "Democratic Republic of the Congo"}
     sortie = {cle: {} for cle, _, _ in RELIGIONS}
     for iso, (_, en) in PAYS.items():
-        l = lignes[alias.get(en, en)]
-        if abs(sum(l[col] for _, col, _ in RELIGIONS) / l["Total"] - 1) > 0.02:
+        if iso in RELIGIONS_HORS_PEW:
+            for cle, part in zip((c for c, _, _ in RELIGIONS), RELIGIONS_HORS_PEW[iso]):
+                sortie[cle][iso] = {"v": float(part), "a": 2020, "e": 1, "s": "estimation_projet", "c": "RELIGIONS_HORS_PEW"}
+            continue
+        l = lignes[alias[en] if en in alias else nom_wp(en, lignes)]
+        # tolérance : 2 %, ou les « <10 000 » comptés 0 et les arrondis à 10 000 près pour les petits pays
+        if abs(sum(l[col] for _, col, _ in RELIGIONS) - l["Total"]) > max(0.02 * l["Total"], 10000 * len(RELIGIONS)):
             raise SystemExit(f"Religions {iso} : la somme ne fait pas le total")
+        # extension : parts rapportées à leur somme (les arrondis à 10 000 près faussent le total des petits pays)
+        total = l["Total"] if iso in REFERENCE else sum(l[col] for _, col, _ in RELIGIONS)
         for cle, col, _ in RELIGIONS:
-            sortie[cle][iso] = {"v": round(100 * l[col] / l["Total"], 2), "a": 2020, "e": 1}
+            sortie[cle][iso] = {"v": round(100 * l[col] / total, 2), "a": 2020, "e": 1}
     return sortie
 
 
@@ -329,7 +377,7 @@ def terres_rares(cache):
     texte = subprocess.run(["pdftotext", "-layout", pdf, "-"], capture_output=True, text=True, check=True).stdout
     i = texte.index("RARE EARTHS: WORLD MINE PRODUCTION, BY COUNTRY")
     table = texte[i:texte.index("Total", i)]
-    noms = {"China": "CHN", "India": "IND", "Malaysia": "MYS", "Thailand": "THA", "United States": "USA"}
+    noms = {"China": "CHN", "India": "IND", "Malaysia": "MYS", "Thailand": "THA", "United States": "USA", "Sri Lanka": "LKA"}
     prod = {}
     for ligne in table.split("\n"):
         m = re.match(r"\s*([A-Z][A-Za-z. ]+?)(?: e/)?(?: \d/)*\s{2,}(.+)$", ligne)
@@ -338,7 +386,7 @@ def terres_rares(cache):
             prod[noms[m.group(1).strip()]] = 0.0 if cellule.startswith("--") else float(cellule.replace(",", ""))
     if prod.get("CHN") != 73000 or len(prod) != len(noms):
         raise SystemExit(f"USGS terres rares : lecture douteuse {prod}")
-    inconnus = {"RUS", "KAZ", "UKR", "IDN", "PRK", "VNM"}
+    inconnus = {"RUS", "KAZ", "UKR", "KGZ", "IDN", "PRK", "VNM", "MOZ"}
     return {iso: None if iso in inconnus else {"v": prod.get(iso, 0.0), "a": ANNEE} for iso in PAYS}
 
 
@@ -367,7 +415,8 @@ def transferts_sipri(cache, categorie, entite, debut=1981, fin=2000):
             "Viet Nam": "VNM", "Thailand": "THA", "Malaysia": "MYS", "Singapore": "SGP", "Philippines": "PHL", "North Korea": "PRK",
             "Taiwan": "TWN", "Kazakhstan": "KAZ", "Bangladesh": "BGD", "Nigeria": "NGA", "Ethiopia": "ETH", "Kenya": "KEN",
             "Algeria": "DZA", "DR Congo": "COD", "Venezuela": "VEN", "Colombia": "COL", "Chile": "CHL", "Cuba": "CUB", "Panama": "PAN",
-            "Soviet Union": "RUS", "West Germany": "DEU", "East Germany": "DEU"}  # États prédécesseurs rattachés au successeur
+            "Soviet Union": "RUS", "West Germany": "DEU", "East Germany": "DEU",  # États prédécesseurs rattachés au successeur
+            **{en: iso for iso, (_, en) in PAYS.items() if iso not in REFERENCE}, **ALIAS_SIPRI, **PREDECESSEURS_SIPRI}
     total = {}
     for l in lignes[1:]:
         if len(l) > col and l[0] in noms and l[col].strip():
@@ -387,22 +436,28 @@ ESTIMATIONS_MILITAIRES = {
     "MYS": (4, 4), "POL": (4, 6), "VNM": (3, 5), "ZAF": (3, 4), "MEX": (3, 2), "DZA": (3, 5), "PHL": (2, 1), "ARE": (2, 6),
     "VEN": (2, 3), "COL": (2, 2), "BGD": (2, 2), "CUB": (1, 2), "QAT": (1, 2), "NGA": (1, 2), "KEN": (1, 1), "IRQ": (1, 4),
     "KAZ": (1, 4), "PAN": (1, 0), "ETH": (0, 2), "COD": (0, 0),
+    # Extension (25/10/2026), même échelle ; pays absents de la liste = (0, 0) : pas de force navale ou aérienne notable.
+    "GRC": (6, 9), "SWE": (4, 8), "SYR": (1, 6), "PER": (3, 3), "BLR": (0, 4), "CHE": (0, 3), "ROU": (2, 3), "MAR": (1, 3),
+    "LBY": (1, 3), "UZB": (0, 3), "JOR": (0, 3), "BEL": (1, 4), "DNK": (2, 2), "PRT": (2, 2), "FIN": (1, 3), "SRB": (1, 2),
+    "BGR": (1, 2), "CZE": (0, 2), "KWT": (0, 2), "OMN": (1, 2), "MMR": (1, 2), "AGO": (0, 2), "NZL": (1, 1), "ECU": (1, 1),
+    "LKA": (1, 1), "HRV": (1, 1), "HUN": (0, 1), "SVK": (0, 1), "AUT": (0, 1), "ARM": (0, 1), "AZE": (0, 1), "TKM": (0, 1),
+    "BHR": (0, 1), "YEM": (0, 1), "TUN": (0, 1), "SDN": (0, 1), "ERI": (0, 1), "ZWE": (0, 1), "URY": (1, 0),
 }
 
 # Rang cyber en 2000, jugement du projet (à valider par l'utilisateur) : 1 = puissance de premier plan,
 # 2 = grande agence de renseignement électronique établie, 3 = capacité étatique notable.
 RANGS_CYBER = {"USA": 1, "RUS": 2, "CHN": 2, "GBR": 2, "ISR": 2, "FRA": 2,
-               "DEU": 3, "CAN": 3, "AUS": 3, "JPN": 3, "KOR": 3, "IND": 3, "TWN": 3, "NLD": 3, "PRK": 3}
+               "DEU": 3, "CAN": 3, "AUS": 3, "JPN": 3, "KOR": 3, "IND": 3, "TWN": 3, "NLD": 3, "PRK": 3, "SWE": 3}
 
 
 def indice_cyber(valeurs):
     """50 % rang (1 -> 100, 2 -> 70, 3 -> 40, autres 0) + 25 % internautes (nombre absolu, log)
-    + 25 % dépenses militaires (log), normalisés min-max sur les 50 pays ; pondération recalculée si une valeur manque."""
+    + 25 % dépenses militaires (log), normalisés min-max sur les 50 pays de référence ; pondération recalculée si une valeur manque."""
     import math
-    def norme_log(x):
+    def norme_log(x):  # bornes prises sur les 50 pays de référence, les autres pays sont ramenés dans [0, 1]
         x = {k: math.log10(v) for k, v in x.items() if v and v > 0}
-        lo, hi = min(x.values()), max(x.values())
-        return {k: (v - lo) / (hi - lo) for k, v in x.items()}
+        lo, hi = min(x[k] for k in REFERENCE if k in x), max(x[k] for k in REFERENCE if k in x)
+        return {k: min(1.0, max(0.0, (v - lo) / (hi - lo))) for k, v in x.items()}
     g = lambda iso, cle: (valeurs[cle][iso] or {}).get("v")
     internautes = norme_log({iso: g(iso, "internet") * g(iso, "population") / 100 for iso in PAYS
                              if g(iso, "internet") is not None and g(iso, "population")})
@@ -432,7 +487,7 @@ def premier_lancement(cache):
         par_pays.setdefault(alias.get(nom, nom), a)
     if par_pays.get("United States") != 1958 or par_pays.get("Russia") != 1957:
         raise SystemExit(f"Lancements orbitaux : lecture douteuse {par_pays}")
-    return {iso: {"v": 1 if par_pays.get(en, 9999) <= ANNEE else 0, "a": ANNEE} for iso, (_, en) in PAYS.items()}
+    return {iso: {"v": 1 if par_pays.get(nom_wp(en, par_pays), 9999) <= ANNEE else 0, "a": ANNEE} for iso, (_, en) in PAYS.items()}
 
 
 def cumul(series):
@@ -485,7 +540,7 @@ def main(cache):
     valeurs["avionsImportes"] = transferts_sipri(cache, "Aircraft", 1150363)
     valeurs["indiceCyber"] = indice_cyber(valeurs)
     for j, cle in enumerate(("indiceNaval", "indiceAerien")):
-        valeurs[cle] = {iso: {"v": float(ESTIMATIONS_MILITAIRES[iso][j]), "a": ANNEE, "e": 1} for iso in PAYS}
+        valeurs[cle] = {iso: {"v": float(ESTIMATIONS_MILITAIRES.get(iso, (0, 0))[j]), "a": ANNEE, "e": 1} for iso in PAYS}
     for cle, (src, code) in COMPLEMENTS.items():
         s = serie_owid(src, code, co2, energie, cache)
         for iso in PAYS:

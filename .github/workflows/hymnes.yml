@@ -1,0 +1,21 @@
+name: Collecter les hymnes
+# Télécharge les hymnes nationaux (Wikidata + Wikimedia Commons, licences libres) et les dépose sur la branche.
+# Lancé quand le script change sur une branche claude/**, ou à la main.
+on:
+  push:
+    branches: ["claude/**"]
+    paths: ["outils/hymnes/**"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  hymnes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - run: python3 outils/hymnes/collecter_hymnes.py
+      - run: |
+          git config user.name "github-actions[bot]" && git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add public/hymnes src/data/hymnes.json
+          git commit -qm "Hymnes nationaux collectés (Wikimedia Commons, licences libres)" && git push

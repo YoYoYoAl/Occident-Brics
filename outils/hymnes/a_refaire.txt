@@ -1,0 +1,8 @@
+# Hymnes à recollecter : code ISO3, puis éventuellement le titre exact du fichier Commons à imposer,
+# « ?texte » pour une recherche Commons dédiée, ou « - » pour laisser le pays sans hymne.
+# Les pays absents du CSV sont recollectés d'office.
+COD -   # seul résultat : Vers l'avenir (chant patriotique belge)
+BIH -   # seul résultat : présentation d'un projet de paroles (2009), pas l'hymne joué
+MNG -   # seul résultat : Zuun Langiin Joroo Luus (chanson populaire)
+CMR -   # aucun enregistrement libre trouvé
+GNB -   # aucun enregistrement libre trouvé
